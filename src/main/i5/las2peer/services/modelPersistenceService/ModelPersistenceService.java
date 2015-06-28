@@ -94,8 +94,6 @@ public class ModelPersistenceService extends Service {
   @Summary("Entry point for storing a model to the database.")
   public HttpResponse postModel(@ContentParam String inputModel) {
 
-
-
     // take the whole model, then parse it into model-attributes, nodes and edges
     JSONObject completeModel = (JSONObject) JSONValue.parse(inputModel);
 
@@ -106,6 +104,7 @@ public class ModelPersistenceService extends Service {
 
     // TODO: big if case switch thing here, to see what we are dealing with (application, frontend
     // component or microservice)
+
 
     // a new home for nodes and edges
     Node[] nodes;
@@ -140,7 +139,6 @@ public class ModelPersistenceService extends Service {
         String key = entry.getKey();
         JSONObject value = (JSONObject) entry.getValue();
         edges[index] = new Edge(key, value);
-        System.out.println(edges[index].toJSONString());
         index++;
       }
 
