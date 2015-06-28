@@ -28,12 +28,11 @@ public class ModelAttributes {
    * Returns the JSON representation of this model attribute. The representation is rather specific
    * to SyncMeta and should not be taken as a generic example of a JSON object representation.
    * 
-   * @return a JSON object as a string representing a (SyncMeta) compatible model attribute
-   * representation
+   * @return a JSON object representing a (SyncMeta) compatible model attribute representation
    * 
    */
   @SuppressWarnings("unchecked")
-  public String toJSONString() {
+  public JSONObject toJSONObject() {
     // main object
     JSONObject modelAttribute = new JSONObject();
     // start with the (empty) position elements and type
@@ -59,6 +58,6 @@ public class ModelAttributes {
     // attribute element of modelAttributeContent (currently empty)
     modelAttribute.put("attributes", "");
 
-    return modelAttribute.toJSONString();
+    return modelAttribute;
   }
 }

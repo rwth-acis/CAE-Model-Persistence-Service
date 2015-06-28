@@ -147,7 +147,7 @@ public class ModelPersistenceServiceTest {
       ClientResponse result = c.sendRequest("POST", mainPath, payload.toJSONString(),
           MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, new Pair[] {});
       assertEquals(201, result.getHttpCode());
-      // System.out.println("Result of 'testModelPosting': " + result.getResponse().trim());
+      System.out.println("Result of 'testModelPosting': " + result.getResponse().trim());
     } catch (Exception e) {
       e.printStackTrace();
       fail("Exception: " + e);

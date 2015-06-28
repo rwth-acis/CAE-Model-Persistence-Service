@@ -1,6 +1,5 @@
 package i5.las2peer.services.modelPersistenceService.models.nodes;
 
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -70,46 +69,44 @@ public class Node {
    * Returns the JSON representation of this node. This representation is rather specific to
    * SyncMeta and should not be taken as a generic example of a JSON object representation.
    * 
-   * @return a JSON object as a string representing a (SyncMeta) compatible node representation
+   * @return a JSON object representing a (SyncMeta) compatible node representation
    * 
    */
   @SuppressWarnings("unchecked")
-  public String toJSONString() {
-    // main object
-    JSONObject node = new JSONObject();
+  public JSONObject toJSONObject() {
     // content of main object
-    Map<String, Object> nodeContent = new HashMap<String, Object>();
+    JSONObject jsonNode = new JSONObject();
 
     // start with the position elements and type
-    nodeContent.put("left", position.getLeft());
-    nodeContent.put("top", position.getTop());
-    nodeContent.put("width", position.getWidth());
-    nodeContent.put("height", position.getHeight());
-    nodeContent.put("zIndex", position.getzIndex());
-    nodeContent.put("type", type);
+    jsonNode.put("left", position.getLeft());
+    jsonNode.put("top", position.getTop());
+    jsonNode.put("width", position.getWidth());
+    jsonNode.put("height", position.getHeight());
+    jsonNode.put("zIndex", position.getzIndex());
+    jsonNode.put("type", type);
 
     // label element of nodeContent
-    Map<String, Object> label = new HashMap<String, Object>();
+    JSONObject label = new JSONObject();
     label.put("id", this.id + "[name]");
     // currently, SyncMeta supports only "name" as label for nodes.
     // Important: if one has no "name" attribute in the node, this will not work.
     label.put("name", "name");
-    Map<String, Object> labelValue = new HashMap<String, Object>();
+    JSONObject labelValue = new JSONObject();
     labelValue.put("id", this.id + "[name]");
     labelValue.put("name", "name");
     // at this point we have to "wait" for the attributes to be read out, since the "value" of the
     // name can be derived from the attribute with the name "name"
 
     // attribute element of nodeContent
-    Map<String, Object> attributes = new HashMap<String, Object>();
+    JSONObject attributes = new JSONObject();
     for (int attributeIndex = 0; attributeIndex < this.attributes.length; attributeIndex++) {
       EntityAttribute currentAttribute = this.attributes[attributeIndex];
-      Map<String, Object> attributeContent = new HashMap<String, Object>();
+      JSONObject attributeContent = new JSONObject();
       attributeContent.put("id", this.id + "[" + currentAttribute.getName() + "]");
       attributeContent.put("name", currentAttribute.getName());
 
       // value of attribute
-      Map<String, Object> attributeValue = new HashMap<String, Object>();
+      JSONObject attributeValue = new JSONObject();
       attributeValue.put("id", this.id + "[" + currentAttribute.getName() + "]");
       attributeValue.put("name", currentAttribute.getName());
       attributeValue.put("value", currentAttribute.getValue());
@@ -127,10 +124,9 @@ public class Node {
     }
 
     // add label and attributes to node content, then finally add content to node
-    nodeContent.put("label", label);
-    nodeContent.put("attributes", attributes);
-    node.put(this.id, nodeContent);
-    return node.toJSONString();
+    jsonNode.put("label", label);
+    jsonNode.put("attributes", attributes);
+    return jsonNode;
   }
 
 }

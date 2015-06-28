@@ -92,7 +92,7 @@ public class ModelPersistenceService extends Service {
       @ApiResponse(code = 500, message = "Internal server error")})
   @Summary("Entry point for storing a model to the database.")
   public HttpResponse postModel(@ContentParam String inputModel) {
-    System.out.println("fuck you");
+
     // Generate a new (first only temporary) model
     Model model;
     Node[] nodes;
@@ -104,7 +104,6 @@ public class ModelPersistenceService extends Service {
       JSONObject completeJsonModel = (JSONObject) JSONValue.parse(inputModel);
       JSONObject jsonAttribute = (JSONObject) completeJsonModel.get("attributes");
       attributes = new ModelAttributes(jsonAttribute);
-      System.out.println(attributes.toJSONString());
       // resolve nodes and edges now
       JSONObject jsonNodes = (JSONObject) completeJsonModel.get("nodes");
       JSONObject jsonEdges = (JSONObject) completeJsonModel.get("edges");
@@ -141,6 +140,7 @@ public class ModelPersistenceService extends Service {
     }
     // create the model
     model = new Model(attributes, nodes, edges);
+    System.out.println(model.toJSONObject().toJSONString());
     HttpResponse r = new HttpResponse("Model stored");
     r.setStatus(201);
     return r;

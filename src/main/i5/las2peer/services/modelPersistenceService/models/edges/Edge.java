@@ -1,6 +1,5 @@
 package i5.las2peer.services.modelPersistenceService.models.edges;
 
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -52,6 +51,10 @@ public class Edge {
     }
   }
 
+  public String getId() {
+    return this.id;
+  }
+
   public String getSourceNode() {
     return this.sourceNode;
   }
@@ -76,56 +79,50 @@ public class Edge {
    * Returns the JSON representation of this edge. This representation is rather specific to
    * SyncMeta and should not be taken as a generic example of a JSON object representation.
    * 
-   * @return a JSON object as a string representing a (SyncMeta) compatible edge representation
+   * @return a JSON object representing a (SyncMeta) compatible edge representation
    * 
    */
   @SuppressWarnings("unchecked")
-  public String toJSONString() {
+  public JSONObject toJSONObject() {
     // main object
-    JSONObject edge = new JSONObject();
-    // content of main object
-    Map<String, Object> edgeContent = new HashMap<String, Object>();
+    JSONObject jsonEdge = new JSONObject();
 
     // start with the source, target and type
-    edgeContent.put("source", this.sourceNode);
-    edgeContent.put("target", this.targetNode);
-    edgeContent.put("type", this.type);
+    jsonEdge.put("source", this.sourceNode);
+    jsonEdge.put("target", this.targetNode);
+    jsonEdge.put("type", this.type);
 
     // label element of edgeContent
-    Map<String, Object> label = new HashMap<String, Object>();
+    JSONObject label = new JSONObject();
     label.put("id", this.id + "[label]");
     // currently, SyncMeta supports only "Label" as label for edges.
     label.put("name", "Label");
-    Map<String, Object> labelValue = new HashMap<String, Object>();
+    JSONObject labelValue = new JSONObject();
     labelValue.put("id", this.id + "[label]");
     labelValue.put("name", "Label");
     labelValue.put("value", this.getLabelValue());
     label.put("value", labelValue);
-    edgeContent.put("label", label);
+    jsonEdge.put("label", label);
 
     // attribute element of edgeContent
-    Map<String, Object> attributes = new HashMap<String, Object>();
+    JSONObject attributes = new JSONObject();
     for (int attributeIndex = 0; attributeIndex < this.attributes.length; attributeIndex++) {
       EntityAttribute currentAttribute = this.attributes[attributeIndex];
-      Map<String, Object> attributeContent = new HashMap<String, Object>();
+      JSONObject attributeContent = new JSONObject();
       attributeContent.put("id", this.id + "[" + currentAttribute.getName() + "]");
       attributeContent.put("name", currentAttribute.getName());
-
       // value of attribute
-      Map<String, Object> attributeValue = new HashMap<String, Object>();
+      JSONObject attributeValue = new JSONObject();
       attributeValue.put("id", this.id + "[" + currentAttribute.getName() + "]");
       attributeValue.put("name", currentAttribute.getName());
       attributeValue.put("value", currentAttribute.getValue());
       attributeContent.put("value", attributeValue);
-
       // add attribute to attribute list with the attribute's id as key
       attributes.put(currentAttribute.getId(), attributeContent);
     }
-    edgeContent.put("attributes", attributes);
-
-    // finally add content to edge
-    edge.put(this.id, edgeContent);
-    return edge.toJSONString();
+    jsonEdge.put("attributes", attributes);
+    System.out.println(jsonEdge.toJSONString());
+    return jsonEdge;
   }
 
 }
