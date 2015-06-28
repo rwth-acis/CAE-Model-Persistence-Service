@@ -27,6 +27,7 @@ import i5.las2peer.restMapper.annotations.swagger.Summary;
 import i5.las2peer.restMapper.tools.ValidationResult;
 import i5.las2peer.restMapper.tools.XMLCheck;
 import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
+import i5.las2peer.services.modelPersistenceService.models.Model;
 import i5.las2peer.services.modelPersistenceService.models.ModelAttributes;
 import i5.las2peer.services.modelPersistenceService.models.edges.Edge;
 import i5.las2peer.services.modelPersistenceService.models.nodes.Node;
@@ -88,38 +89,28 @@ public class ModelPersistenceService extends Service {
   @Consumes(MediaType.APPLICATION_JSON)
   @ResourceListApi(description = "Entry point for storing a model to the database.")
   @ApiResponses(value = {@ApiResponse(code = 201, message = "OK, model stored"),
-      @ApiResponse(code = 401, message = "Unauthorized"),
-      @ApiResponse(code = 404, message = "User not found"),
       @ApiResponse(code = 500, message = "Internal server error")})
   @Summary("Entry point for storing a model to the database.")
   public HttpResponse postModel(@ContentParam String inputModel) {
-
-    // take the whole model, then parse it into model-attributes, nodes and edges
-    JSONObject completeModel = (JSONObject) JSONValue.parse(inputModel);
-
-    JSONObject jsonAttributes = (JSONObject) completeModel.get("attributes");
-
-    // let's see what we got here..
-    ModelAttributes attributes = new ModelAttributes(jsonAttributes);
-
-    // TODO: big if case switch thing here, to see what we are dealing with (application, frontend
-    // component or microservice)
-
-
-    // a new home for nodes and edges
+    System.out.println("fuck you");
+    // Generate a new (first only temporary) model
+    Model model;
     Node[] nodes;
     Edge[] edges;
+    ModelAttributes attributes;
 
     try {
-      JSONObject jsonNodes = (JSONObject) completeModel.get("nodes");
-      JSONObject jsonEdges = (JSONObject) completeModel.get("edges");
+      // take the whole model, then parse it into model-attributes, nodes and edges
+      JSONObject completeJsonModel = (JSONObject) JSONValue.parse(inputModel);
+      JSONObject jsonAttribute = (JSONObject) completeJsonModel.get("attributes");
+      attributes = new ModelAttributes(jsonAttribute);
+      System.out.println(attributes.toJSONString());
+      // resolve nodes and edges now
+      JSONObject jsonNodes = (JSONObject) completeJsonModel.get("nodes");
+      JSONObject jsonEdges = (JSONObject) completeJsonModel.get("edges");
 
-      int numberOfNodes = jsonNodes.size();
-      int numberofEdges = jsonEdges.size();
-      System.out.println("nodes size: " + numberOfNodes);
-      nodes = new Node[numberOfNodes];
-      System.out.println("edges size: " + jsonEdges.size());
-      edges = new Edge[numberofEdges];
+      nodes = new Node[jsonNodes.size()];
+      edges = new Edge[jsonEdges.size()];
 
       @SuppressWarnings("unchecked")
       Iterator<Map.Entry<String, Object>> nodesEntries = jsonNodes.entrySet().iterator();
@@ -134,6 +125,7 @@ public class ModelPersistenceService extends Service {
       index = 0;
       @SuppressWarnings("unchecked")
       Iterator<Map.Entry<String, Object>> edgesEntries = jsonEdges.entrySet().iterator();
+
       while (edgesEntries.hasNext()) {
         Map.Entry<String, Object> entry = edgesEntries.next();
         String key = entry.getKey();
@@ -141,11 +133,15 @@ public class ModelPersistenceService extends Service {
         edges[index] = new Edge(key, value);
         index++;
       }
-
     } catch (Exception e) {
       System.out.println("Exception parsing JSON input: " + e);
+      HttpResponse r = new HttpResponse("Parsing exception");
+      r.setStatus(500);
+      return r;
     }
-    HttpResponse r = new HttpResponse(completeModel.toJSONString());
+    // create the model
+    model = new Model(attributes, nodes, edges);
+    HttpResponse r = new HttpResponse("Model stored");
     r.setStatus(201);
     return r;
 

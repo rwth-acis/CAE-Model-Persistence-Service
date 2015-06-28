@@ -9,4 +9,22 @@ public class Model {
   private ModelAttributes attributes;
 
 
+  public Model(ModelAttributes attributes, Node[] nodes, Edge[] edges) {
+    this.nodes = nodes;
+    this.edges = edges;
+    this.attributes = attributes;
+  }
+
+  public Node[] getNodes() {
+    return nodes;
+  }
+
+  public Edge[] getEdges() {
+    return edges;
+  }
+
+  public ModelAttributes getAttributes() {
+    return attributes;
+  }
+
 }
