@@ -113,36 +113,39 @@ public class ModelPersistenceService extends Service {
 
     try {
       JSONObject jsonNodes = (JSONObject) completeModel.get("nodes");
+      JSONObject jsonEdges = (JSONObject) completeModel.get("edges");
 
       int numberOfNodes = jsonNodes.size();
+      int numberofEdges = jsonEdges.size();
       System.out.println("nodes size: " + numberOfNodes);
       nodes = new Node[numberOfNodes];
+      System.out.println("edges size: " + jsonEdges.size());
+      edges = new Edge[numberofEdges];
+
       @SuppressWarnings("unchecked")
       Iterator<Map.Entry<String, Object>> nodesEntries = jsonNodes.entrySet().iterator();
-      int nodeIndex = 0;
+      int index = 0;
       while (nodesEntries.hasNext()) {
         Map.Entry<String, Object> entry = nodesEntries.next();
         String key = entry.getKey();
         JSONObject value = (JSONObject) entry.getValue();
-        nodes[nodeIndex] = new Node(key, value);
-        System.out.println("node with index " + nodeIndex + ": " + nodes[nodeIndex].toJSONString());
-        nodeIndex++;
+        nodes[index] = new Node(key, value);
+        index++;
       }
-      JSONObject jsonEdges = (JSONObject) completeModel.get("edges");
-      System.out.println("edges size: " + jsonEdges.size());
+      index = 0;
       @SuppressWarnings("unchecked")
       Iterator<Map.Entry<String, Object>> edgesEntries = jsonEdges.entrySet().iterator();
       while (edgesEntries.hasNext()) {
         Map.Entry<String, Object> entry = edgesEntries.next();
         String key = entry.getKey();
-        Object value = entry.getValue();
-        // System.out.println("Key " + key);
-        // System.out.println("Value " + value);
-
+        JSONObject value = (JSONObject) entry.getValue();
+        edges[index] = new Edge(key, value);
+        System.out.println(edges[index].toJSONString());
+        index++;
       }
 
     } catch (Exception e) {
-      System.out.println(e);
+      System.out.println("Exception parsing JSON input: " + e);
     }
     HttpResponse r = new HttpResponse(completeModel.toJSONString());
     r.setStatus(201);

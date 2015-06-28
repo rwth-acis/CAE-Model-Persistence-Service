@@ -27,14 +27,13 @@ public class Node {
   public Node(String id, JSONObject jsonNode) {
     this.id = id;
     this.type = (String) jsonNode.get("type");
-
     this.position = new NodePosition((int) ((Number) jsonNode.get("left")).intValue(),
         ((Number) jsonNode.get("top")).intValue(), ((Number) jsonNode.get("width")).intValue(),
         ((Number) jsonNode.get("height")).intValue(), ((Number) jsonNode.get("zIndex")).intValue());
 
+    // parse attributes
     JSONObject jsonAttributes = (JSONObject) jsonNode.get("attributes");
     this.attributes = new EntityAttribute[jsonAttributes.size()];
-
     @SuppressWarnings("unchecked")
     Iterator<Map.Entry<String, Object>> jsonAttribute = jsonAttributes.entrySet().iterator();
     int attributeIndex = 0;
@@ -63,11 +62,9 @@ public class Node {
     return type;
   }
 
-
   public EntityAttribute[] getAttributes() {
     return attributes;
   }
-
 
   /*
    * Returns the JSON representation of this node. This representation is rather specific to
@@ -94,7 +91,8 @@ public class Node {
     // label element of nodeContent
     Map<String, Object> label = new HashMap<String, Object>();
     label.put("id", this.id + "[name]");
-    // currently, SyncMeta supports only "name" as label. Still, entry has to be there.
+    // currently, SyncMeta supports only "name" as label for nodes.
+    // Important: if one has no "name" attribute in the node, this will not work.
     label.put("name", "name");
     Map<String, Object> labelValue = new HashMap<String, Object>();
     labelValue.put("id", this.id + "[name]");
@@ -134,6 +132,5 @@ public class Node {
     node.put(this.id, nodeContent);
     return node.toJSONString();
   }
-
 
 }
