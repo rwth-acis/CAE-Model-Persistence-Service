@@ -46,7 +46,7 @@ public class ModelPersistenceServiceTest {
   private static final String testTemplateService =
       ModelPersistenceService.class.getCanonicalName();
 
-  private static final String mainPath = "models/";
+  private static final String mainPath = "CAE/models/";
 
 
   /**

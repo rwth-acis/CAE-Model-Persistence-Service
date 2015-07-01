@@ -7,13 +7,14 @@ import org.json.simple.JSONObject;
 
 public class ModelAttributes {
   private String name; // serves also as unique id
-
+  private EntityAttribute[] attributes; // meta-data
   /*
    * Creates a new model attribute entry.
    * 
    * @param jsonAttribute the attribute as (SyncMeta) JSON file
    * 
    */
+
   public ModelAttributes(JSONObject jsonAttribute) {
     // get the name (never mind input structure here, its non straight-forward..)
     this.name =
@@ -22,6 +23,10 @@ public class ModelAttributes {
 
   public String getName() {
     return this.name;
+  }
+
+  public EntityAttribute[] getAttributes() {
+    return this.attributes;
   }
 
   /*

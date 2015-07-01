@@ -38,7 +38,7 @@ import i5.las2peer.services.modelPersistenceService.models.nodes.Node;
  * A LAS2peer service used for persisting (and validating) application models. Part of the CAE.
  * 
  */
-@Path("models")
+@Path("CAE/models")
 @Version("0.1")
 @ApiInfo(title = "CAE Model Persistence Service",
     description = "A LAS2peer service used for persisting (and validating) application models. Part of the CAE.",
@@ -78,7 +78,7 @@ public class ModelPersistenceService extends Service {
   /**
    * Entry point for all new models.
    * 
-   * @param inputModel the model as a string
+   * @param inputModel the model as a JSON string
    * 
    * @return HttpResponse containing the status code of the request
    * 
@@ -89,6 +89,8 @@ public class ModelPersistenceService extends Service {
   @Consumes(MediaType.APPLICATION_JSON)
   @ResourceListApi(description = "Entry point for storing a model to the database.")
   @ApiResponses(value = {@ApiResponse(code = 201, message = "OK, model stored"),
+      @ApiResponse(code = 409,
+          message = "Tried to save a model that already had a name and thus was not new."),
       @ApiResponse(code = 500, message = "Internal server error")})
   @Summary("Entry point for storing a model to the database.")
   public HttpResponse postModel(@ContentParam String inputModel) {
@@ -104,6 +106,12 @@ public class ModelPersistenceService extends Service {
       JSONObject completeJsonModel = (JSONObject) JSONValue.parse(inputModel);
       JSONObject jsonAttribute = (JSONObject) completeJsonModel.get("attributes");
       attributes = new ModelAttributes(jsonAttribute);
+      // check for default model name
+      if (!attributes.getName().equals("NEW")) {
+        HttpResponse r = new HttpResponse("Model not new, name has to be 'NEW'");
+        r.setStatus(409);
+        return r;
+      }
       // resolve nodes and edges now
       JSONObject jsonNodes = (JSONObject) completeJsonModel.get("nodes");
       JSONObject jsonEdges = (JSONObject) completeJsonModel.get("edges");
@@ -142,6 +150,7 @@ public class ModelPersistenceService extends Service {
     model = new Model(attributes, nodes, edges);
     System.out.println(model.toJSONObject().toJSONString());
     HttpResponse r = new HttpResponse("Model stored");
+    r.setResult(model.toJSONObject().toJSONString());
     r.setStatus(201);
     return r;
 
