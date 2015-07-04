@@ -1,6 +1,7 @@
 package i5.las2peer.services.modelPersistenceService.models.modelAttribute;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 import org.json.simple.JSONObject;
@@ -10,17 +11,32 @@ import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
 public class ModelAttributes {
   private String name; // serves also as unique id
   private EntityAttribute[] attributes; // meta-data
+  
   /*
    * Creates a new model attribute entry.
    * 
    * @param jsonAttribute the attribute as (SyncMeta) JSON file
    * 
    */
-
-  public ModelAttributes(JSONObject jsonAttribute) {
+  public ModelAttributes(JSONObject jsonModelAttribute) {
     // get the name (never mind input structure here, its non straight-forward..)
     this.name =
-        (String) ((JSONObject) ((JSONObject) jsonAttribute.get("label")).get("value")).get("value");
+        (String) ((JSONObject) ((JSONObject) jsonModelAttribute.get("label")).get("value")).get("value");
+    
+    // parse attributes
+    JSONObject jsonAttributes = (JSONObject) jsonModelAttribute.get("attributes");
+    this.attributes = new EntityAttribute[jsonAttributes.size()];
+    @SuppressWarnings("unchecked")
+    Iterator<Map.Entry<String, Object>> jsonAttribute = jsonAttributes.entrySet().iterator();
+    int attributeIndex = 0;
+    while (jsonAttribute.hasNext()) {
+      Map.Entry<String, Object> entry = jsonAttribute.next();
+      String attributeId = entry.getKey();
+      JSONObject attribute = (JSONObject) entry.getValue();
+      attributes[attributeIndex] = new EntityAttribute(attributeId, attribute);
+      attributeIndex++;
+    }
+
   }
 
   public String getName() {
@@ -63,8 +79,24 @@ public class ModelAttributes {
     modelAttribute.put("label", label);
 
     // attribute element of modelAttributeContent (currently empty)
-    modelAttribute.put("attributes", "");
+    JSONObject attributes = new JSONObject();
+    for (int attributeIndex = 0; attributeIndex < this.attributes.length; attributeIndex++) {
+      EntityAttribute currentAttribute = this.attributes[attributeIndex];
+      JSONObject attributeContent = new JSONObject();
+      attributeContent.put("id", "modelAttributes[" + currentAttribute.getName() + "]");
+      attributeContent.put("name", currentAttribute.getName());
 
+      // value of attribute
+      JSONObject attributeValue = new JSONObject();
+      attributeValue.put("id", "modelAttributes[" + currentAttribute.getName() + "]");
+      attributeValue.put("name", currentAttribute.getName());
+      attributeValue.put("value", currentAttribute.getValue());
+      attributeContent.put("value", attributeValue);
+
+      // add attribute to attribute list with the attribute's id as key
+      attributes.put(currentAttribute.getId(), attributeContent);
+    }
+    modelAttribute.put("attributes", attributes);
     return modelAttribute;
   }
 }
