@@ -57,8 +57,8 @@ CREATE TABLE commedit.edgeToModel (
   edgeId VARCHAR(255) NOT NULL,
   modelId VARCHAR(255) NOT NULL,
   CONSTRAINT edgeToModelPK PRIMARY KEY (edgeId),
-  CONSTRAINT edgeFK FOREIGN KEY (edgeId) REFERENCES commedit.Edge(edgeId),
-  CONSTRAINT edgeModelFK FOREIGN KEY (modelId) REFERENCES commedit.Model(modelId)
+  CONSTRAINT edgeToModelEdgeFK FOREIGN KEY (edgeId) REFERENCES commedit.Edge(edgeId),
+  CONSTRAINT edgetoModelModelFK FOREIGN KEY (modelId) REFERENCES commedit.Model(modelId)
 );
 
 --
@@ -68,8 +68,8 @@ CREATE TABLE commedit.nodeToModel (
   nodeId VARCHAR(255) NOT NULL,
   modelId VARCHAR(255) NOT NULL,
   CONSTRAINT nodeToModelPK PRIMARY KEY (nodeId),
-  CONSTRAINT nodeFK FOREIGN KEY (nodeId) REFERENCES commedit.Node(nodeId),
-  CONSTRAINT nodeModelFK FOREIGN KEY (modelId) REFERENCES commedit.Model(modelId)
+  CONSTRAINT nodeToModelNodeFK FOREIGN KEY (nodeId) REFERENCES commedit.Node(nodeId),
+  CONSTRAINT nodeToModelModelFK FOREIGN KEY (modelId) REFERENCES commedit.Model(modelId)
 );
 
 --
@@ -79,8 +79,8 @@ CREATE TABLE commedit.attributeToNode (
   attributeId VARCHAR(255) NOT NULL,
   nodeId VARCHAR(255) NOT NULL,
   CONSTRAINT attributeToNodePK PRIMARY KEY (attributeId),
-  CONSTRAINT attributeToNodeFK FOREIGN KEY (attributeId) REFERENCES commedit.Attribute(attributeId),
-  CONSTRAINT nodeFK FOREIGN KEY (nodeId) REFERENCES commedit.Node(nodeId)
+  CONSTRAINT attributeToNodeAttributeFK FOREIGN KEY (attributeId) REFERENCES commedit.Attribute(attributeId),
+  CONSTRAINT attributeToNodeNodeFK FOREIGN KEY (nodeId) REFERENCES commedit.Node(nodeId)
 );
 
 --
@@ -90,8 +90,8 @@ CREATE TABLE commedit.attributeToEdge (
   attributeId VARCHAR(255) NOT NULL,
   edgeId VARCHAR(255) NOT NULL,
   CONSTRAINT attributeToEdgePK PRIMARY KEY (attributeId),
-  CONSTRAINT attributetoEdgeFK FOREIGN KEY (attributeId) REFERENCES commedit.Attribute(attributeId),
-  CONSTRAINT edgeFK FOREIGN KEY (edgeId) REFERENCES commedit.Edge(edgeId)
+  CONSTRAINT attributetoEdgeAttributeFK FOREIGN KEY (attributeId) REFERENCES commedit.Attribute(attributeId),
+  CONSTRAINT attributeToEdgeEdgeFK FOREIGN KEY (edgeId) REFERENCES commedit.Edge(edgeId)
 );
 
 --
@@ -101,6 +101,6 @@ CREATE TABLE commedit.attributeToModel (
   attributeId VARCHAR(255) NOT NULL,
   modelId VARCHAR(255) NOT NULL,
   CONSTRAINT attributeToModelPK PRIMARY KEY (attributeId),
-  CONSTRAINT attributeToModelFK FOREIGN KEY (attributeId) REFERENCES commedit.Attribute(attributeId),
-  CONSTRAINT modelFK FOREIGN KEY (modelId) REFERENCES commedit.Model(modelId)
+  CONSTRAINT attributeToModelAttributeFK FOREIGN KEY (attributeId) REFERENCES commedit.Attribute(attributeId),
+  CONSTRAINT attributeToModelModelFK FOREIGN KEY (modelId) REFERENCES commedit.Model(modelId)
 );
