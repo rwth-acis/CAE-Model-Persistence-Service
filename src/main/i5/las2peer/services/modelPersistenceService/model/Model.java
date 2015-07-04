@@ -1,9 +1,10 @@
-package i5.las2peer.services.modelPersistenceService.models;
+package i5.las2peer.services.modelPersistenceService.model;
 
 import org.json.simple.JSONObject;
 
-import i5.las2peer.services.modelPersistenceService.models.edges.Edge;
-import i5.las2peer.services.modelPersistenceService.models.nodes.Node;
+import i5.las2peer.services.modelPersistenceService.models.edge.Edge;
+import i5.las2peer.services.modelPersistenceService.models.modelAttribute.ModelAttributes;
+import i5.las2peer.services.modelPersistenceService.models.node.Node;
 
 public class Model {
   private Node[] nodes;
@@ -27,6 +28,10 @@ public class Model {
 
   public ModelAttributes getAttributes() {
     return attributes;
+  }
+
+  public String getName() {
+    return attributes.getName();
   }
 
   /*

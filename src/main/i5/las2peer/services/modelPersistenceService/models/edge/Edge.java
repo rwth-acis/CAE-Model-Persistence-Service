@@ -1,11 +1,11 @@
-package i5.las2peer.services.modelPersistenceService.models.edges;
+package i5.las2peer.services.modelPersistenceService.models.edge;
 
 import java.util.Iterator;
 import java.util.Map;
 
 import org.json.simple.JSONObject;
 
-import i5.las2peer.services.modelPersistenceService.models.EntityAttribute;
+import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
 
 public class Edge {
   private String id;

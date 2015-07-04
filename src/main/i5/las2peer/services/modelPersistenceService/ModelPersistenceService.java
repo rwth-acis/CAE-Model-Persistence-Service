@@ -27,10 +27,10 @@ import i5.las2peer.restMapper.annotations.swagger.Summary;
 import i5.las2peer.restMapper.tools.ValidationResult;
 import i5.las2peer.restMapper.tools.XMLCheck;
 import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
-import i5.las2peer.services.modelPersistenceService.models.Model;
-import i5.las2peer.services.modelPersistenceService.models.ModelAttributes;
-import i5.las2peer.services.modelPersistenceService.models.edges.Edge;
-import i5.las2peer.services.modelPersistenceService.models.nodes.Node;
+import i5.las2peer.services.modelPersistenceService.model.Model;
+import i5.las2peer.services.modelPersistenceService.models.edge.Edge;
+import i5.las2peer.services.modelPersistenceService.models.modelAttribute.ModelAttributes;
+import i5.las2peer.services.modelPersistenceService.models.node.Node;
 
 /**
  * CAE Model Persistence Service

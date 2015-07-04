@@ -1,4 +1,4 @@
-package i5.las2peer.services.modelPersistenceService.models;
+package i5.las2peer.services.modelPersistenceService.model;
 
 import org.json.simple.JSONObject;
 

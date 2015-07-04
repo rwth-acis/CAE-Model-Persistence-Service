@@ -1,9 +1,11 @@
-package i5.las2peer.services.modelPersistenceService.models;
+package i5.las2peer.services.modelPersistenceService.models.modelAttribute;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import org.json.simple.JSONObject;
+
+import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
 
 public class ModelAttributes {
   private String name; // serves also as unique id
