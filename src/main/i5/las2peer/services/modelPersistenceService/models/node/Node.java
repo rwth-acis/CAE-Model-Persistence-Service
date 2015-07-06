@@ -1,5 +1,8 @@
 package i5.las2peer.services.modelPersistenceService.models.node;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -10,7 +13,6 @@ import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
 public class Node {
 
   private String id;
-  private String name;
   private NodePosition position;
   private String type;
   private EntityAttribute[] attributes;
@@ -47,10 +49,6 @@ public class Node {
 
   public String getId() {
     return id;
-  }
-
-  public String getName() {
-    return name;
   }
 
   public NodePosition getPosition() {
@@ -127,6 +125,37 @@ public class Node {
     jsonNode.put("label", label);
     jsonNode.put("attributes", attributes);
     return jsonNode;
+  }
+
+  /**
+   * 
+   * @param connection
+   * @throws SQLException
+   */
+  public void persist(Connection connection) throws SQLException {
+    PreparedStatement statement = connection.prepareStatement(
+        "insert into Node (nodeId, type, pLeft, pTop, pWidth, pHeight, pZIndex) VALUES (?,?,?,?,?,?,?);");
+    statement.setString(1, this.id);
+    statement.setString(2, this.type);
+    statement.setInt(3, this.position.getLeft());
+    statement.setInt(4, this.position.getTop());
+    statement.setInt(5, this.position.getWidth());
+    statement.setInt(6, this.position.getHeight());
+    statement.setInt(7, this.position.getzIndex());
+    statement.executeUpdate();
+    statement.close();
+    // attributes entries
+    for (int i = 0; i < this.attributes.length; i++) {
+      attributes[i].persist(connection);
+      // AttributeToNode entry ("connect" them)
+      statement = connection
+          .prepareStatement("insert into AttributeToNode (attributeId, nodeId) VALUES (?, ?);");
+      statement.setInt(1, attributes[i].getId());
+      statement.setString(2, this.getId());
+      statement.executeUpdate();
+      statement.close();
+    }
+
   }
 
 }

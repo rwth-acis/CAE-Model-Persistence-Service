@@ -1,11 +1,11 @@
 package i5.las2peer.services.modelPersistenceService;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.ByteArrayOutputStream;
 import java.io.FileReader;
+import java.io.IOException;
 import java.io.PrintStream;
 
 import org.json.simple.JSONObject;
@@ -16,7 +16,10 @@ import org.junit.Test;
 
 import i5.las2peer.p2p.LocalNode;
 import i5.las2peer.restMapper.MediaType;
+import i5.las2peer.restMapper.RESTMapper;
 import i5.las2peer.restMapper.data.Pair;
+import i5.las2peer.restMapper.tools.ValidationResult;
+import i5.las2peer.restMapper.tools.XMLCheck;
 import i5.las2peer.security.ServiceAgent;
 import i5.las2peer.security.UserAgent;
 import i5.las2peer.testing.MockAgentFactory;
@@ -130,7 +133,7 @@ public class ModelPersistenceServiceTest {
     // read in (test-)model
     try {
       JSONParser parser = new JSONParser();
-      String FILE_NAME = "exampleModels\\example_microservice_model.json";
+      String FILE_NAME = "./exampleModels/example_microservice_model.json";
       Object obj;
       obj = parser.parse(new FileReader(FILE_NAME));
       payload = (JSONObject) obj;
@@ -161,6 +164,20 @@ public class ModelPersistenceServiceTest {
   @Test
   public void testDebugMapping() {
     ModelPersistenceService cl = new ModelPersistenceService();
-    assertTrue(cl.debugMapping());
+    String XML_LOCATION = "./restMapping.xml";
+    String xml = cl.getRESTMapping();
+
+    try {
+      RESTMapper.writeFile(XML_LOCATION, xml);
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+
+    XMLCheck validator = new XMLCheck();
+    ValidationResult result = validator.validate(xml);
+
+    if (!result.isValid())
+      fail();
   }
+
 }

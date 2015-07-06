@@ -1,5 +1,8 @@
 package i5.las2peer.services.modelPersistenceService.models.edge;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -121,8 +124,34 @@ public class Edge {
       attributes.put(currentAttribute.getId(), attributeContent);
     }
     jsonEdge.put("attributes", attributes);
-    System.out.println(jsonEdge.toJSONString());
     return jsonEdge;
   }
 
+  /**
+   * 
+   * @param connection
+   * @throws SQLException
+   */
+  public void persist(Connection connection) throws SQLException {
+    PreparedStatement statement = connection.prepareStatement(
+        "insert into Edge (edgeId, sourceNode, targetNode, labelValue, type) VALUES (?,?,?,?,?);");
+    statement.setString(1, this.id);
+    statement.setString(2, this.type);
+    statement.setString(3, this.sourceNode);
+    statement.setString(4, this.targetNode);
+    statement.setString(5, this.type);
+    statement.executeUpdate();
+    statement.close();
+    // attributes entries
+    for (int i = 0; i < this.attributes.length; i++) {
+      attributes[i].persist(connection);
+      // AttributeToEdge entry ("connect" them)
+      statement = connection
+          .prepareStatement("insert into AttributeToEdge (attributeId, edgeId) VALUES (?, ?);");
+      statement.setInt(1, attributes[i].getId());
+      statement.setString(2, this.getId());
+      statement.executeUpdate();
+      statement.close();
+    }
+  }
 }

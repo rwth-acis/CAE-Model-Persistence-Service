@@ -1,6 +1,7 @@
 package i5.las2peer.services.modelPersistenceService;
 
-import java.io.IOException;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -24,8 +25,6 @@ import i5.las2peer.restMapper.annotations.swagger.ApiResponse;
 import i5.las2peer.restMapper.annotations.swagger.ApiResponses;
 import i5.las2peer.restMapper.annotations.swagger.ResourceListApi;
 import i5.las2peer.restMapper.annotations.swagger.Summary;
-import i5.las2peer.restMapper.tools.ValidationResult;
-import i5.las2peer.restMapper.tools.XMLCheck;
 import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
 import i5.las2peer.services.modelPersistenceService.model.Model;
 import i5.las2peer.services.modelPersistenceService.models.edge.Edge;
@@ -103,14 +102,14 @@ public class ModelPersistenceService extends Service {
 
     try {
       // take the whole model, then parse it into model-attributes, nodes and edges
-      JSONObject completeJsonModel = (JSONObject) JSONValue.parse(inputModel);
+      JSONObject completeJsonModel = (JSONObject) JSONValue.parseWithException(inputModel);
       JSONObject jsonAttribute = (JSONObject) completeJsonModel.get("attributes");
       attributes = new ModelAttributes(jsonAttribute);
       // check for default model name
       if (!attributes.getName().equals("NEW")) {
-        HttpResponse r = new HttpResponse("Model not new, name has to be 'NEW'");
-        r.setStatus(409);
-        return r;
+        // HttpResponse r = new HttpResponse("Model not new, name has to be 'NEW'");
+        // r.setStatus(409);
+        // return r;
       }
       // resolve nodes and edges now
       JSONObject jsonNodes = (JSONObject) completeJsonModel.get("nodes");
@@ -119,9 +118,10 @@ public class ModelPersistenceService extends Service {
       nodes = new Node[jsonNodes.size()];
       edges = new Edge[jsonEdges.size()];
 
+      int index = 0;
       @SuppressWarnings("unchecked")
       Iterator<Map.Entry<String, Object>> nodesEntries = jsonNodes.entrySet().iterator();
-      int index = 0;
+
       while (nodesEntries.hasNext()) {
         Map.Entry<String, Object> entry = nodesEntries.next();
         String key = entry.getKey();
@@ -129,6 +129,7 @@ public class ModelPersistenceService extends Service {
         nodes[index] = new Node(key, value);
         index++;
       }
+
       index = 0;
       @SuppressWarnings("unchecked")
       Iterator<Map.Entry<String, Object>> edgesEntries = jsonEdges.entrySet().iterator();
@@ -140,19 +141,33 @@ public class ModelPersistenceService extends Service {
         edges[index] = new Edge(key, value);
         index++;
       }
+
     } catch (Exception e) {
-      System.out.println("Exception parsing JSON input: " + e);
-      HttpResponse r = new HttpResponse("Parsing exception");
+      logError("Exception parsing JSON input: " + e);
+      HttpResponse r = new HttpResponse("JSON parsing exception, file not valid!");
       r.setStatus(500);
       return r;
     }
+
     // create the model
     model = new Model(attributes, nodes, edges);
-    System.out.println(model.toJSONObject().toJSONString());
-    HttpResponse r = new HttpResponse("Model stored");
-    r.setResult(model.toJSONObject().toJSONString());
-    r.setStatus(201);
-    return r;
+    // save the model to the database
+    try {
+      Connection connection = dbm.getConnection();
+      int modelId = model.persist(connection);
+      logMessage(
+          "Model with id " + modelId + " and name " + model.getAttributes().getName() + " stored!");
+      HttpResponse r = new HttpResponse("Model stored!");
+      r.setResult(model.toJSONObject().toJSONString());
+      r.setStatus(201);
+      return r;
+    } catch (SQLException e) {
+      logError("Exception persisting model: " + e);
+      e.printStackTrace();
+      HttpResponse r = new HttpResponse("Could not persist, database rejected model!");
+      r.setStatus(500);
+      return r;
+    }
 
   }
 
@@ -160,32 +175,6 @@ public class ModelPersistenceService extends Service {
   ////////////////////////////////////////////////////////////////////////////////////////
   // Methods required by the LAS2peer framework.
   ////////////////////////////////////////////////////////////////////////////////////////
-
-  /**
-   * Method for debugging purposes. Here the concept of restMapping validation is shown. It is
-   * important to check, if all annotations are correct and consistent. Otherwise the service will
-   * not be accessible by the WebConnector. Best to do it in the unit tests. To avoid being
-   * overlooked/ignored the method is implemented here and not in the test section.
-   * 
-   * @return true, if mapping correct
-   */
-  public boolean debugMapping() {
-    String XML_LOCATION = "./restMapping.xml";
-    String xml = getRESTMapping();
-
-    try {
-      RESTMapper.writeFile(XML_LOCATION, xml);
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-
-    XMLCheck validator = new XMLCheck();
-    ValidationResult result = validator.validate(xml);
-
-    if (result.isValid())
-      return true;
-    return false;
-  }
 
   /**
    * This method is needed for every RESTful application in LAS2peer. There is no need to change!

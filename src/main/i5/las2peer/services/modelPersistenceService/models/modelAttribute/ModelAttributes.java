@@ -1,5 +1,8 @@
 package i5.las2peer.services.modelPersistenceService.models.modelAttribute;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -11,7 +14,7 @@ import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
 public class ModelAttributes {
   private String name; // serves also as unique id
   private EntityAttribute[] attributes; // meta-data
-  
+
   /*
    * Creates a new model attribute entry.
    * 
@@ -20,9 +23,9 @@ public class ModelAttributes {
    */
   public ModelAttributes(JSONObject jsonModelAttribute) {
     // get the name (never mind input structure here, its non straight-forward..)
-    this.name =
-        (String) ((JSONObject) ((JSONObject) jsonModelAttribute.get("label")).get("value")).get("value");
-    
+    this.name = (String) ((JSONObject) ((JSONObject) jsonModelAttribute.get("label")).get("value"))
+        .get("value");
+
     // parse attributes
     JSONObject jsonAttributes = (JSONObject) jsonModelAttribute.get("attributes");
     this.attributes = new EntityAttribute[jsonAttributes.size()];
@@ -47,7 +50,7 @@ public class ModelAttributes {
     return this.attributes;
   }
 
-  /*
+  /**
    * Returns the JSON representation of this model attribute. The representation is rather specific
    * to SyncMeta and should not be taken as a generic example of a JSON object representation.
    * 
@@ -98,5 +101,33 @@ public class ModelAttributes {
     }
     modelAttribute.put("attributes", attributes);
     return modelAttribute;
+  }
+
+  /**
+   * 
+   * @param connection a Connection element passed on from the model class
+   * 
+   * 
+   * @throws SQLException thrown if something goes wrong persisting the model attributes
+   */
+  public void persist(Connection connection) throws SQLException {
+    // formulate query
+    PreparedStatement statement =
+        connection.prepareStatement("insert into ModelAttributes (modelName) VALUES (?);");
+    statement.setString(1, this.name);
+    // execute query
+    statement.executeUpdate();
+    statement.close();
+    // attributes entries
+    for (int i = 0; i < this.attributes.length; i++) {
+      attributes[i].persist(connection);
+      // AttributeToModelAttributes entry ("connect" them)
+      statement = connection.prepareStatement(
+          "insert into AttributeToModelAttributes (attributeId, modelAttributesName) VALUES (?, ?);");
+      statement.setInt(1, attributes[i].getId());
+      statement.setString(2, this.name);
+      statement.executeUpdate();
+      statement.close();
+    }
   }
 }
