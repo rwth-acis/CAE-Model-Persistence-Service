@@ -29,9 +29,8 @@ import i5.las2peer.webConnector.client.MiniClient;
 
 
 /**
- * Example Test Class demonstrating a basic JUnit test structure.
  * 
- * 
+ * Central test class for the CAE-Model-Persistence-Service.
  *
  */
 public class ModelPersistenceServiceTest {

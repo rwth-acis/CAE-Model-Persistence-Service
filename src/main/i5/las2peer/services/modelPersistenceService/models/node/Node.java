@@ -10,6 +10,12 @@ import org.json.simple.JSONObject;
 
 import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
 
+/**
+ * 
+ * (Data-)Class for Nodes. Provides means to convert JSON to Object and Object to JSON. Also
+ * provides means to persist the object to a database.
+ *
+ */
 public class Node {
 
   private String id;
@@ -17,11 +23,11 @@ public class Node {
   private String type;
   private EntityAttribute[] attributes;
 
-  /*
-   * Creates a new node.
+  /**
+   * 
+   * Creates a new node entity.
    * 
    * @param id the node id
-   * 
    * @param jsonNode the content of the node entry in the (JSON-represented) model
    * 
    */
@@ -63,7 +69,8 @@ public class Node {
     return attributes;
   }
 
-  /*
+  /**
+   * 
    * Returns the JSON representation of this node. This representation is rather specific to
    * SyncMeta and should not be taken as a generic example of a JSON object representation.
    * 
@@ -129,12 +136,16 @@ public class Node {
 
   /**
    * 
-   * @param connection
-   * @throws SQLException
+   * Persists the node object.
+   * 
+   * @param connection a Connection object
+   * 
+   * @throws SQLException if something goes wrong persisting the node entity
+   * 
    */
   public void persist(Connection connection) throws SQLException {
     PreparedStatement statement = connection.prepareStatement(
-        "insert into Node (nodeId, type, pLeft, pTop, pWidth, pHeight, pZIndex) VALUES (?,?,?,?,?,?,?);");
+        "INSERT INTO Node (nodeId, type, pLeft, pTop, pWidth, pHeight, pZIndex) VALUES (?,?,?,?,?,?,?);");
     statement.setString(1, this.id);
     statement.setString(2, this.type);
     statement.setInt(3, this.position.getLeft());
@@ -149,7 +160,7 @@ public class Node {
       attributes[i].persist(connection);
       // AttributeToNode entry ("connect" them)
       statement = connection
-          .prepareStatement("insert into AttributeToNode (attributeId, nodeId) VALUES (?, ?);");
+          .prepareStatement("INSERT INTO AttributeToNode (attributeId, nodeId) VALUES (?, ?);");
       statement.setInt(1, attributes[i].getId());
       statement.setString(2, this.getId());
       statement.executeUpdate();

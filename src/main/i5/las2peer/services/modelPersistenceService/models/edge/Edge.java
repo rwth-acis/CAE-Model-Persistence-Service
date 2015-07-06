@@ -10,6 +10,12 @@ import org.json.simple.JSONObject;
 
 import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
 
+/**
+ * 
+ * (Data-)Class for Edges. Provides means to convert JSON to Object and Object to JSON. Also
+ * provides means to persist the object to a database.
+ *
+ */
 public class Edge {
   private String id;
   private String sourceNode;
@@ -19,7 +25,7 @@ public class Edge {
   private String labelValue;
   private EntityAttribute[] attributes;
 
-  /*
+  /**
    * Creates a new edge.
    * 
    * @param id the node id
@@ -78,7 +84,7 @@ public class Edge {
     return this.labelValue;
   }
 
-  /*
+  /**
    * Returns the JSON representation of this edge. This representation is rather specific to
    * SyncMeta and should not be taken as a generic example of a JSON object representation.
    * 
@@ -128,13 +134,15 @@ public class Edge {
   }
 
   /**
+   * Persists the Edge entity.
    * 
-   * @param connection
-   * @throws SQLException
+   * @param connection a Connection object
+   * 
+   * @throws SQLException if something goes wrong persisting the Edge entity
    */
   public void persist(Connection connection) throws SQLException {
     PreparedStatement statement = connection.prepareStatement(
-        "insert into Edge (edgeId, sourceNode, targetNode, labelValue, type) VALUES (?,?,?,?,?);");
+        "INSERT INTO Edge (edgeId, sourceNode, targetNode, labelValue, type) VALUES (?,?,?,?,?);");
     statement.setString(1, this.id);
     statement.setString(2, this.type);
     statement.setString(3, this.sourceNode);
@@ -147,7 +155,7 @@ public class Edge {
       attributes[i].persist(connection);
       // AttributeToEdge entry ("connect" them)
       statement = connection
-          .prepareStatement("insert into AttributeToEdge (attributeId, edgeId) VALUES (?, ?);");
+          .prepareStatement("INSERT INTO AttributeToEdge (attributeId, edgeId) VALUES (?, ?);");
       statement.setInt(1, attributes[i].getId());
       statement.setString(2, this.getId());
       statement.executeUpdate();

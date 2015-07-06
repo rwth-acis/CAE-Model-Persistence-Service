@@ -11,14 +11,21 @@ import org.json.simple.JSONObject;
 
 import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
 
+/**
+ * 
+ * (Data-)Class for model attributes. Provides means to convert JSON to Object and Object to JSON.
+ * Also provides means to persist the object to a database.
+ *
+ */
 public class ModelAttributes {
   private String name; // serves also as unique id
   private EntityAttribute[] attributes; // meta-data
 
-  /*
+  /**
+   * 
    * Creates a new model attribute entry.
    * 
-   * @param jsonAttribute the attribute as (SyncMeta) JSON file
+   * @param jsonModelAttribute the attribute as (SyncMeta-compatible) JSON file
    * 
    */
   public ModelAttributes(JSONObject jsonModelAttribute) {
@@ -51,10 +58,12 @@ public class ModelAttributes {
   }
 
   /**
+   * 
    * Returns the JSON representation of this model attribute. The representation is rather specific
    * to SyncMeta and should not be taken as a generic example of a JSON object representation.
    * 
    * @return a JSON object representing a (SyncMeta) compatible model attribute representation
+   * 
    * 
    */
   @SuppressWarnings("unchecked")
@@ -105,15 +114,17 @@ public class ModelAttributes {
 
   /**
    * 
+   * Method to persist a ModelAttribute to a database.
+   * 
    * @param connection a Connection element passed on from the model class
    * 
-   * 
    * @throws SQLException thrown if something goes wrong persisting the model attributes
+   * 
    */
   public void persist(Connection connection) throws SQLException {
     // formulate query
     PreparedStatement statement =
-        connection.prepareStatement("insert into ModelAttributes (modelName) VALUES (?);");
+        connection.prepareStatement("INSERT INTO ModelAttributes (modelName) VALUES (?);");
     statement.setString(1, this.name);
     // execute query
     statement.executeUpdate();
@@ -123,7 +134,7 @@ public class ModelAttributes {
       attributes[i].persist(connection);
       // AttributeToModelAttributes entry ("connect" them)
       statement = connection.prepareStatement(
-          "insert into AttributeToModelAttributes (attributeId, modelAttributesName) VALUES (?, ?);");
+          "INSERT INTO AttributeToModelAttributes (attributeId, modelAttributesName) VALUES (?, ?);");
       statement.setInt(1, attributes[i].getId());
       statement.setString(2, this.name);
       statement.executeUpdate();

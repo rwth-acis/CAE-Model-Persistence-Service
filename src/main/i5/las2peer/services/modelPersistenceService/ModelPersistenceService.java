@@ -2,11 +2,6 @@ package i5.las2peer.services.modelPersistenceService;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Iterator;
-import java.util.Map;
-
-import org.json.simple.JSONObject;
-import org.json.simple.JSONValue;
 
 import i5.las2peer.api.Service;
 import i5.las2peer.restMapper.HttpResponse;
@@ -27,9 +22,6 @@ import i5.las2peer.restMapper.annotations.swagger.ResourceListApi;
 import i5.las2peer.restMapper.annotations.swagger.Summary;
 import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
 import i5.las2peer.services.modelPersistenceService.model.Model;
-import i5.las2peer.services.modelPersistenceService.models.edge.Edge;
-import i5.las2peer.services.modelPersistenceService.models.modelAttribute.ModelAttributes;
-import i5.las2peer.services.modelPersistenceService.models.node.Node;
 
 /**
  * CAE Model Persistence Service
@@ -75,11 +67,11 @@ public class ModelPersistenceService extends Service {
   ////////////////////////////////////////////////////////////////////////////////////////
 
   /**
-   * Entry point for all new models.
+   * Entry point for all new models. Stores it to the database.
    * 
    * @param inputModel the model as a JSON string
    * 
-   * @return HttpResponse containing the status code of the request
+   * @return HttpResponse containing the status code of the request and a small return message.
    * 
    */
   @POST
@@ -93,64 +85,23 @@ public class ModelPersistenceService extends Service {
       @ApiResponse(code = 500, message = "Internal server error")})
   @Summary("Entry point for storing a model to the database.")
   public HttpResponse postModel(@ContentParam String inputModel) {
-
-    // Generate a new (first only temporary) model
     Model model;
-    Node[] nodes;
-    Edge[] edges;
-    ModelAttributes attributes;
-
     try {
-      // take the whole model, then parse it into model-attributes, nodes and edges
-      JSONObject completeJsonModel = (JSONObject) JSONValue.parseWithException(inputModel);
-      JSONObject jsonAttribute = (JSONObject) completeJsonModel.get("attributes");
-      attributes = new ModelAttributes(jsonAttribute);
-      // check for default model name
-      if (!attributes.getName().equals("NEW")) {
-        // HttpResponse r = new HttpResponse("Model not new, name has to be 'NEW'");
-        // r.setStatus(409);
-        // return r;
-      }
-      // resolve nodes and edges now
-      JSONObject jsonNodes = (JSONObject) completeJsonModel.get("nodes");
-      JSONObject jsonEdges = (JSONObject) completeJsonModel.get("edges");
-
-      nodes = new Node[jsonNodes.size()];
-      edges = new Edge[jsonEdges.size()];
-
-      int index = 0;
-      @SuppressWarnings("unchecked")
-      Iterator<Map.Entry<String, Object>> nodesEntries = jsonNodes.entrySet().iterator();
-
-      while (nodesEntries.hasNext()) {
-        Map.Entry<String, Object> entry = nodesEntries.next();
-        String key = entry.getKey();
-        JSONObject value = (JSONObject) entry.getValue();
-        nodes[index] = new Node(key, value);
-        index++;
-      }
-
-      index = 0;
-      @SuppressWarnings("unchecked")
-      Iterator<Map.Entry<String, Object>> edgesEntries = jsonEdges.entrySet().iterator();
-
-      while (edgesEntries.hasNext()) {
-        Map.Entry<String, Object> entry = edgesEntries.next();
-        String key = entry.getKey();
-        JSONObject value = (JSONObject) entry.getValue();
-        edges[index] = new Edge(key, value);
-        index++;
-      }
-
+      // create the model
+      model = new Model(inputModel);
     } catch (Exception e) {
       logError("Exception parsing JSON input: " + e);
       HttpResponse r = new HttpResponse("JSON parsing exception, file not valid!");
       r.setStatus(500);
       return r;
     }
-
-    // create the model
-    model = new Model(attributes, nodes, edges);
+    // check if model name is already taken
+    if (this.getModel(model.getAttributes().getName()).getStatus() != 500) {
+      HttpResponse r = new HttpResponse(
+          "Model with name " + model.getAttributes().getName() + " already exists!");
+      r.setStatus(409);
+      return r;
+    }
     // save the model to the database
     try {
       Connection connection = dbm.getConnection();
@@ -171,6 +122,30 @@ public class ModelPersistenceService extends Service {
 
   }
 
+  /**
+   * Searches for a model in the database by name.
+   * 
+   * @param modelName the model as a JSON string
+   * 
+   * @return HttpResponse containing the status code of the request and (if successfull) the model
+   *         as a JSON string.
+   * 
+   */
+  @GET
+  @Path("/{modelName}")
+  @Produces(MediaType.APPLICATION_JSON)
+  @Consumes(MediaType.TEXT_PLAIN)
+  @ResourceListApi(description = "Searches for a model in the database.")
+  @ApiResponses(value = {@ApiResponse(code = 200, message = "OK, model found"),
+      @ApiResponse(code = 404, message = "Model could not be found."),
+      @ApiResponse(code = 500, message = "Internal server error")})
+  @Summary("Searches for a model in the database.")
+  public HttpResponse getModel(@PathParam("modelName") String modelName) {
+    // TODO
+    HttpResponse r = new HttpResponse("Not Implemented right now!");
+    r.setStatus(500);
+    return r;
+  }
 
   ////////////////////////////////////////////////////////////////////////////////////////
   // Methods required by the LAS2peer framework.

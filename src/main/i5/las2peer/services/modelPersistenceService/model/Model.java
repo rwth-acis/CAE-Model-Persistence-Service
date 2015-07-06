@@ -5,23 +5,74 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Iterator;
+import java.util.Map;
 
 import org.json.simple.JSONObject;
+import org.json.simple.JSONValue;
+import org.json.simple.parser.ParseException;
 
 import i5.las2peer.services.modelPersistenceService.models.edge.Edge;
 import i5.las2peer.services.modelPersistenceService.models.modelAttribute.ModelAttributes;
 import i5.las2peer.services.modelPersistenceService.models.node.Node;
 
+/**
+ * 
+ * (Data-)Class for Models. Provides means to convert JSON to Object and Object to JSON. Also
+ * provides means to persist the object to a database.
+ *
+ */
 public class Model {
   private int id;
   private Node[] nodes;
   private Edge[] edges;
   private ModelAttributes attributes;
 
-  public Model(ModelAttributes attributes, Node[] nodes, Edge[] edges) {
-    this.nodes = nodes;
-    this.edges = edges;
-    this.attributes = attributes;
+  /**
+   * 
+   * Creates a new model attribute entry.
+   * 
+   * @param jsonModel the attribute as (SyncMeta-compatible) JSON String
+   * 
+   * @throws ParseException if the parameter is not well formatted
+   */
+  public Model(String jsonModel) throws ParseException {
+
+    JSONObject completeJsonModel = (JSONObject) JSONValue.parseWithException(jsonModel);
+
+    // attributes
+    JSONObject jsonAttribute = (JSONObject) completeJsonModel.get("attributes");
+    attributes = new ModelAttributes(jsonAttribute);
+
+    // resolve nodes and edges now
+
+    // nodes
+    JSONObject jsonNodes = (JSONObject) completeJsonModel.get("nodes");
+    this.nodes = new Node[jsonNodes.size()];
+    int index = 0;
+    @SuppressWarnings("unchecked")
+    Iterator<Map.Entry<String, Object>> nodesEntries = jsonNodes.entrySet().iterator();
+    while (nodesEntries.hasNext()) {
+      Map.Entry<String, Object> entry = nodesEntries.next();
+      String key = entry.getKey();
+      JSONObject value = (JSONObject) entry.getValue();
+      nodes[index] = new Node(key, value);
+      index++;
+    }
+
+    // edges
+    JSONObject jsonEdges = (JSONObject) completeJsonModel.get("edges");
+    this.edges = new Edge[jsonEdges.size()];
+    index = 0;
+    @SuppressWarnings("unchecked")
+    Iterator<Map.Entry<String, Object>> edgesEntries = jsonEdges.entrySet().iterator();
+    while (edgesEntries.hasNext()) {
+      Map.Entry<String, Object> entry = edgesEntries.next();
+      String key = entry.getKey();
+      JSONObject value = (JSONObject) entry.getValue();
+      edges[index] = new Edge(key, value);
+      index++;
+    }
   }
 
   public int getId() {
@@ -72,7 +123,6 @@ public class Model {
     return jsonModel;
   }
 
-
   /**
    * Persists a model. For a complete understanding how the model is persisted in a database, please
    * take a look at the SQL script located in the folder "databases". Please note, that the model's
@@ -105,7 +155,7 @@ public class Model {
       this.attributes.persist(connection);
       // modelToModelAttributes entry ("connect" them)
       statement = connection.prepareStatement(
-          "insert into ModelToModelAttributes (modelId, modelAttributesName) VALUES (?, ?);");
+          "INSERT INTO ModelToModelAttributes (modelId, modelAttributesName) VALUES (?, ?);");
       statement.setInt(1, this.id);
       statement.setString(2, this.attributes.getName());
       // execute query
@@ -117,7 +167,7 @@ public class Model {
         nodes[i].persist(connection);
         // nodeToModel entry ("connect" them)
         statement =
-            connection.prepareStatement("insert into NodeToModel (nodeId, modelId) VALUES (?, ?);");
+            connection.prepareStatement("INSERT INTO NodeToModel (nodeId, modelId) VALUES (?, ?);");
         statement.setString(1, nodes[i].getId());
         statement.setInt(2, this.id);
         statement.executeUpdate();
@@ -129,7 +179,7 @@ public class Model {
         edges[i].persist(connection);
         // EdgeToModel entry ("connect" them)
         statement =
-            connection.prepareStatement("insert into EdgeToModel (edgeId, modelId) VALUES (?, ?);");
+            connection.prepareStatement("INSERT INTO EdgeToModel (edgeId, modelId) VALUES (?, ?);");
         statement.setString(1, edges[i].getId());
         statement.setInt(2, this.id);
         statement.executeUpdate();
