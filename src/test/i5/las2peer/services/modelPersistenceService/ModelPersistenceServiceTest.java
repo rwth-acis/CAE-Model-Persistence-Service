@@ -130,8 +130,7 @@ public class ModelPersistenceServiceTest {
     // read in (test-)model
     try {
       JSONParser parser = new JSONParser();
-      String FILE_NAME =
-          "C:\\Users\\peter_000\\Documents\\Dropbox\\Studium\\Master\\Master Thesis\\Models\\example_microservice_model.json";
+      String FILE_NAME = "exampleModels\\example_microservice_model.json";
       Object obj;
       obj = parser.parse(new FileReader(FILE_NAME));
       payload = (JSONObject) obj;
