@@ -2,13 +2,16 @@ package i5.las2peer.services.modelPersistenceService.models.modelAttribute;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
 import org.json.simple.JSONObject;
 
+import i5.las2peer.services.modelPersistenceService.database.exception.ModelNotFoundException;
 import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
 
 /**
@@ -19,11 +22,11 @@ import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
  */
 public class ModelAttributes {
   private String name; // serves also as unique id
-  private EntityAttribute[] attributes; // meta-data
+  private ArrayList<EntityAttribute> attributes; // meta-data
 
   /**
    * 
-   * Creates a new model attribute entry.
+   * Creates a new ModelAttribute entry.
    * 
    * @param jsonModelAttribute the attribute as (SyncMeta-compatible) JSON file
    * 
@@ -35,25 +38,62 @@ public class ModelAttributes {
 
     // parse attributes
     JSONObject jsonAttributes = (JSONObject) jsonModelAttribute.get("attributes");
-    this.attributes = new EntityAttribute[jsonAttributes.size()];
+    this.attributes = new ArrayList<EntityAttribute>(jsonAttributes.size());
     @SuppressWarnings("unchecked")
     Iterator<Map.Entry<String, Object>> jsonAttribute = jsonAttributes.entrySet().iterator();
-    int attributeIndex = 0;
     while (jsonAttribute.hasNext()) {
       Map.Entry<String, Object> entry = jsonAttribute.next();
       String attributeId = entry.getKey();
       JSONObject attribute = (JSONObject) entry.getValue();
-      attributes[attributeIndex] = new EntityAttribute(attributeId, attribute);
-      attributeIndex++;
+      this.attributes.add(new EntityAttribute(attributeId, attribute));
     }
 
+  }
+
+  /**
+   * 
+   * Creates a new ModelAttributes entry by loading it from the database.
+   * 
+   * @param modelName the name of the model
+   * @param connection a Connection Object
+   * 
+   * @throws SQLException if something went wrong loading the ModelAttributes
+   * 
+   */
+  public ModelAttributes(String modelName, Connection connection) throws SQLException {
+    // first create empty attribute list
+    this.attributes = new ArrayList<EntityAttribute>();
+
+    // search for modelAttributes
+    PreparedStatement statement =
+        connection.prepareStatement("SELECT * FROM ModelAttributes WHERE modelName=?;");
+    statement.setString(1, modelName);
+    // execute query
+    ResultSet queryResult = statement.executeQuery();
+    // process result set
+    if (queryResult.next()) {
+      this.name = queryResult.getString(1);
+    } else {
+      throw new ModelNotFoundException("Model with name " + modelName + " is not in database!");
+    }
+    statement.close();
+
+    // attribute entries
+    statement = connection.prepareStatement(
+        "SELECT attributeId FROM AttributeToModelAttributes WHERE modelAttributesName = ?;");
+    statement.setString(1, this.name);
+    queryResult = statement.executeQuery();
+    while (queryResult.next()) {
+      this.attributes.add(new EntityAttribute(queryResult.getInt(1), connection));
+    }
+    statement.close();
   }
 
   public String getName() {
     return this.name;
   }
 
-  public EntityAttribute[] getAttributes() {
+  public ArrayList<EntityAttribute> getAttributes() {
     return this.attributes;
   }
 
@@ -92,8 +132,8 @@ public class ModelAttributes {
 
     // attribute element of modelAttributeContent (currently empty)
     JSONObject attributes = new JSONObject();
-    for (int attributeIndex = 0; attributeIndex < this.attributes.length; attributeIndex++) {
-      EntityAttribute currentAttribute = this.attributes[attributeIndex];
+    for (int attributeIndex = 0; attributeIndex < this.attributes.size(); attributeIndex++) {
+      EntityAttribute currentAttribute = this.attributes.get(attributeIndex);
       JSONObject attributeContent = new JSONObject();
       attributeContent.put("id", "modelAttributes[" + currentAttribute.getName() + "]");
       attributeContent.put("name", currentAttribute.getName());
@@ -106,7 +146,7 @@ public class ModelAttributes {
       attributeContent.put("value", attributeValue);
 
       // add attribute to attribute list with the attribute's id as key
-      attributes.put(currentAttribute.getId(), attributeContent);
+      attributes.put(currentAttribute.getSyncMetaId(), attributeContent);
     }
     modelAttribute.put("attributes", attributes);
     return modelAttribute;
@@ -130,12 +170,12 @@ public class ModelAttributes {
     statement.executeUpdate();
     statement.close();
     // attributes entries
-    for (int i = 0; i < this.attributes.length; i++) {
-      attributes[i].persist(connection);
+    for (int i = 0; i < this.attributes.size(); i++) {
+      this.attributes.get(i).persist(connection);
       // AttributeToModelAttributes entry ("connect" them)
       statement = connection.prepareStatement(
           "INSERT INTO AttributeToModelAttributes (attributeId, modelAttributesName) VALUES (?, ?);");
-      statement.setInt(1, attributes[i].getId());
+      statement.setInt(1, this.attributes.get(i).getId());
       statement.setString(2, this.name);
       statement.executeUpdate();
       statement.close();

@@ -2,7 +2,9 @@ package i5.las2peer.services.modelPersistenceService.models.node;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -13,7 +15,7 @@ import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
 /**
  * 
  * (Data-)Class for Nodes. Provides means to convert JSON to Object and Object to JSON. Also
- * provides means to persist the object to a database.
+ * provides means to persist and load the object to/from a database.
  *
  */
 public class Node {
@@ -21,18 +23,18 @@ public class Node {
   private String id;
   private NodePosition position;
   private String type;
-  private EntityAttribute[] attributes;
+  private ArrayList<EntityAttribute> attributes;
 
   /**
    * 
    * Creates a new node entity.
    * 
-   * @param id the node id
+   * @param nodeId the node id
    * @param jsonNode the content of the node entry in the (JSON-represented) model
    * 
    */
-  public Node(String id, JSONObject jsonNode) {
-    this.id = id;
+  public Node(String nodeId, JSONObject jsonNode) {
+    this.id = nodeId;
     this.type = (String) jsonNode.get("type");
     this.position = new NodePosition((int) ((Number) jsonNode.get("left")).intValue(),
         ((Number) jsonNode.get("top")).intValue(), ((Number) jsonNode.get("width")).intValue(),
@@ -40,17 +42,55 @@ public class Node {
 
     // parse attributes
     JSONObject jsonAttributes = (JSONObject) jsonNode.get("attributes");
-    this.attributes = new EntityAttribute[jsonAttributes.size()];
+    this.attributes = new ArrayList<EntityAttribute>(jsonAttributes.size());
     @SuppressWarnings("unchecked")
     Iterator<Map.Entry<String, Object>> jsonAttribute = jsonAttributes.entrySet().iterator();
-    int attributeIndex = 0;
     while (jsonAttribute.hasNext()) {
       Map.Entry<String, Object> entry = jsonAttribute.next();
       String attributeId = entry.getKey();
       JSONObject attribute = (JSONObject) entry.getValue();
-      attributes[attributeIndex] = new EntityAttribute(attributeId, attribute);
-      attributeIndex++;
+      this.attributes.add(new EntityAttribute(attributeId, attribute));
     }
+  }
+
+  /**
+   * 
+   * Creates a new node entity from the database.
+   * 
+   * @param nodeId the node id
+   * @param connection a Connection object
+   * 
+   * @throws SQLException if something went wrong fetching the node from the database
+   * 
+   */
+  public Node(String nodeId, Connection connection) throws SQLException {
+    // first create empty attribute list
+    this.attributes = new ArrayList<EntityAttribute>();
+
+    // fetch node
+    PreparedStatement statement =
+        connection.prepareStatement("SELECT * FROM Node WHERE nodeId = ?;");
+    statement.setString(1, nodeId);
+    ResultSet queryResult = statement.executeQuery();
+    if (queryResult.next()) {
+      this.id = queryResult.getString(1);
+      this.type = queryResult.getString(2);
+      this.position = new NodePosition(queryResult.getInt(3), queryResult.getInt(4),
+          queryResult.getInt(5), queryResult.getInt(6), queryResult.getInt(7));
+      statement.close();
+    } else {
+      throw new SQLException("Could not find node!");
+    }
+
+    // attribute entries
+    statement =
+        connection.prepareStatement("SELECT attributeId FROM AttributeToNode WHERE nodeId = ?;");
+    statement.setString(1, this.id);
+    queryResult = statement.executeQuery();
+    while (queryResult.next()) {
+      this.attributes.add(new EntityAttribute(queryResult.getInt(1), connection));
+    }
+    statement.close();
   }
 
   public String getId() {
@@ -65,7 +105,7 @@ public class Node {
     return type;
   }
 
-  public EntityAttribute[] getAttributes() {
+  public ArrayList<EntityAttribute> getAttributes() {
     return attributes;
   }
 
@@ -104,8 +144,8 @@ public class Node {
 
     // attribute element of nodeContent
     JSONObject attributes = new JSONObject();
-    for (int attributeIndex = 0; attributeIndex < this.attributes.length; attributeIndex++) {
-      EntityAttribute currentAttribute = this.attributes[attributeIndex];
+    for (int attributeIndex = 0; attributeIndex < this.attributes.size(); attributeIndex++) {
+      EntityAttribute currentAttribute = this.attributes.get(attributeIndex);
       JSONObject attributeContent = new JSONObject();
       attributeContent.put("id", this.id + "[" + currentAttribute.getName() + "]");
       attributeContent.put("name", currentAttribute.getName());
@@ -118,7 +158,7 @@ public class Node {
       attributeContent.put("value", attributeValue);
 
       // add attribute to attribute list with the attribute's id as key
-      attributes.put(currentAttribute.getId(), attributeContent);
+      attributes.put(currentAttribute.getSyncMetaId(), attributeContent);
 
       // check for name of label, if found, add value to label
       if (currentAttribute.getName().equals("name")) {
@@ -156,12 +196,12 @@ public class Node {
     statement.executeUpdate();
     statement.close();
     // attributes entries
-    for (int i = 0; i < this.attributes.length; i++) {
-      attributes[i].persist(connection);
+    for (int i = 0; i < this.attributes.size(); i++) {
+      this.attributes.get(i).persist(connection);
       // AttributeToNode entry ("connect" them)
       statement = connection
           .prepareStatement("INSERT INTO AttributeToNode (attributeId, nodeId) VALUES (?, ?);");
-      statement.setInt(1, attributes[i].getId());
+      statement.setInt(1, this.attributes.get(i).getId());
       statement.setString(2, this.getId());
       statement.executeUpdate();
       statement.close();

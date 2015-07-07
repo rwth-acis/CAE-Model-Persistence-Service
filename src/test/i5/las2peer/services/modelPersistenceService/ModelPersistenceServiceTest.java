@@ -132,7 +132,7 @@ public class ModelPersistenceServiceTest {
     // read in (test-)model
     try {
       JSONParser parser = new JSONParser();
-      String FILE_NAME = "./exampleModels/example_microservice_model.json";
+      String FILE_NAME = "./exampleModels/example_microservice_model_1.json";
       Object obj;
       obj = parser.parse(new FileReader(FILE_NAME));
       payload = (JSONObject) obj;
@@ -145,7 +145,7 @@ public class ModelPersistenceServiceTest {
     try {
       c.setLogin(Long.toString(testAgent.getId()), testPass);
       @SuppressWarnings("unchecked")
-      ClientResponse result = c.sendRequest("POST", mainPath, payload.toJSONString(),
+      ClientResponse result = c.sendRequest("POST", mainPath + "", payload.toJSONString(),
           MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, new Pair[] {});
       assertEquals(201, result.getHttpCode());
       System.out.println("Result of 'testModelPosting': " + result.getResponse().trim());
@@ -155,6 +155,33 @@ public class ModelPersistenceServiceTest {
     }
 
   }
+
+  /**
+   * 
+   * A basic test for the model fetching mechanism.
+   * 
+   */
+  @Test
+  public void testModelFetching() {
+
+    MiniClient c = new MiniClient();
+    c.setAddressPort(HTTP_ADDRESS, HTTP_PORT);
+
+    // test method
+    try {
+      c.setLogin(Long.toString(testAgent.getId()), testPass);
+      @SuppressWarnings("unchecked")
+      ClientResponse result = c.sendRequest("GET", mainPath + "First%20Model", "",
+          MediaType.TEXT_PLAIN, MediaType.APPLICATION_JSON, new Pair[] {});
+      assertEquals(200, result.getHttpCode());
+      System.out.println("Result of 'testModelFetching': " + result.getResponse().trim());
+    } catch (Exception e) {
+      e.printStackTrace();
+      fail("Exception: " + e);
+    }
+
+  }
+
 
 
   /**

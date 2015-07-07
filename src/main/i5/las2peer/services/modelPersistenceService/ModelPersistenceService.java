@@ -3,6 +3,9 @@ package i5.las2peer.services.modelPersistenceService;
 import java.sql.Connection;
 import java.sql.SQLException;
 
+import org.json.simple.JSONObject;
+import org.json.simple.parser.ParseException;
+
 import i5.las2peer.api.Service;
 import i5.las2peer.restMapper.HttpResponse;
 import i5.las2peer.restMapper.MediaType;
@@ -21,6 +24,7 @@ import i5.las2peer.restMapper.annotations.swagger.ApiResponses;
 import i5.las2peer.restMapper.annotations.swagger.ResourceListApi;
 import i5.las2peer.restMapper.annotations.swagger.Summary;
 import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
+import i5.las2peer.services.modelPersistenceService.database.exception.ModelNotFoundException;
 import i5.las2peer.services.modelPersistenceService.model.Model;
 
 /**
@@ -67,11 +71,12 @@ public class ModelPersistenceService extends Service {
   ////////////////////////////////////////////////////////////////////////////////////////
 
   /**
+   * 
    * Entry point for all new models. Stores it to the database.
    * 
    * @param inputModel the model as a JSON string
    * 
-   * @return HttpResponse containing the status code of the request and a small return message.
+   * @return HttpResponse containing the status code of the request and a small return message
    * 
    */
   @POST
@@ -85,18 +90,28 @@ public class ModelPersistenceService extends Service {
       @ApiResponse(code = 500, message = "Internal server error")})
   @Summary("Entry point for storing a model to the database.")
   public HttpResponse postModel(@ContentParam String inputModel) {
+    logMessage("trying to store new model");
     Model model;
     try {
       // create the model
       model = new Model(inputModel);
-    } catch (Exception e) {
+    } catch (ParseException e) {
       logError("Exception parsing JSON input: " + e);
       HttpResponse r = new HttpResponse("JSON parsing exception, file not valid!");
       r.setStatus(500);
       return r;
+    } catch (Exception e) {
+      logError("Something got seriously wrong: " + e);
+      e.printStackTrace();
+      HttpResponse r = new HttpResponse("Internal server error..");
+      r.setStatus(500);
+      return r;
     }
+
     // check if model name is already taken
-    if (this.getModel(model.getAttributes().getName()).getStatus() != 500) {
+    if (this.getModel(model.getAttributes().getName()).getStatus() != 404) {
+      logMessage(
+          "model name " + model.getAttributes().getName() + " is already taken, cannot store");
       HttpResponse r = new HttpResponse(
           "Model with name " + model.getAttributes().getName() + " already exists!");
       r.setStatus(409);
@@ -105,11 +120,11 @@ public class ModelPersistenceService extends Service {
     // save the model to the database
     try {
       Connection connection = dbm.getConnection();
-      int modelId = model.persist(connection);
+      model.persist(connection);
+      int modelId = model.getId();
       logMessage(
           "Model with id " + modelId + " and name " + model.getAttributes().getName() + " stored!");
       HttpResponse r = new HttpResponse("Model stored!");
-      r.setResult(model.toJSONObject().toJSONString());
       r.setStatus(201);
       return r;
     } catch (SQLException e) {
@@ -118,32 +133,65 @@ public class ModelPersistenceService extends Service {
       HttpResponse r = new HttpResponse("Could not persist, database rejected model!");
       r.setStatus(500);
       return r;
+    } catch (Exception e) {
+      logError("Something got seriously wrong: " + e);
+      e.printStackTrace();
+      HttpResponse r = new HttpResponse("Internal server error..");
+      r.setStatus(500);
+      return r;
     }
 
   }
 
   /**
+   * 
    * Searches for a model in the database by name.
    * 
    * @param modelName the model as a JSON string
    * 
-   * @return HttpResponse containing the status code of the request and (if successfull) the model
-   *         as a JSON string.
+   * @return HttpResponse containing the status code of the request and (if successful) the model as
+   *         a JSON string
    * 
    */
   @GET
   @Path("/{modelName}")
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.TEXT_PLAIN)
-  @ResourceListApi(description = "Searches for a model in the database.")
+  @ResourceListApi(
+      description = "Searches for a model in the database. Takes the modelName as search parameter")
   @ApiResponses(value = {@ApiResponse(code = 200, message = "OK, model found"),
       @ApiResponse(code = 404, message = "Model could not be found."),
       @ApiResponse(code = 500, message = "Internal server error")})
   @Summary("Searches for a model in the database.")
   public HttpResponse getModel(@PathParam("modelName") String modelName) {
-    // TODO
-    HttpResponse r = new HttpResponse("Not Implemented right now!");
-    r.setStatus(500);
+    logMessage("searching for model with name " + modelName);
+    Model model = null;
+    Connection connection;
+    try {
+      connection = dbm.getConnection();
+      model = new Model(modelName, connection);
+    } catch (ModelNotFoundException e) {
+      logMessage("did not find model with name " + modelName);
+      HttpResponse r = new HttpResponse("Model not found!");
+      r.setStatus(404);
+      return r;
+    } catch (SQLException e) {
+      logError("Exception fetching model: " + e);
+      e.printStackTrace();
+      HttpResponse r = new HttpResponse("Could not persist, database rejected model!");
+      r.setStatus(500);
+      return r;
+    } catch (Exception e) {
+      logError("Something got seriously wrong: " + e);
+      e.printStackTrace();
+      HttpResponse r = new HttpResponse("Could not persist, database rejected model!");
+      r.setStatus(500);
+      return r;
+    }
+    logMessage("found model " + modelName + ", now converting to JSONObject and returning");
+    JSONObject jsonModel = model.toJSONObject();
+
+    HttpResponse r = new HttpResponse(jsonModel.toJSONString(), 200);
     return r;
   }
 

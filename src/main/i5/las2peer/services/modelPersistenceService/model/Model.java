@@ -5,6 +5,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -24,17 +25,18 @@ import i5.las2peer.services.modelPersistenceService.models.node.Node;
  */
 public class Model {
   private int id;
-  private Node[] nodes;
-  private Edge[] edges;
+  private ArrayList<Node> nodes;
+  private ArrayList<Edge> edges;
   private ModelAttributes attributes;
 
   /**
    * 
-   * Creates a new model attribute entry.
+   * Creates a new model from a given JSON representation.
    * 
    * @param jsonModel the attribute as (SyncMeta-compatible) JSON String
    * 
    * @throws ParseException if the parameter is not well formatted
+   * 
    */
   public Model(String jsonModel) throws ParseException {
 
@@ -42,36 +44,83 @@ public class Model {
 
     // attributes
     JSONObject jsonAttribute = (JSONObject) completeJsonModel.get("attributes");
-    attributes = new ModelAttributes(jsonAttribute);
-
-    // resolve nodes and edges now
+    this.attributes = new ModelAttributes(jsonAttribute);
 
     // nodes
     JSONObject jsonNodes = (JSONObject) completeJsonModel.get("nodes");
-    this.nodes = new Node[jsonNodes.size()];
-    int index = 0;
+    this.nodes = new ArrayList<Node>(jsonNodes.size());
     @SuppressWarnings("unchecked")
     Iterator<Map.Entry<String, Object>> nodesEntries = jsonNodes.entrySet().iterator();
     while (nodesEntries.hasNext()) {
       Map.Entry<String, Object> entry = nodesEntries.next();
       String key = entry.getKey();
       JSONObject value = (JSONObject) entry.getValue();
-      nodes[index] = new Node(key, value);
-      index++;
+      nodes.add(new Node(key, value));
     }
 
     // edges
     JSONObject jsonEdges = (JSONObject) completeJsonModel.get("edges");
-    this.edges = new Edge[jsonEdges.size()];
-    index = 0;
+    this.edges = new ArrayList<Edge>(jsonEdges.size());
     @SuppressWarnings("unchecked")
     Iterator<Map.Entry<String, Object>> edgesEntries = jsonEdges.entrySet().iterator();
     while (edgesEntries.hasNext()) {
       Map.Entry<String, Object> entry = edgesEntries.next();
       String key = entry.getKey();
       JSONObject value = (JSONObject) entry.getValue();
-      edges[index] = new Edge(key, value);
-      index++;
+      edges.add(new Edge(key, value));
+    }
+  }
+
+  /**
+   * 
+   * Creates a new model by loading it from the database.
+   * 
+   * @param modelName the name of the model that resides in the database
+   * @param connection a Connection Object
+   * 
+   * @throws SQLException if the model is not found or something else went wrong
+   * 
+   */
+  public Model(String modelName, Connection connection) throws SQLException {
+    PreparedStatement statement;
+    // create empty node and edge lists
+    this.nodes = new ArrayList<Node>();
+    this.edges = new ArrayList<Edge>();
+
+    try {
+      // load attributes
+      this.attributes = new ModelAttributes(modelName, connection);
+
+      // now we know the model name, set own id
+      statement = connection.prepareStatement(
+          "SELECT modelId FROM ModelToModelAttributes WHERE modelAttributesName = ?;");
+      statement.setString(1, this.attributes.getName());
+      ResultSet queryResult = statement.executeQuery();
+      while (queryResult.next()) {
+        this.id = queryResult.getInt(1);
+      }
+      statement.close();
+
+      // load nodes
+      statement = connection.prepareStatement("SELECT nodeId FROM NodeToModel WHERE modelId = ?;");
+      statement.setInt(1, this.id);
+      queryResult = statement.executeQuery();
+      while (queryResult.next()) {
+        this.nodes.add(new Node(queryResult.getString(1), connection));
+      }
+      statement.close();
+
+      // load edges
+      statement = connection.prepareStatement("SELECT edgeId FROM EdgeToModel WHERE modelId = ?;");
+      statement.setInt(1, this.id);
+      queryResult = statement.executeQuery();
+      while (queryResult.next()) {
+        this.edges.add(new Edge(queryResult.getString(1), connection));
+      }
+      statement.close();
+    } finally {
+      // always free resources
+      connection.close();
     }
   }
 
@@ -79,11 +128,11 @@ public class Model {
     return id;
   }
 
-  public Node[] getNodes() {
+  public ArrayList<Node> getNodes() {
     return nodes;
   }
 
-  public Edge[] getEdges() {
+  public ArrayList<Edge> getEdges() {
     return edges;
   }
 
@@ -108,15 +157,15 @@ public class Model {
 
     // add nodes
     JSONObject jsonNodes = new JSONObject();
-    for (int nodeIndex = 0; nodeIndex < this.nodes.length; nodeIndex++) {
-      jsonNodes.put(this.nodes[nodeIndex].getId(), this.nodes[nodeIndex].toJSONObject());
+    for (int nodeIndex = 0; nodeIndex < this.nodes.size(); nodeIndex++) {
+      jsonNodes.put(this.nodes.get(nodeIndex).getId(), this.nodes.get(nodeIndex).toJSONObject());
     }
     jsonModel.put("nodes", jsonNodes);
 
     // add edges
     JSONObject jsonEdges = new JSONObject();
-    for (int edgeIndex = 0; edgeIndex < this.edges.length; edgeIndex++) {
-      jsonEdges.put(this.edges[edgeIndex].getId(), this.edges[edgeIndex].toJSONObject());
+    for (int edgeIndex = 0; edgeIndex < this.edges.size(); edgeIndex++) {
+      jsonEdges.put(this.edges.get(edgeIndex).getId(), this.edges.get(edgeIndex).toJSONObject());
     }
     jsonModel.put("edges", jsonEdges);
 
@@ -131,12 +180,10 @@ public class Model {
    * 
    * @param connection a Connection Object
    * 
-   * @return the (new) modelId
-   * 
    * @throws SQLException if something with the database has gone wrong
    */
-  public int persist(Connection connection) throws SQLException {
-    PreparedStatement statement = null;
+  public void persist(Connection connection) throws SQLException {
+    PreparedStatement statement;
     try {
       connection.setAutoCommit(false);
 
@@ -163,24 +210,24 @@ public class Model {
       statement.close();
 
       // now to the nodes
-      for (int i = 0; i < this.nodes.length; i++) {
-        nodes[i].persist(connection);
+      for (int i = 0; i < this.nodes.size(); i++) {
+        nodes.get(i).persist(connection);
         // nodeToModel entry ("connect" them)
         statement =
             connection.prepareStatement("INSERT INTO NodeToModel (nodeId, modelId) VALUES (?, ?);");
-        statement.setString(1, nodes[i].getId());
+        statement.setString(1, nodes.get(i).getId());
         statement.setInt(2, this.id);
         statement.executeUpdate();
         statement.close();
       }
 
       // and edges
-      for (int i = 0; i < this.edges.length; i++) {
-        edges[i].persist(connection);
+      for (int i = 0; i < this.edges.size(); i++) {
+        edges.get(i).persist(connection);
         // EdgeToModel entry ("connect" them)
         statement =
             connection.prepareStatement("INSERT INTO EdgeToModel (edgeId, modelId) VALUES (?, ?);");
-        statement.setString(1, edges[i].getId());
+        statement.setString(1, edges.get(i).getId());
         statement.setInt(2, this.id);
         statement.executeUpdate();
         statement.close();
@@ -188,7 +235,6 @@ public class Model {
 
       // we got here without errors, so commit now
       connection.commit();
-      return this.id;
 
     } catch (SQLException e) {
       // roll back the whole stuff
@@ -196,8 +242,8 @@ public class Model {
       throw e;
     } finally {
       // always free resources
-      statement.close();
       connection.close();
     }
   }
+
 }

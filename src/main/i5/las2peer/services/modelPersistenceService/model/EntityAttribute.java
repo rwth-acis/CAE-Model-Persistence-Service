@@ -37,6 +37,34 @@ public class EntityAttribute {
     this.value = (String) jsonAttribute.get("value");
   }
 
+  /**
+   * 
+   * Creates a new EntityAttribute by loading it from the database.
+   * 
+   * @param attributeId the id of the attribute given by the database
+   * 
+   * @param connection a Connection object
+   * 
+   * @throws SQLException if something went wrong fetching the attribute from the database
+   * 
+   */
+  public EntityAttribute(int attributeId, Connection connection) throws SQLException {
+    // attributes entries
+    PreparedStatement statement =
+        connection.prepareStatement("SELECT * FROM Attribute WHERE attributeId = ?;");
+    statement.setInt(1, attributeId);
+    ResultSet queryResult = statement.executeQuery();
+    if (queryResult.next()) {
+      this.id = queryResult.getInt(1);
+      this.syncMetaId = queryResult.getString(2);
+      this.name = (String) queryResult.getString(3);
+      this.value = (String) queryResult.getString(4);
+      statement.close();
+    } else {
+      throw new SQLException("Could not find attribute");
+    }
+  }
+
   public int getId() {
     return id;
   }
@@ -54,7 +82,7 @@ public class EntityAttribute {
   }
 
   /**
-   * Persists an Entity Attribute.
+   * Persists an Entity Attribute. If attribute already exists it will be updated.
    * 
    * @param connection a Connection object
    * 
