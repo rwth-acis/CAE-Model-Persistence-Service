@@ -1,4 +1,4 @@
-package i5.las2peer.services.modelPersistenceService.models.node;
+package i5.las2peer.services.modelPersistenceService.model.node;
 
 public class NodePosition {
   private int left;

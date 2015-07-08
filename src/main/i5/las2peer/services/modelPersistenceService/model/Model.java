@@ -1,5 +1,6 @@
 package i5.las2peer.services.modelPersistenceService.model;
 
+import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -13,9 +14,13 @@ import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 import org.json.simple.parser.ParseException;
 
-import i5.las2peer.services.modelPersistenceService.models.edge.Edge;
-import i5.las2peer.services.modelPersistenceService.models.modelAttribute.ModelAttributes;
-import i5.las2peer.services.modelPersistenceService.models.node.Node;
+import i5.cae.simpleModel.SimpleEntityAttribute;
+import i5.cae.simpleModel.SimpleModel;
+import i5.cae.simpleModel.edge.SimpleEdge;
+import i5.cae.simpleModel.node.SimpleNode;
+import i5.las2peer.services.modelPersistenceService.model.edge.Edge;
+import i5.las2peer.services.modelPersistenceService.model.modelAttributes.ModelAttributes;
+import i5.las2peer.services.modelPersistenceService.model.node.Node;
 
 /**
  * 
@@ -244,6 +249,67 @@ public class Model {
       // always free resources
       connection.close();
     }
+  }
+
+  /**
+   * 
+   * Simplifies a model so send it to the CAE-Code-Generation-Service. Removes all obsolete
+   * attributes and methods and returns a serializable ready-to send-model representation.
+   * 
+   * 
+   * @return a @link{java.io.Serializable} representation of a @link{SimpleModel}
+   * 
+   */
+  public Serializable getMinifiedRepresentation() {
+    ArrayList<SimpleNode> simpleNodes = new ArrayList<SimpleNode>(this.nodes.size());
+    ArrayList<SimpleEdge> simpleEdges = new ArrayList<SimpleEdge>(this.edges.size());
+    ArrayList<SimpleEntityAttribute> simpleModelAttributes =
+        new ArrayList<SimpleEntityAttribute>(this.attributes.getAttributes().size());
+
+    // "simplify" nodes
+    for (int i = 0; i < this.nodes.size(); i++) {
+      Node node = this.nodes.get(i);
+      // "simplify" attributes of node
+      ArrayList<SimpleEntityAttribute> simpleAttributesOfNode =
+          new ArrayList<SimpleEntityAttribute>(node.getAttributes().size());
+      for (int j = 0; j < node.getAttributes().size(); j++) {
+        EntityAttribute attribute = this.attributes.getAttributes().get(i);
+        SimpleEntityAttribute simpleAttribute = new SimpleEntityAttribute(attribute.getSyncMetaId(),
+            attribute.getName(), attribute.getValue());
+        simpleAttributesOfNode.add(simpleAttribute);
+      }
+      SimpleNode simpleNode = new SimpleNode(node.getId(), node.getType(), simpleAttributesOfNode);
+      simpleNodes.add(simpleNode);
+    }
+
+    // "simplify" edges
+    for (int i = 0; i < this.edges.size(); i++) {
+      Edge edge = this.edges.get(i);
+      // "simplify" attributes of edge
+      ArrayList<SimpleEntityAttribute> simpleAttributesOfEdge =
+          new ArrayList<SimpleEntityAttribute>(edge.getAttributes().size());
+      for (int j = 0; j < edge.getAttributes().size(); j++) {
+        EntityAttribute attribute = this.attributes.getAttributes().get(i);
+        SimpleEntityAttribute simpleAttribute = new SimpleEntityAttribute(attribute.getSyncMetaId(),
+            attribute.getName(), attribute.getValue());
+        simpleAttributesOfEdge.add(simpleAttribute);
+      }
+      SimpleEdge simpleEdge = new SimpleEdge(edge.getId(), edge.getSourceNode(),
+          edge.getTargetNode(), edge.getType(), edge.getLabelValue(), simpleAttributesOfEdge);
+      simpleEdges.add(simpleEdge);
+    }
+
+    // "simplify" modelAttributes
+    for (int i = 0; i < this.attributes.getAttributes().size(); i++) {
+      EntityAttribute attribute = this.attributes.getAttributes().get(i);
+      SimpleEntityAttribute simpleAttribute = new SimpleEntityAttribute(attribute.getSyncMetaId(),
+          attribute.getName(), attribute.getValue());
+      simpleModelAttributes.add(simpleAttribute);
+    }
+
+    SimpleModel simpleModel =
+        new SimpleModel(this.attributes.getName(), simpleNodes, simpleEdges, simpleModelAttributes);
+    return simpleModel;
   }
 
 }

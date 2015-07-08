@@ -1,4 +1,4 @@
-package i5.las2peer.services.modelPersistenceService.models.edge;
+package i5.las2peer.services.modelPersistenceService.model.edge;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;

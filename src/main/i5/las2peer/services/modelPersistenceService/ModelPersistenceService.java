@@ -58,6 +58,10 @@ public class ModelPersistenceService extends Service {
   private String webconnectorIpAdress = "localhost";
   private String webconnectorPort = "8080";
 
+  /*
+   * Global variables
+   */
+  private boolean useCodeGenerationService;
 
   public ModelPersistenceService() {
     // read and set properties values
@@ -119,6 +123,11 @@ public class ModelPersistenceService extends Service {
     }
     // save the model to the database
     try {
+      // call code generation service
+      if (this.useCodeGenerationService) {
+        this.invokeServiceMethod("i5.las2peer.services.codeGenerationService.CodeGenerationService",
+            "needToDiscussMethodNames", model.getMinifiedRepresentation());
+      }
       Connection connection = dbm.getConnection();
       model.persist(connection);
       int modelId = model.getId();

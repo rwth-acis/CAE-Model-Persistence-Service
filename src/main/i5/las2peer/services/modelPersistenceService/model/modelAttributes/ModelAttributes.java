@@ -1,4 +1,4 @@
-package i5.las2peer.services.modelPersistenceService.models.modelAttribute;
+package i5.las2peer.services.modelPersistenceService.model.modelAttributes;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
