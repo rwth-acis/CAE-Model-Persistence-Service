@@ -1,0 +1,6 @@
+<las2peerNode>
+	<adminName>Peter de Lange</adminName>
+	<adminEmail>lange@dbis.rwth-aachen.de</adminEmail>
+	<organization>Advanced Community Information Systems (ACIS) Group, RWTH Aachen University</organization>
+	<description>This node hosts the model persistence service, which is part of the Community Application Editor (CAE).</description>
+</las2peerNode>
