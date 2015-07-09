@@ -8,6 +8,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.util.Properties;
 
 import org.json.simple.JSONObject;
@@ -58,6 +59,7 @@ public class ModelPersistenceServiceTest {
   private static Connection connection;
   private static Model testModel1;
   private static Model testModel2;
+  private static Model testModel1_updated;
 
   /**
    * Called before the tests start.
@@ -75,8 +77,11 @@ public class ModelPersistenceServiceTest {
     String propertiesFile =
         "./etc/i5.las2peer.services.modelPersistenceService.ModelPersistenceService.properties";
     String FILE_NAME1 = "./exampleModels/example_microservice_model_1.json";
+    String FILE_NAME1_UPDATED = "./exampleModels/example_microservice_model_1_updated.json";
     String FILE_NAME2 = "./exampleModels/example_microservice_model_2.json";
+
     String jsonModel1 = null;
+    String jsonModel1_updated = null;
     String jsonModel2 = null;
     String jdbcDriverClassName = null;
     String jdbcUrl = null;
@@ -98,6 +103,9 @@ public class ModelPersistenceServiceTest {
       JSONParser parser = new JSONParser();
 
       jsonModel1 = ((JSONObject) parser.parse(new FileReader(FILE_NAME1))).toJSONString();
+      jsonModel1_updated =
+          ((JSONObject) parser.parse(new FileReader(FILE_NAME1_UPDATED))).toJSONString();
+
       jsonModel2 = ((JSONObject) parser.parse(new FileReader(FILE_NAME2))).toJSONString();
 
     } catch (Exception e) {
@@ -108,12 +116,15 @@ public class ModelPersistenceServiceTest {
     DatabaseManager databaseManager =
         new DatabaseManager(jdbcDriverClassName, jdbcLogin, jdbcPass, jdbcUrl, jdbcSchema);
     connection = databaseManager.getConnection();
-    // now add some models..
+    connection.setAutoCommit(false);
+    // now add some models (model 1 and 2, not the updated one
     // read in (test-)model
     testModel1 = new Model(jsonModel1);
+    testModel1_updated = new Model(jsonModel1_updated);
     testModel2 = new Model(jsonModel2);
     testModel1.persist(connection);
     testModel2.persist(connection);
+    connection.commit();
 
     // start node
     node = LocalNode.newNode();
@@ -145,7 +156,6 @@ public class ModelPersistenceServiceTest {
 
   }
 
-
   /**
    * Called after the tests have finished. Deletes test-data, shuts down the server and prints out
    * the connector log file for reference.
@@ -154,9 +164,25 @@ public class ModelPersistenceServiceTest {
    */
   @AfterClass
   public static void shutDownServer() throws Exception {
-    testModel1.deleteFromDatabase(connection);
-    testModel2.deleteFromDatabase(connection);
-    connection.close();
+
+    // delete the whole (test-)database manually, just to be sure that no remains are left
+    PreparedStatement statement;
+    try {
+      statement = connection.prepareStatement("DELETE FROM model;");
+      statement.executeUpdate();
+      statement = connection.prepareStatement("DELETE FROM modelAttributes;");
+      statement.executeUpdate();
+      statement = connection.prepareStatement("DELETE FROM attribute;");
+      statement.executeUpdate();
+      statement = connection.prepareStatement("DELETE FROM edge;");
+      statement.executeUpdate();
+      statement = connection.prepareStatement("DELETE FROM node;");
+      statement.executeUpdate();
+      connection.commit();
+    } finally {
+      connection.close();
+    }
+
     connector.stop();
     node.shutDown();
 
@@ -171,7 +197,6 @@ public class ModelPersistenceServiceTest {
     System.out.println(logStream.toString());
 
   }
-
 
   /**
    * 
@@ -202,7 +227,7 @@ public class ModelPersistenceServiceTest {
       c.setLogin(Long.toString(testAgent.getId()), testPass);
       @SuppressWarnings("unchecked")
       ClientResponse result = c.sendRequest("POST", mainPath + "", payload.toJSONString(),
-          MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, new Pair[] {});
+          MediaType.APPLICATION_JSON, "", new Pair[] {});
       assertEquals(201, result.getHttpCode());
       System.out.println("Result of 'testModelPosting': " + result.getResponse().trim());
       Model model = new Model(payload.toJSONString());
@@ -213,7 +238,6 @@ public class ModelPersistenceServiceTest {
     }
 
   }
-
 
   /**
    * 
@@ -316,6 +340,33 @@ public class ModelPersistenceServiceTest {
 
   }
 
+  /**
+   * 
+   * A basic test for the model update mechanism. Updates the "testModel1" with the values of
+   * "testModel1_updated". Does NOT revert these changes.
+   * 
+   */
+  @Test
+  public void testModelUpdate() {
+
+    JSONObject payload = testModel1_updated.toJSONObject();
+    MiniClient c = new MiniClient();
+    c.setAddressPort(HTTP_ADDRESS, HTTP_PORT);
+
+    // test method
+    try {
+      c.setLogin(Long.toString(testAgent.getId()), testPass);
+      @SuppressWarnings("unchecked")
+      ClientResponse result = c.sendRequest("PUT", mainPath + "First%20Model",
+          payload.toJSONString(), MediaType.APPLICATION_JSON, "", new Pair[] {});
+      assertEquals(200, result.getHttpCode());
+      System.out.println("Result of 'testModelUpdate': " + result.getResponse().trim());
+    } catch (Exception e) {
+      e.printStackTrace();
+      fail("Exception: " + e);
+    }
+
+  }
 
   /**
    * Test the TemplateService for valid rest mapping. Important for development.

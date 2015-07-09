@@ -19,6 +19,7 @@ import i5.las2peer.restMapper.annotations.ContentParam;
 import i5.las2peer.restMapper.annotations.DELETE;
 import i5.las2peer.restMapper.annotations.GET;
 import i5.las2peer.restMapper.annotations.POST;
+import i5.las2peer.restMapper.annotations.PUT;
 import i5.las2peer.restMapper.annotations.Path;
 import i5.las2peer.restMapper.annotations.PathParam;
 import i5.las2peer.restMapper.annotations.Produces;
@@ -90,7 +91,6 @@ public class ModelPersistenceService extends Service {
    */
   @POST
   @Path("/")
-  @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
   @ResourceListApi(description = "Entry point for storing a model to the database.")
   @ApiResponses(value = {@ApiResponse(code = 201, message = "OK, model stored"),
@@ -122,8 +122,6 @@ public class ModelPersistenceService extends Service {
           "Model with name " + model.getAttributes().getName() + " already exists!", 409);
       return r;
     }
-    // save the model to the database
-
     // call code generation service
     if (this.useCodeGenerationService) {
       try {
@@ -133,6 +131,8 @@ public class ModelPersistenceService extends Service {
         e.printStackTrace();
       }
     }
+
+    // save the model to the database
     Connection connection = null;
     try {
       connection = dbm.getConnection();
@@ -300,10 +300,12 @@ public class ModelPersistenceService extends Service {
   @Summary("Deletes a model given by its name.")
   public HttpResponse deleteModel(@PathParam("modelName") String modelName) {
     Connection connection = null;
+    logMessage("trying to delete model with name: " + modelName);
     try {
       connection = dbm.getConnection();
       Model model = new Model(modelName, connection);
       model.deleteFromDatabase(connection);
+      logMessage("deleted model " + modelName);
       HttpResponse r = new HttpResponse("Model deleted!", 200);
       return r;
     } catch (ModelNotFoundException e) {
@@ -323,21 +325,134 @@ public class ModelPersistenceService extends Service {
     }
   }
 
+  /**
+   * 
+   * Updates a model. Basically only deletes the old one and creates a new one, but if the CAE Code
+   * Generation Service is used, it validates the model and prevents updating if it would break the
+   * semantics.
+   * 
+   * @param modelName a string containing the model name
+   * @param inputModel the model as a JSON string
+   * 
+   * @return HttpResponse containing the status code of the request
+   * 
+   */
+  @PUT
+  @Path("/{modelName}")
+  @Consumes(MediaType.APPLICATION_JSON)
+  @ResourceListApi(description = "Updates a model.")
+  @ApiResponses(value = {@ApiResponse(code = 200, message = "OK, model is updated"),
+      @ApiResponse(code = 404, message = "Model does not exist"),
+      @ApiResponse(code = 409, message = "Model name may not be changed"),
+      @ApiResponse(code = 500, message = "Internal server error")})
+  @Summary("Updates a model.")
+  public HttpResponse updateModel(@PathParam("modelName") String modelName,
+      @ContentParam String inputModel) {
+    logMessage("trying to update model with name: " + modelName);
+    Model model;
+    // first parse the updated model and check for correctness of format
+    try {
+      model = new Model(inputModel);
+      // the model name is its "id", it may not be changed
+      if (!model.getAttributes().getName().equals(modelName)) {
+        logMessage("Posted model name " + modelName
+            + " is different from posted model name attribute " + model.getAttributes().getName());
+        HttpResponse r = new HttpResponse("Model name is different!", 409);
+        return r;
+      }
+    } catch (ParseException e) {
+      logError("Exception parsing JSON input: " + e);
+      HttpResponse r = new HttpResponse("JSON parsing exception, file not valid!", 500);
+      return r;
+    } catch (Exception e) {
+      logError("Something got seriously wrong: " + e);
+      e.printStackTrace();
+      HttpResponse r = new HttpResponse("Internal server error!", 500);
+      return r;
+    }
+
+    // call code generation service
+    if (this.useCodeGenerationService) {
+      try {
+        this.invokeServiceMethod("i5.las2peer.services.codeGenerationService.CodeGenerationService",
+            "needToDiscussMethodNames", model.getMinifiedRepresentation());
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    }
+
+    // if this has thrown no exception, we can delete the "old" model and persist the new one
+    Connection connection = null;
+    try {
+      connection = dbm.getConnection();
+      // load and delete the old model from the database
+      logMessage("loading and deleting old model with name " + modelName);
+      new Model(modelName, connection).deleteFromDatabase(connection);
+      // check if the "old" model did exist
+    } catch (ModelNotFoundException e) {
+      logMessage("There exists no model with name: " + modelName);
+      HttpResponse r = new HttpResponse("Model not found!", 404);
+      return r;
+    } catch (SQLException e) {
+      logError("Error deleting old model: " + e);
+      e.printStackTrace();
+      HttpResponse r = new HttpResponse("Internal server error..", 500);
+      return r;
+    }
+    // always close connections
+    finally {
+      try {
+        connection.close();
+      } catch (SQLException e) {
+        e.printStackTrace();
+      }
+    }
+    try {
+      connection = dbm.getConnection();
+      // save the model to the database
+      model.persist(connection);
+      int modelId = model.getId();
+      logMessage("Model with new id " + modelId + " and name " + model.getAttributes().getName()
+          + " stored!");
+      HttpResponse r = new HttpResponse("Model updated!", 200);
+      return r;
+    } catch (SQLException e) {
+      logError("Exception persisting model: " + e);
+      e.printStackTrace();
+      HttpResponse r = new HttpResponse("Could not persist, database rejected model!", 500);
+      return r;
+    } catch (Exception e) {
+      logError("Something went seriously wrong: " + e);
+      e.printStackTrace();
+      HttpResponse r = new HttpResponse("Internal server error..", 500);
+      return r;
+    }
+    // always close connections
+    finally {
+      try {
+        connection.close();
+      } catch (SQLException e) {
+        e.printStackTrace();
+      }
+    }
+  }
+
   ////////////////////////////////////////////////////////////////////////////////////////
   // Methods required by the LAS2peer framework.
   ////////////////////////////////////////////////////////////////////////////////////////
 
   /**
-   * This method is needed for every RESTful application in LAS2peer. There is no need to change!
+   * 
+   * This method is needed for every RESTful application in LAS2peer.
    * 
    * @return the mapping
+   * 
    */
   public String getRESTMapping() {
     String result = "";
     try {
       result = RESTMapper.getMethodsAsXML(this.getClass());
     } catch (Exception e) {
-
       e.printStackTrace();
     }
     return result;
@@ -348,13 +463,12 @@ public class ModelPersistenceService extends Service {
   ////////////////////////////////////////////////////////////////////////////////////////
 
   /**
+   * 
    * Returns a listing of all annotated top level resources for purposes of the Swagger
    * documentation.
    * 
-   * Note: If you do not intend to use Swagger for the documentation of your Service API, this
-   * method may be removed.
+   * @return listing of all top level resources
    * 
-   * @return Listing of all top level resources.
    */
   @GET
   @Path("api-docs")
@@ -394,5 +508,4 @@ public class ModelPersistenceService extends Service {
     }
     return res;
   }
-
 }

@@ -82,7 +82,7 @@ public class EntityAttribute {
   }
 
   /**
-   * Persists an EntityAttribute. If attribute already exists it will be updated.
+   * Persists an EntityAttribute.
    * 
    * @param connection a Connection object
    * 
@@ -90,29 +90,18 @@ public class EntityAttribute {
    */
   public void persist(Connection connection) throws SQLException {
     // Attribute entry
-    if (this.id == -1) {
-      PreparedStatement statement = connection.prepareStatement(
-          "INSERT INTO Attribute (syncMetaId, name, value) VALUES (?,?,?);",
-          Statement.RETURN_GENERATED_KEYS);
-      statement.setString(1, this.syncMetaId);
-      statement.setString(2, this.name);
-      statement.setString(3, this.value);
-      statement.executeUpdate();
-      ResultSet genKeys = statement.getGeneratedKeys();
-      genKeys.next();
-      // set given id
-      this.id = genKeys.getInt(1);
-      statement.close();
-    } else {
-      PreparedStatement statement = connection.prepareStatement(
-          "UPDATE Attribute SET syncMetaId = ?, name = ?, value = ? WHERE attributeId=?;");
-      statement.setString(1, this.syncMetaId);
-      statement.setString(2, this.name);
-      statement.setString(3, this.value);
-      statement.setInt(4, this.id);
-      statement.executeUpdate();
-      statement.close();
-    }
+    PreparedStatement statement = connection.prepareStatement(
+        "INSERT INTO Attribute (syncMetaId, name, value) VALUES (?,?,?);",
+        Statement.RETURN_GENERATED_KEYS);
+    statement.setString(1, this.syncMetaId);
+    statement.setString(2, this.name);
+    statement.setString(3, this.value);
+    statement.executeUpdate();
+    ResultSet genKeys = statement.getGeneratedKeys();
+    genKeys.next();
+    // set given id
+    this.id = genKeys.getInt(1);
+    statement.close();
   }
 
   /**
