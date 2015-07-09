@@ -251,6 +251,7 @@ public class Model {
    * 
    */
   public boolean deleteFromDatabase(Connection connection) {
+
     // first test if model contains something
     // (was "created" either by database access or JSONObject)
     if (this.getAttributes() == null) {
@@ -272,6 +273,7 @@ public class Model {
       // delete model
       PreparedStatement statement;
       try {
+        connection.setAutoCommit(false);
         statement = connection.prepareStatement("DELETE FROM Model WHERE modelId = ?;");
         statement.setInt(1, this.id);
         statement.executeUpdate();

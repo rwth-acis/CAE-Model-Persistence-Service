@@ -16,6 +16,7 @@ import i5.las2peer.restMapper.MediaType;
 import i5.las2peer.restMapper.RESTMapper;
 import i5.las2peer.restMapper.annotations.Consumes;
 import i5.las2peer.restMapper.annotations.ContentParam;
+import i5.las2peer.restMapper.annotations.DELETE;
 import i5.las2peer.restMapper.annotations.GET;
 import i5.las2peer.restMapper.annotations.POST;
 import i5.las2peer.restMapper.annotations.Path;
@@ -230,9 +231,8 @@ public class ModelPersistenceService extends Service {
   @GET
   @Path("/")
   @Produces(MediaType.APPLICATION_JSON)
-  @Consumes(MediaType.TEXT_PLAIN)
   @ResourceListApi(
-      description = "Retrieves a list of all models stored in the database. Supports one search parameter. Returns a list of model names.")
+      description = "Retrieves a list of all models stored in the database. Returns a list of model names.")
   @ApiResponses(value = {@ApiResponse(code = 200, message = "OK, model list is returned"),
       @ApiResponse(code = 404, message = "No models in the database"),
       @ApiResponse(code = 500, message = "Internal server error")})
@@ -279,6 +279,48 @@ public class ModelPersistenceService extends Service {
 
     HttpResponse r = new HttpResponse(jsonModelList.toJSONString(), 200);
     return r;
+  }
+
+  /**
+   * 
+   * Deletes a model.
+   * 
+   * @param modelName a string containing the model name
+   * 
+   * @return HttpResponse containing the status code of the request
+   * 
+   */
+  @DELETE
+  @Path("/{modelName}")
+  @Consumes(MediaType.TEXT_PLAIN)
+  @ResourceListApi(description = "Deletes a model given by its name.")
+  @ApiResponses(value = {@ApiResponse(code = 200, message = "OK, model is deleted"),
+      @ApiResponse(code = 404, message = "Model does not exist"),
+      @ApiResponse(code = 500, message = "Internal server error")})
+  @Summary("Deletes a model given by its name.")
+  public HttpResponse deleteModel(@PathParam("modelName") String modelName) {
+    Connection connection = null;
+    try {
+      connection = dbm.getConnection();
+      Model model = new Model(modelName, connection);
+      model.deleteFromDatabase(connection);
+      HttpResponse r = new HttpResponse("Model deleted!", 200);
+      return r;
+    } catch (ModelNotFoundException e) {
+      logMessage("did not find model with name " + modelName);
+      HttpResponse r = new HttpResponse("Model not found!", 404);
+      return r;
+    } catch (SQLException e) {
+      e.printStackTrace();
+      HttpResponse r = new HttpResponse("Internal server error..", 500);
+      return r;
+    } finally {
+      try {
+        connection.close();
+      } catch (SQLException e) {
+        e.printStackTrace();
+      }
+    }
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////

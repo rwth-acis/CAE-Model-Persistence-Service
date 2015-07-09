@@ -206,8 +206,57 @@ public class ModelPersistenceServiceTest {
       assertEquals(201, result.getHttpCode());
       System.out.println("Result of 'testModelPosting': " + result.getResponse().trim());
       Model model = new Model(payload.toJSONString());
-      // TODO: maybe test if model is valid?
       model.deleteFromDatabase(connection);
+    } catch (Exception e) {
+      e.printStackTrace();
+      fail("Exception: " + e);
+    }
+
+  }
+
+
+  /**
+   * 
+   * A basic test for the model deleting mechanism. First (manually) persists a model in the
+   * database, then deletes it via RESTful service access and queries the service then again for the
+   * model, which should return a NOT_FOUND then.
+   * 
+   */
+
+  @SuppressWarnings("unchecked")
+  @Test
+  public void testModelDeletion() {
+
+    JSONObject payload = null;
+    MiniClient c = new MiniClient();
+    c.setAddressPort(HTTP_ADDRESS, HTTP_PORT);
+
+    // persist (test-)model first
+    try {
+      JSONParser parser = new JSONParser();
+      String FILE_NAME = "./exampleModels/example_microservice_model_3.json";
+      Object obj;
+      obj = parser.parse(new FileReader(FILE_NAME));
+      payload = (JSONObject) obj;
+      Model model = new Model(payload.toJSONString());
+      model.persist(connection);
+    } catch (Exception e) {
+      e.printStackTrace();
+      fail("Exception: " + e);
+    }
+
+    // test method
+    try {
+      c.setLogin(Long.toString(testAgent.getId()), testPass);
+      ClientResponse result = c.sendRequest("DELETE", mainPath + "Third%20Model", "",
+          MediaType.TEXT_PLAIN, "", new Pair[] {});
+      assertEquals(200, result.getHttpCode());
+      System.out.println("Result of 'testModelDeletion': " + result.getResponse().trim());
+
+      // should return 404 now
+      result = c.sendRequest("GET", mainPath + "Third%20Model", "", MediaType.TEXT_PLAIN,
+          MediaType.APPLICATION_JSON, new Pair[] {});
+      assertEquals(404, result.getHttpCode());
     } catch (Exception e) {
       e.printStackTrace();
       fail("Exception: " + e);
