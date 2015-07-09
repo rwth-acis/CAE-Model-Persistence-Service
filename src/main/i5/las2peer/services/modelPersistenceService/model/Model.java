@@ -29,7 +29,7 @@ import i5.las2peer.services.modelPersistenceService.model.node.Node;
  *
  */
 public class Model {
-  private int id;
+  private int id = -1;
   private ArrayList<Node> nodes;
   private ArrayList<Edge> edges;
   private ModelAttributes attributes;
@@ -92,41 +92,36 @@ public class Model {
     this.nodes = new ArrayList<Node>();
     this.edges = new ArrayList<Edge>();
 
-    try {
-      // load attributes
-      this.attributes = new ModelAttributes(modelName, connection);
+    // load attributes
+    this.attributes = new ModelAttributes(modelName, connection);
 
-      // now we know the model name, set own id
-      statement = connection.prepareStatement(
-          "SELECT modelId FROM ModelToModelAttributes WHERE modelAttributesName = ?;");
-      statement.setString(1, this.attributes.getName());
-      ResultSet queryResult = statement.executeQuery();
-      while (queryResult.next()) {
-        this.id = queryResult.getInt(1);
-      }
-      statement.close();
-
-      // load nodes
-      statement = connection.prepareStatement("SELECT nodeId FROM NodeToModel WHERE modelId = ?;");
-      statement.setInt(1, this.id);
-      queryResult = statement.executeQuery();
-      while (queryResult.next()) {
-        this.nodes.add(new Node(queryResult.getString(1), connection));
-      }
-      statement.close();
-
-      // load edges
-      statement = connection.prepareStatement("SELECT edgeId FROM EdgeToModel WHERE modelId = ?;");
-      statement.setInt(1, this.id);
-      queryResult = statement.executeQuery();
-      while (queryResult.next()) {
-        this.edges.add(new Edge(queryResult.getString(1), connection));
-      }
-      statement.close();
-    } finally {
-      // always free resources
-      connection.close();
+    // now we know the model name, set own id
+    statement = connection.prepareStatement(
+        "SELECT modelId FROM ModelToModelAttributes WHERE modelAttributesName = ?;");
+    statement.setString(1, this.attributes.getName());
+    ResultSet queryResult = statement.executeQuery();
+    while (queryResult.next()) {
+      this.id = queryResult.getInt(1);
     }
+    statement.close();
+
+    // load nodes
+    statement = connection.prepareStatement("SELECT nodeId FROM NodeToModel WHERE modelId = ?;");
+    statement.setInt(1, this.id);
+    queryResult = statement.executeQuery();
+    while (queryResult.next()) {
+      this.nodes.add(new Node(queryResult.getString(1), connection));
+    }
+    statement.close();
+
+    // load edges
+    statement = connection.prepareStatement("SELECT edgeId FROM EdgeToModel WHERE modelId = ?;");
+    statement.setInt(1, this.id);
+    queryResult = statement.executeQuery();
+    while (queryResult.next()) {
+      this.edges.add(new Edge(queryResult.getString(1), connection));
+    }
+    statement.close();
   }
 
   public int getId() {
@@ -193,7 +188,7 @@ public class Model {
       connection.setAutoCommit(false);
 
       // first store the model itself: formulate empty statement
-      statement = connection.prepareStatement("insert into Model () VALUES ();",
+      statement = connection.prepareStatement("INSERT INTO Model () VALUES ();",
           Statement.RETURN_GENERATED_KEYS);
       // execute query
       statement.executeUpdate();
@@ -245,15 +240,73 @@ public class Model {
       // roll back the whole stuff
       connection.rollback();
       throw e;
-    } finally {
-      // always free resources
-      connection.close();
     }
   }
 
   /**
+   * Deletes a model from the database;
    * 
-   * Simplifies a model so send it to the CAE-Code-Generation-Service. Removes all obsolete
+   * @param connection a Connection object
+   * @return true, if model was be deleted
+   * 
+   */
+  public boolean deleteFromDatabase(Connection connection) {
+    // first test if model contains something
+    // (was "created" either by database access or JSONObject)
+    if (this.getAttributes() == null) {
+      return false;
+    }
+    // test, if was model is already "loaded" (synchronized)
+    if (this.id == -1) {
+      // model not loaded, try loading it and call delete again
+      Model model;
+      try {
+        model = new Model(this.getAttributes().getName(), connection);
+      } catch (SQLException e) {
+        return false;
+      }
+      model.deleteFromDatabase(connection);
+    }
+    // actually delete the model
+    else {
+      // delete model
+      PreparedStatement statement;
+      try {
+        statement = connection.prepareStatement("DELETE FROM Model WHERE modelId = ?;");
+        statement.setInt(1, this.id);
+        statement.executeUpdate();
+        statement.close();
+
+        // delete model attributes
+        this.attributes.deleteFromDatabase(connection);
+        // now to the nodes
+        for (int i = 0; i < this.nodes.size(); i++) {
+          nodes.get(i).deleteFromDatabase(connection);
+        }
+        // and edges
+        for (int i = 0; i < this.edges.size(); i++) {
+          edges.get(i).deleteFromDatabase(connection);
+        }
+
+        // we got here without errors, so commit now
+        connection.commit();
+      } catch (SQLException e) {
+        e.printStackTrace();
+        try {
+          connection.rollback();
+        } catch (SQLException e1) {
+          e1.printStackTrace();
+        }
+        return false;
+      }
+    }
+    this.id = -1; // model does not exist in the database anymore
+    return true;
+  }
+
+  /**
+   * 
+   * Simplifies a model to send it to the CAE-Code-Generation-Service. Removes all obsolete
    * attributes and methods and returns a serializable ready-to send-model representation.
    * 
    * 

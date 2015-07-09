@@ -1,8 +1,12 @@
 package i5.las2peer.services.modelPersistenceService;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.ParseException;
 
@@ -101,55 +105,61 @@ public class ModelPersistenceService extends Service {
       model = new Model(inputModel);
     } catch (ParseException e) {
       logError("Exception parsing JSON input: " + e);
-      HttpResponse r = new HttpResponse("JSON parsing exception, file not valid!");
-      r.setStatus(500);
+      HttpResponse r = new HttpResponse("JSON parsing exception, file not valid!", 500);
       return r;
     } catch (Exception e) {
       logError("Something got seriously wrong: " + e);
       e.printStackTrace();
-      HttpResponse r = new HttpResponse("Internal server error..");
-      r.setStatus(500);
+      HttpResponse r = new HttpResponse("Internal server error!", 500);
       return r;
     }
 
     // check if model name is already taken
     if (this.getModel(model.getAttributes().getName()).getStatus() != 404) {
-      logMessage(
-          "model name " + model.getAttributes().getName() + " is already taken, cannot store");
+      logMessage("model name " + model.getAttributes().getName() + " is already taken");
       HttpResponse r = new HttpResponse(
-          "Model with name " + model.getAttributes().getName() + " already exists!");
-      r.setStatus(409);
+          "Model with name " + model.getAttributes().getName() + " already exists!", 409);
       return r;
     }
     // save the model to the database
-    try {
-      // call code generation service
-      if (this.useCodeGenerationService) {
+
+    // call code generation service
+    if (this.useCodeGenerationService) {
+      try {
         this.invokeServiceMethod("i5.las2peer.services.codeGenerationService.CodeGenerationService",
             "needToDiscussMethodNames", model.getMinifiedRepresentation());
+      } catch (Exception e) {
+        e.printStackTrace();
       }
-      Connection connection = dbm.getConnection();
+    }
+    Connection connection = null;
+    try {
+      connection = dbm.getConnection();
       model.persist(connection);
       int modelId = model.getId();
       logMessage(
           "Model with id " + modelId + " and name " + model.getAttributes().getName() + " stored!");
-      HttpResponse r = new HttpResponse("Model stored!");
-      r.setStatus(201);
+      HttpResponse r = new HttpResponse("Model stored!", 201);
       return r;
     } catch (SQLException e) {
       logError("Exception persisting model: " + e);
       e.printStackTrace();
-      HttpResponse r = new HttpResponse("Could not persist, database rejected model!");
-      r.setStatus(500);
+      HttpResponse r = new HttpResponse("Could not persist, database rejected model!", 500);
       return r;
     } catch (Exception e) {
-      logError("Something got seriously wrong: " + e);
+      logError("Something went seriously wrong: " + e);
       e.printStackTrace();
-      HttpResponse r = new HttpResponse("Internal server error..");
-      r.setStatus(500);
+      HttpResponse r = new HttpResponse("Internal server error..", 500);
       return r;
     }
-
+    // always close connections
+    finally {
+      try {
+        connection.close();
+      } catch (SQLException e) {
+        e.printStackTrace();
+      }
+    }
   }
 
   /**
@@ -175,32 +185,99 @@ public class ModelPersistenceService extends Service {
   public HttpResponse getModel(@PathParam("modelName") String modelName) {
     logMessage("searching for model with name " + modelName);
     Model model = null;
-    Connection connection;
+    Connection connection = null;
     try {
       connection = dbm.getConnection();
       model = new Model(modelName, connection);
     } catch (ModelNotFoundException e) {
       logMessage("did not find model with name " + modelName);
-      HttpResponse r = new HttpResponse("Model not found!");
-      r.setStatus(404);
+      HttpResponse r = new HttpResponse("Model not found!", 404);
       return r;
     } catch (SQLException e) {
       logError("Exception fetching model: " + e);
       e.printStackTrace();
-      HttpResponse r = new HttpResponse("Could not persist, database rejected model!");
-      r.setStatus(500);
+      HttpResponse r = new HttpResponse("Database error!", 500);
       return r;
     } catch (Exception e) {
-      logError("Something got seriously wrong: " + e);
+      logError("Something went seriously wrong: " + e);
       e.printStackTrace();
-      HttpResponse r = new HttpResponse("Could not persist, database rejected model!");
-      r.setStatus(500);
+      HttpResponse r = new HttpResponse("Server error!", 500);
       return r;
+    } finally {
+      try {
+        connection.close();
+      } catch (SQLException e) {
+        e.printStackTrace();
+      }
     }
     logMessage("found model " + modelName + ", now converting to JSONObject and returning");
     JSONObject jsonModel = model.toJSONObject();
 
     HttpResponse r = new HttpResponse(jsonModel.toJSONString(), 200);
+    return r;
+  }
+
+  /**
+   * 
+   * Retrieves all model names from the database.
+   * 
+   * 
+   * @return HttpResponse containing the status code of the request and (if the database is not
+   *         empty) the model-list as a JSON array
+   * 
+   */
+  @SuppressWarnings("unchecked")
+  @GET
+  @Path("/")
+  @Produces(MediaType.APPLICATION_JSON)
+  @Consumes(MediaType.TEXT_PLAIN)
+  @ResourceListApi(
+      description = "Retrieves a list of all models stored in the database. Supports one search parameter. Returns a list of model names.")
+  @ApiResponses(value = {@ApiResponse(code = 200, message = "OK, model list is returned"),
+      @ApiResponse(code = 404, message = "No models in the database"),
+      @ApiResponse(code = 500, message = "Internal server error")})
+  @Summary("Retrieves a list of models from the database.")
+  public HttpResponse getModels() {
+    ArrayList<String> modelNames = new ArrayList<String>();
+    Connection connection = null;
+    try {
+      connection = dbm.getConnection();
+      // search for all models
+      PreparedStatement statement =
+          connection.prepareStatement("SELECT modelName FROM ModelAttributes;");
+      logMessage("Retrieving all models..");
+      ResultSet queryResult = statement.executeQuery();
+      while (queryResult.next()) {
+        modelNames.add(queryResult.getString(1));
+      }
+      if (modelNames.isEmpty()) {
+        logMessage("Database is empty!");
+        HttpResponse r = new HttpResponse("Database is empty!", 404);
+        return r;
+      }
+      connection.close();
+    } catch (SQLException e) {
+      logError("Exception fetching model: " + e);
+      e.printStackTrace();
+      HttpResponse r = new HttpResponse("Database error!", 500);
+      return r;
+    } catch (Exception e) {
+      logError("Something went seriously wrong: " + e);
+      e.printStackTrace();
+      HttpResponse r = new HttpResponse("Server error!", 500);
+      return r;
+    } finally {
+      try {
+        connection.close();
+      } catch (SQLException e) {
+        e.printStackTrace();
+      }
+    }
+    logMessage("created list of models, now converting to JSONObject and returning");
+    JSONArray jsonModelList = new JSONArray();
+    jsonModelList.addAll(modelNames);
+
+    HttpResponse r = new HttpResponse(jsonModelList.toJSONString(), 200);
     return r;
   }
 

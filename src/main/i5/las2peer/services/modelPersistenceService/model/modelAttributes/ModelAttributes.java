@@ -181,4 +181,21 @@ public class ModelAttributes {
       statement.close();
     }
   }
+
+  /**
+   * Deletes this ModelAttribute from the database.
+   * 
+   * @param connection a ConnectionObject
+   * @throws SQLException if something went wrong during deletion
+   */
+  public void deleteFromDatabase(Connection connection) throws SQLException {
+    PreparedStatement statement =
+        connection.prepareStatement("DELETE FROM ModelAttributes WHERE modelName = ?;");
+    statement.setString(1, this.name);
+    statement.executeUpdate();
+    statement.close();
+    for (int i = 0; i < this.attributes.size(); i++) {
+      this.attributes.get(i).deleteFromDatabase(connection);
+    }
+  }
 }

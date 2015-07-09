@@ -209,4 +209,19 @@ public class Node {
 
   }
 
+  /**
+   * Deletes this Node from the database.
+   * 
+   * @param connection a ConnectionObject
+   * @throws SQLException if something went wrong during deletion
+   */
+  public void deleteFromDatabase(Connection connection) throws SQLException {
+    PreparedStatement statement = connection.prepareStatement("DELETE FROM Node WHERE nodeId = ?;");
+    statement.setString(1, this.id);
+    statement.executeUpdate();
+    statement.close();
+    for (int i = 0; i < this.attributes.size(); i++) {
+      this.attributes.get(i).deleteFromDatabase(connection);
+    }
+  }
 }

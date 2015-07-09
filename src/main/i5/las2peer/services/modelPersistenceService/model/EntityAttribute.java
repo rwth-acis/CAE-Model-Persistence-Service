@@ -82,7 +82,7 @@ public class EntityAttribute {
   }
 
   /**
-   * Persists an Entity Attribute. If attribute already exists it will be updated.
+   * Persists an EntityAttribute. If attribute already exists it will be updated.
    * 
    * @param connection a Connection object
    * 
@@ -115,4 +115,17 @@ public class EntityAttribute {
     }
   }
 
+  /**
+   * Deletes this EntityAttribute from the database.
+   * 
+   * @param connection a ConnectionObject
+   * @throws SQLException if something went wrong during deletion
+   */
+  public void deleteFromDatabase(Connection connection) throws SQLException {
+    PreparedStatement statement =
+        connection.prepareStatement("DELETE FROM Attribute WHERE attributeId = ?;");
+    statement.setInt(1, this.id);
+    statement.executeUpdate();
+    statement.close();
+  }
 }

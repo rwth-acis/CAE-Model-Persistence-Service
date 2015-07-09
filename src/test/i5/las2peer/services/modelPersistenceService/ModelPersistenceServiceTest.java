@@ -7,6 +7,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.sql.Connection;
+import java.util.Properties;
 
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -22,6 +24,8 @@ import i5.las2peer.restMapper.tools.ValidationResult;
 import i5.las2peer.restMapper.tools.XMLCheck;
 import i5.las2peer.security.ServiceAgent;
 import i5.las2peer.security.UserAgent;
+import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
+import i5.las2peer.services.modelPersistenceService.model.Model;
 import i5.las2peer.testing.MockAgentFactory;
 import i5.las2peer.webConnector.WebConnector;
 import i5.las2peer.webConnector.client.ClientResponse;
@@ -30,7 +34,8 @@ import i5.las2peer.webConnector.client.MiniClient;
 
 /**
  * 
- * Central test class for the CAE-Model-Persistence-Service.
+ * Central test class for the CAE-Model-Persistence-Service. Only tests on a service interface /
+ * REST level.
  *
  */
 public class ModelPersistenceServiceTest {
@@ -50,16 +55,65 @@ public class ModelPersistenceServiceTest {
 
   private static final String mainPath = "CAE/models/";
 
+  private static Connection connection;
+  private static Model testModel1;
+  private static Model testModel2;
 
   /**
    * Called before the tests start.
    * 
-   * Sets up the node and initializes connector and users that can be used throughout the tests.
+   * First initializes a database connection according to the service property file. Then adds some
+   * data to the database. Sets up the node and initializes connector and users that can be used
+   * throughout the tests.
    * 
    * @throws Exception
    */
   @BeforeClass
   public static void startServer() throws Exception {
+    // paths to properties and models
+    Properties properties = new Properties();
+    String propertiesFile =
+        "./etc/i5.las2peer.services.modelPersistenceService.ModelPersistenceService.properties";
+    String FILE_NAME1 = "./exampleModels/example_microservice_model_1.json";
+    String FILE_NAME2 = "./exampleModels/example_microservice_model_2.json";
+    String jsonModel1 = null;
+    String jsonModel2 = null;
+    String jdbcDriverClassName = null;
+    String jdbcUrl = null;
+    String jdbcSchema = null;
+    String jdbcLogin = null;
+    String jdbcPass = null;
+
+    // load properties and models
+    try {
+      FileReader reader = new FileReader(propertiesFile);
+      properties.load(reader);
+
+      jdbcDriverClassName = properties.getProperty("jdbcDriverClassName");
+      jdbcUrl = properties.getProperty("jdbcUrl");
+      jdbcSchema = properties.getProperty("jdbcSchema");
+      jdbcLogin = properties.getProperty("jdbcLogin");
+      jdbcPass = properties.getProperty("jdbcPass");
+
+      JSONParser parser = new JSONParser();
+
+      jsonModel1 = ((JSONObject) parser.parse(new FileReader(FILE_NAME1))).toJSONString();
+      jsonModel2 = ((JSONObject) parser.parse(new FileReader(FILE_NAME2))).toJSONString();
+
+    } catch (Exception e) {
+      e.printStackTrace();
+      fail("File loading problems: " + e);
+    }
+
+    DatabaseManager databaseManager =
+        new DatabaseManager(jdbcDriverClassName, jdbcLogin, jdbcPass, jdbcUrl, jdbcSchema);
+    connection = databaseManager.getConnection();
+    // now add some models..
+    // read in (test-)model
+    testModel1 = new Model(jsonModel1);
+    testModel2 = new Model(jsonModel2);
+    testModel1.persist(connection);
+    testModel2.persist(connection);
 
     // start node
     node = LocalNode.newNode();
@@ -93,14 +147,16 @@ public class ModelPersistenceServiceTest {
 
 
   /**
-   * Called after the tests have finished. Shuts down the server and prints out the connector log
-   * file for reference.
+   * Called after the tests have finished. Deletes test-data, shuts down the server and prints out
+   * the connector log file for reference.
    * 
    * @throws Exception
    */
   @AfterClass
   public static void shutDownServer() throws Exception {
-
+    testModel1.deleteFromDatabase(connection);
+    testModel2.deleteFromDatabase(connection);
+    connection.close();
     connector.stop();
     node.shutDown();
 
@@ -132,7 +188,7 @@ public class ModelPersistenceServiceTest {
     // read in (test-)model
     try {
       JSONParser parser = new JSONParser();
-      String FILE_NAME = "./exampleModels/example_microservice_model_1.json";
+      String FILE_NAME = "./exampleModels/example_microservice_model_3.json";
       Object obj;
       obj = parser.parse(new FileReader(FILE_NAME));
       payload = (JSONObject) obj;
@@ -149,6 +205,9 @@ public class ModelPersistenceServiceTest {
           MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, new Pair[] {});
       assertEquals(201, result.getHttpCode());
       System.out.println("Result of 'testModelPosting': " + result.getResponse().trim());
+      Model model = new Model(payload.toJSONString());
+      // TODO: maybe test if model is valid?
+      model.deleteFromDatabase(connection);
     } catch (Exception e) {
       e.printStackTrace();
       fail("Exception: " + e);
@@ -158,11 +217,11 @@ public class ModelPersistenceServiceTest {
 
   /**
    * 
-   * A basic test for the model fetching mechanism.
+   * A basic test for the model retrieving mechanism.
    * 
    */
   @Test
-  public void testModelFetching() {
+  public void testModelRetrieving() {
 
     MiniClient c = new MiniClient();
     c.setAddressPort(HTTP_ADDRESS, HTTP_PORT);
@@ -174,7 +233,7 @@ public class ModelPersistenceServiceTest {
       ClientResponse result = c.sendRequest("GET", mainPath + "First%20Model", "",
           MediaType.TEXT_PLAIN, MediaType.APPLICATION_JSON, new Pair[] {});
       assertEquals(200, result.getHttpCode());
-      System.out.println("Result of 'testModelFetching': " + result.getResponse().trim());
+      System.out.println("Result of 'testModelRetrieving': " + result.getResponse().trim());
     } catch (Exception e) {
       e.printStackTrace();
       fail("Exception: " + e);
@@ -182,6 +241,31 @@ public class ModelPersistenceServiceTest {
 
   }
 
+  /**
+   * 
+   * A basic test for the model list retrieving mechanism.
+   * 
+   */
+  @Test
+  public void testModelListRetrieving() {
+
+    MiniClient c = new MiniClient();
+    c.setAddressPort(HTTP_ADDRESS, HTTP_PORT);
+
+    // test method
+    try {
+      c.setLogin(Long.toString(testAgent.getId()), testPass);
+      @SuppressWarnings("unchecked")
+      ClientResponse result =
+          c.sendRequest("GET", mainPath, "", "", MediaType.APPLICATION_JSON, new Pair[] {});
+      assertEquals(200, result.getHttpCode());
+      System.out.println("Result of 'testModelListRetrieving': " + result.getResponse().trim());
+    } catch (Exception e) {
+      e.printStackTrace();
+      fail("Exception: " + e);
+    }
+
+  }
 
 
   /**
