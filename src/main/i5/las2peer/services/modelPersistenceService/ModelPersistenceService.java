@@ -176,7 +176,6 @@ public class ModelPersistenceService extends Service {
   @GET
   @Path("/{modelName}")
   @Produces(MediaType.APPLICATION_JSON)
-  @Consumes(MediaType.TEXT_PLAIN)
   @ResourceListApi(
       description = "Searches for a model in the database. Takes the modelName as search parameter")
   @ApiResponses(value = {@ApiResponse(code = 200, message = "OK, model found"),
