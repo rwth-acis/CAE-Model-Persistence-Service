@@ -34,7 +34,7 @@ public class EntityAttribute {
     jsonAttribute = (JSONObject) jsonAttribute.get("value");
     this.syncMetaId = syncMetaId;
     this.name = (String) jsonAttribute.get("name");
-    this.value = (String) jsonAttribute.get("value");
+    this.value = (String) (jsonAttribute.get("value") + ""); // only store strings
   }
 
   /**

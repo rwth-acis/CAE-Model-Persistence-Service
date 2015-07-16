@@ -328,7 +328,7 @@ public class Model {
       ArrayList<SimpleEntityAttribute> simpleAttributesOfNode =
           new ArrayList<SimpleEntityAttribute>(node.getAttributes().size());
       for (int j = 0; j < node.getAttributes().size(); j++) {
-        EntityAttribute attribute = this.attributes.getAttributes().get(i);
+        EntityAttribute attribute = node.getAttributes().get(j);
         SimpleEntityAttribute simpleAttribute = new SimpleEntityAttribute(attribute.getSyncMetaId(),
             attribute.getName(), attribute.getValue());
         simpleAttributesOfNode.add(simpleAttribute);
@@ -344,7 +344,7 @@ public class Model {
       ArrayList<SimpleEntityAttribute> simpleAttributesOfEdge =
           new ArrayList<SimpleEntityAttribute>(edge.getAttributes().size());
       for (int j = 0; j < edge.getAttributes().size(); j++) {
-        EntityAttribute attribute = this.attributes.getAttributes().get(i);
+        EntityAttribute attribute = edge.getAttributes().get(j);
         SimpleEntityAttribute simpleAttribute = new SimpleEntityAttribute(attribute.getSyncMetaId(),
             attribute.getName(), attribute.getValue());
         simpleAttributesOfEdge.add(simpleAttribute);

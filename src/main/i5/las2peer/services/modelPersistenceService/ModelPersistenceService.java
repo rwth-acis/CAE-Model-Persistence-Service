@@ -94,10 +94,11 @@ public class ModelPersistenceService extends Service {
   @Consumes(MediaType.APPLICATION_JSON)
   @ResourceListApi(description = "Entry point for storing a model to the database.")
   @ApiResponses(value = {@ApiResponse(code = 201, message = "OK, model stored"),
+      @ApiResponse(code = 400, message = "Input model was not valid"),
       @ApiResponse(code = 409,
-          message = "Tried to save a model that already had a name and thus was not new."),
+          message = "Tried to save a model that already had a name and thus was not new"),
       @ApiResponse(code = 500, message = "Internal server error")})
-  @Summary("Entry point for storing a model to the database.")
+  @Summary("Entry point for storing a model to the database")
   public HttpResponse postModel(@ContentParam String inputModel) {
     logMessage("trying to store new model");
     Model model;
@@ -106,7 +107,7 @@ public class ModelPersistenceService extends Service {
       model = new Model(inputModel);
     } catch (ParseException e) {
       logError("Exception parsing JSON input: " + e);
-      HttpResponse r = new HttpResponse("JSON parsing exception, file not valid!", 500);
+      HttpResponse r = new HttpResponse("JSON parsing exception, file not valid!", 400);
       return r;
     } catch (Exception e) {
       logError("Something got seriously wrong: " + e);
@@ -125,10 +126,18 @@ public class ModelPersistenceService extends Service {
     // call code generation service
     if (this.useCodeGenerationService) {
       try {
-        this.invokeServiceMethod("i5.las2peer.services.codeGenerationService.CodeGenerationService",
-            "needToDiscussMethodNames", model.getMinifiedRepresentation());
+        logMessage("Invoking code generation service..");
+        String returnMessage = (String) this.invokeServiceMethod(
+            "i5.las2peer.services.codeGenerationService.CodeGenerationService", "createFromModel",
+            model.getMinifiedRepresentation());
+        if (!returnMessage.equals("done")) {
+          HttpResponse r = new HttpResponse("Model not valid: " + returnMessage, 500);
+          return r;
+        }
       } catch (Exception e) {
         e.printStackTrace();
+        HttpResponse r = new HttpResponse("Internal server error..", 500);
+        return r;
       }
     }
 
@@ -145,7 +154,7 @@ public class ModelPersistenceService extends Service {
     } catch (SQLException e) {
       logError("Exception persisting model: " + e);
       e.printStackTrace();
-      HttpResponse r = new HttpResponse("Could not persist, database rejected model!", 500);
+      HttpResponse r = new HttpResponse("Could not persist, database rejected model!", 400);
       return r;
     } catch (Exception e) {
       logError("Something went seriously wrong: " + e);
@@ -176,7 +185,6 @@ public class ModelPersistenceService extends Service {
   @GET
   @Path("/{modelName}")
   @Produces(MediaType.APPLICATION_JSON)
-  @Consumes(MediaType.TEXT_PLAIN)
   @ResourceListApi(
       description = "Searches for a model in the database. Takes the modelName as search parameter")
   @ApiResponses(value = {@ApiResponse(code = 200, message = "OK, model found"),
@@ -184,14 +192,14 @@ public class ModelPersistenceService extends Service {
       @ApiResponse(code = 500, message = "Internal server error")})
   @Summary("Searches for a model in the database.")
   public HttpResponse getModel(@PathParam("modelName") String modelName) {
-    logMessage("searching for model with name " + modelName);
+    logMessage("Searching for model with name " + modelName);
     Model model = null;
     Connection connection = null;
     try {
       connection = dbm.getConnection();
       model = new Model(modelName, connection);
     } catch (ModelNotFoundException e) {
-      logMessage("did not find model with name " + modelName);
+      logMessage("Did not find model with name " + modelName);
       HttpResponse r = new HttpResponse("Model not found!", 404);
       return r;
     } catch (SQLException e) {
@@ -211,7 +219,7 @@ public class ModelPersistenceService extends Service {
         e.printStackTrace();
       }
     }
-    logMessage("found model " + modelName + ", now converting to JSONObject and returning");
+    logMessage("Found model " + modelName + ", now converting to JSONObject and returning");
     JSONObject jsonModel = model.toJSONObject();
 
     HttpResponse r = new HttpResponse(jsonModel.toJSONString(), 200);
