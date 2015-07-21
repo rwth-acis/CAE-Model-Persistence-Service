@@ -53,6 +53,7 @@ public class Node {
     }
   }
 
+
   /**
    * 
    * Creates a new node entity from the database.
@@ -93,21 +94,26 @@ public class Node {
     statement.close();
   }
 
+
   public String getId() {
     return id;
   }
+
 
   public NodePosition getPosition() {
     return position;
   }
 
+
   public String getType() {
     return type;
   }
 
+
   public ArrayList<EntityAttribute> getAttributes() {
     return attributes;
   }
+
 
   /**
    * 
@@ -174,6 +180,7 @@ public class Node {
     return jsonNode;
   }
 
+
   /**
    * 
    * Persists the node object.
@@ -206,14 +213,17 @@ public class Node {
       statement.executeUpdate();
       statement.close();
     }
-
   }
 
+
   /**
+   * 
    * Deletes this Node from the database.
    * 
    * @param connection a ConnectionObject
+   * 
    * @throws SQLException if something went wrong during deletion
+   * 
    */
   public void deleteFromDatabase(Connection connection) throws SQLException {
     PreparedStatement statement = connection.prepareStatement("DELETE FROM Node WHERE nodeId = ?;");

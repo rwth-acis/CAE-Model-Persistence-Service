@@ -37,6 +37,7 @@ public class EntityAttribute {
     this.value = (String) (jsonAttribute.get("value") + ""); // only store strings
   }
 
+
   /**
    * 
    * Creates a new EntityAttribute by loading it from the database.
@@ -65,28 +66,35 @@ public class EntityAttribute {
     }
   }
 
+
   public int getId() {
     return id;
   }
+
 
   public String getSyncMetaId() {
     return syncMetaId;
   }
 
+
   public String getName() {
     return name;
   }
+
 
   public String getValue() {
     return value;
   }
 
+
   /**
+   * 
    * Persists an EntityAttribute.
    * 
    * @param connection a Connection object
    * 
    * @throws SQLException if something went wrong persisting the entity attribute
+   * 
    */
   public void persist(Connection connection) throws SQLException {
     // Attribute entry
@@ -104,11 +112,15 @@ public class EntityAttribute {
     statement.close();
   }
 
+
   /**
+   * 
    * Deletes this EntityAttribute from the database.
    * 
    * @param connection a ConnectionObject
+   * 
    * @throws SQLException if something went wrong during deletion
+   * 
    */
   public void deleteFromDatabase(Connection connection) throws SQLException {
     PreparedStatement statement =
