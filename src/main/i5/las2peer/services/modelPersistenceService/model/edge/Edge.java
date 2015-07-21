@@ -60,6 +60,7 @@ public class Edge {
     }
   }
 
+
   /**
    * 
    * Creates a new edge entity from the database.
@@ -101,31 +102,39 @@ public class Edge {
     statement.close();
   }
 
+
   public String getId() {
     return this.id;
   }
+
 
   public String getSourceNode() {
     return this.sourceNode;
   }
 
+
   public String getTargetNode() {
     return this.targetNode;
   }
+
 
   public String getType() {
     return this.type;
   }
 
+
   public ArrayList<EntityAttribute> getAttributes() {
     return this.attributes;
   }
+
 
   public String getLabelValue() {
     return this.labelValue;
   }
 
+
   /**
+   * 
    * Returns the JSON representation of this edge. This representation is rather specific to
    * SyncMeta and should not be taken as a generic example of a JSON object representation.
    * 
@@ -174,12 +183,15 @@ public class Edge {
     return jsonEdge;
   }
 
+
   /**
+   * 
    * Persists the Edge entity.
    * 
    * @param connection a Connection object
    * 
    * @throws SQLException if something goes wrong persisting the Edge entity
+   * 
    */
   public void persist(Connection connection) throws SQLException {
     PreparedStatement statement = connection.prepareStatement(
@@ -204,11 +216,14 @@ public class Edge {
     }
   }
 
+
   /**
+   * 
    * Deletes this Edge from the database.
    * 
    * @param connection a ConnectionObject
    * @throws SQLException if something went wrong during deletion
+   * 
    */
   public void deleteFromDatabase(Connection connection) throws SQLException {
     PreparedStatement statement = connection.prepareStatement("DELETE FROM Edge WHERE edgeId = ?;");

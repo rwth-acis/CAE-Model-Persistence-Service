@@ -76,6 +76,7 @@ public class Model {
     }
   }
 
+
   /**
    * 
    * Creates a new model by loading it from the database.
@@ -140,7 +141,9 @@ public class Model {
     return attributes;
   }
 
+
   /**
+   * 
    * Returns the JSON representation of this model. The representation is rather specific to
    * SyncMeta and should not be taken as a generic example of a JSON object representation.
    * 
@@ -172,7 +175,9 @@ public class Model {
     return jsonModel;
   }
 
+
   /**
+   * 
    * Persists a model. For a complete understanding how the model is persisted in a database, please
    * take a look at the SQL script located in the folder "databases". Please note, that the model's
    * name is taken from the label of the model attribute (since there exists no way to add an id to
@@ -181,6 +186,7 @@ public class Model {
    * @param connection a Connection Object
    * 
    * @throws SQLException if something with the database has gone wrong
+   * 
    */
   public void persist(Connection connection) throws SQLException {
     PreparedStatement statement;
@@ -243,10 +249,13 @@ public class Model {
     }
   }
 
+
   /**
+   * 
    * Deletes a model from the database;
    * 
    * @param connection a Connection object
+   * 
    * @return true, if model was be deleted
    * 
    */
@@ -306,13 +315,14 @@ public class Model {
     return true;
   }
 
+
   /**
    * 
    * Simplifies a model to send it to the CAE-Code-Generation-Service. Removes all obsolete
    * attributes and methods and returns a serializable ready-to send-model representation.
    * 
    * 
-   * @return a @link{java.io.Serializable} representation of a @link{SimpleModel}
+   * @return a {@link java.io.Serializable} representation of a {@link SimpleModel}
    * 
    */
   public Serializable getMinifiedRepresentation() {

@@ -47,8 +47,8 @@ public class ModelAttributes {
       JSONObject attribute = (JSONObject) entry.getValue();
       this.attributes.add(new EntityAttribute(attributeId, attribute));
     }
-
   }
+
 
   /**
    * 
@@ -89,13 +89,16 @@ public class ModelAttributes {
     statement.close();
   }
 
+
   public String getName() {
     return this.name;
   }
 
+
   public ArrayList<EntityAttribute> getAttributes() {
     return this.attributes;
   }
+
 
   /**
    * 
@@ -152,6 +155,7 @@ public class ModelAttributes {
     return modelAttribute;
   }
 
+
   /**
    * 
    * Method to persist a ModelAttribute to a database.
@@ -181,6 +185,7 @@ public class ModelAttributes {
       statement.close();
     }
   }
+
 
   /**
    * Deletes this ModelAttribute from the database.
