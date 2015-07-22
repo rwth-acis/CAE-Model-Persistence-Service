@@ -6,7 +6,7 @@
 	</publications>
     <dependencies>
       <dependency org="i5" name="las2peer" rev="0.4-SNAPSHOT" changing="true" />
-      <dependency org="i5" name="las2peer-web-connector" rev="0.3-SNAPSHOT" changing="true" />
+      <dependency org="i5" name="las2peer-web-connector" rev="0.4-SNAPSHOT" changing="true" />
       <dependency org="i5" name="cae-simple-model-representation" rev="0.1"/>
       <dependency org="junit" name="junit" rev="4.11"/>
   		<dependency org="mysql" name="mysql-connector-java" rev="5.1.6" />
