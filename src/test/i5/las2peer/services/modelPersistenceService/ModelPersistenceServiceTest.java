@@ -369,7 +369,7 @@ public class ModelPersistenceServiceTest {
   }
 
   /**
-   * Test the TemplateService for valid rest mapping. Important for development.
+   * Test the persistence service for valid rest mapping. Important for development.
    */
   @Test
   public void testDebugMapping() {
