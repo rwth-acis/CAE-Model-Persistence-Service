@@ -1,37 +1,47 @@
 package i5.las2peer.services.modelPersistenceService;
 
+import java.net.HttpURLConnection;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.ParseException;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 import i5.las2peer.api.Service;
 import i5.las2peer.restMapper.HttpResponse;
 import i5.las2peer.restMapper.MediaType;
 import i5.las2peer.restMapper.RESTMapper;
-import i5.las2peer.restMapper.annotations.Consumes;
 import i5.las2peer.restMapper.annotations.ContentParam;
-import i5.las2peer.restMapper.annotations.DELETE;
-import i5.las2peer.restMapper.annotations.GET;
-import i5.las2peer.restMapper.annotations.POST;
-import i5.las2peer.restMapper.annotations.PUT;
-import i5.las2peer.restMapper.annotations.Path;
-import i5.las2peer.restMapper.annotations.PathParam;
-import i5.las2peer.restMapper.annotations.Produces;
 import i5.las2peer.restMapper.annotations.Version;
-import i5.las2peer.restMapper.annotations.swagger.ApiInfo;
-import i5.las2peer.restMapper.annotations.swagger.ApiResponse;
-import i5.las2peer.restMapper.annotations.swagger.ApiResponses;
-import i5.las2peer.restMapper.annotations.swagger.ResourceListApi;
-import i5.las2peer.restMapper.annotations.swagger.Summary;
 import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
 import i5.las2peer.services.modelPersistenceService.database.exception.ModelNotFoundException;
 import i5.las2peer.services.modelPersistenceService.model.Model;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
+import io.swagger.annotations.Contact;
+import io.swagger.annotations.Info;
+import io.swagger.annotations.License;
+import io.swagger.annotations.SwaggerDefinition;
+import io.swagger.jaxrs.Reader;
+import io.swagger.models.Swagger;
+import io.swagger.util.Json;
 
 /**
  * 
@@ -40,12 +50,17 @@ import i5.las2peer.services.modelPersistenceService.model.Model;
  * A LAS2peer service used for persisting (and validating) application models. Part of the CAE.
  * 
  */
+
 @Path("CAE/models")
 @Version("0.1")
-@ApiInfo(title = "CAE Model Persistence Service",
+@Api
+@SwaggerDefinition(info = @Info(title = "CAE Model Persistence Service", version = "0.1",
     description = "A LAS2peer service used for persisting (and validating) application models. Part of the CAE.",
-    termsOfServiceUrl = "none", contact = "lange@dbis.rwth-aachen.de", license = "BSD",
-    licenseUrl = "https://github.com/PedeLa/CAE-Model-Persistence-Service/LICENSE.txt")
+    termsOfService = "none",
+    contact = @Contact(name = "Peter de Lange", url = "https://github.com/PedeLa/",
+        email = "lange@dbis.rwth-aachen.de") ,
+    license = @License(name = "BSD",
+        url = "https://github.com/PedeLa/CAE-Model-Persistence-Service//blob/master/LICENSE.txt") ) )
 public class ModelPersistenceService extends Service {
 
   /*
@@ -59,13 +74,6 @@ public class ModelPersistenceService extends Service {
   private DatabaseManager dbm;
 
   /*
-   * WebConnector configuration (required by Swagger)
-   */
-  private String webconnectorProtocol = "http";
-  private String webconnectorIpAdress = "localhost";
-  private String webconnectorPort = "8080";
-
-  /*
    * Global variables
    */
   private boolean useCodeGenerationService;
@@ -76,6 +84,7 @@ public class ModelPersistenceService extends Service {
     // instantiate a database manager to handle database connection pooling and credentials
     dbm = new DatabaseManager(jdbcDriverClassName, jdbcLogin, jdbcPass, jdbcUrl, jdbcSchema);
   }
+
 
   /**
    * 
@@ -89,13 +98,16 @@ public class ModelPersistenceService extends Service {
   @POST
   @Path("/")
   @Consumes(MediaType.APPLICATION_JSON)
-  @ResourceListApi(description = "Entry point for storing a model to the database.")
-  @ApiResponses(value = {@ApiResponse(code = 201, message = "OK, model stored"),
-      @ApiResponse(code = 400, message = "Input model was not valid"),
-      @ApiResponse(code = 409,
+  @ApiOperation(value = "Entry point for storing a model to the database.",
+      notes = "Entry point for storing a model to the database.")
+  @ApiResponses(
+      value = {@ApiResponse(code = HttpURLConnection.HTTP_CREATED, message = "OK, model stored"),
+          @ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST,
+              message = "Input model was not valid"),
+      @ApiResponse(code = HttpURLConnection.HTTP_CONFLICT,
           message = "Tried to save a model that already had a name and thus was not new"),
-      @ApiResponse(code = 500, message = "Internal server error")})
-  @Summary("Entry point for storing a model to the database")
+      @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR,
+          message = "Internal server error")})
   public HttpResponse postModel(@ContentParam String inputModel) {
     logMessage("postModel: trying to store new model");
     Model model;
@@ -104,20 +116,24 @@ public class ModelPersistenceService extends Service {
       model = new Model(inputModel);
     } catch (ParseException e) {
       logError("postModel: exception parsing JSON input: " + e);
-      HttpResponse r = new HttpResponse("JSON parsing exception, file not valid!", 400);
+      HttpResponse r = new HttpResponse("JSON parsing exception, file not valid!",
+          HttpURLConnection.HTTP_BAD_REQUEST);
       return r;
     } catch (Exception e) {
       logError("postModel: something went seriously wrong: " + e);
       e.printStackTrace();
-      HttpResponse r = new HttpResponse("Internal server error!", 500);
+      HttpResponse r =
+          new HttpResponse("Internal server error!", HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
     }
 
     // check if model name is already taken
-    if (this.getModel(model.getAttributes().getName()).getStatus() != 404) {
+    if (this.getModel(model.getAttributes().getName())
+        .getStatus() != HttpURLConnection.HTTP_NOT_FOUND) {
       logMessage("postModel: model name " + model.getAttributes().getName() + " is already taken");
       HttpResponse r = new HttpResponse(
-          "Model with name " + model.getAttributes().getName() + " already exists!", 409);
+          "Model with name " + model.getAttributes().getName() + " already exists!",
+          HttpURLConnection.HTTP_CONFLICT);
       return r;
     }
     // call code generation service
@@ -128,12 +144,14 @@ public class ModelPersistenceService extends Service {
             "i5.las2peer.services.codeGenerationService.CodeGenerationService", "createFromModel",
             model.getMinifiedRepresentation());
         if (!returnMessage.equals("done")) {
-          HttpResponse r = new HttpResponse("Model not valid: " + returnMessage, 500);
+          HttpResponse r = new HttpResponse("Model not valid: " + returnMessage,
+              HttpURLConnection.HTTP_INTERNAL_ERROR);
           return r;
         }
       } catch (Exception e) {
         e.printStackTrace();
-        HttpResponse r = new HttpResponse("Internal server error..", 500);
+        HttpResponse r =
+            new HttpResponse("Internal server error..", HttpURLConnection.HTTP_INTERNAL_ERROR);
         return r;
       }
     }
@@ -146,17 +164,19 @@ public class ModelPersistenceService extends Service {
       int modelId = model.getId();
       logMessage("postModel: model with id " + modelId + " and name "
           + model.getAttributes().getName() + " stored!");
-      HttpResponse r = new HttpResponse("Model stored!", 201);
+      HttpResponse r = new HttpResponse("Model stored!", HttpURLConnection.HTTP_CREATED);
       return r;
     } catch (SQLException e) {
       logError("postModel: exception persisting model: " + e);
       e.printStackTrace();
-      HttpResponse r = new HttpResponse("Could not persist, database rejected model!", 400);
+      HttpResponse r = new HttpResponse("Could not persist, database rejected model!",
+          HttpURLConnection.HTTP_BAD_REQUEST);
       return r;
     } catch (Exception e) {
       logError("postModel: something went seriously wrong: " + e);
       e.printStackTrace();
-      HttpResponse r = new HttpResponse("Internal server error..", 500);
+      HttpResponse r =
+          new HttpResponse("Internal server error..", HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
     }
     // always close connections
@@ -183,12 +203,15 @@ public class ModelPersistenceService extends Service {
   @GET
   @Path("/{modelName}")
   @Produces(MediaType.APPLICATION_JSON)
-  @ResourceListApi(
-      description = "Searches for a model in the database. Takes the modelName as search parameter")
-  @ApiResponses(value = {@ApiResponse(code = 200, message = "OK, model found"),
-      @ApiResponse(code = 404, message = "Model could not be found."),
-      @ApiResponse(code = 500, message = "Internal server error")})
-  @Summary("Searches for a model in the database.")
+  @ApiOperation(
+      value = "Searches for a model in the database. Takes the modelName as search parameter.",
+      notes = "Searches for a model in the database.")
+  @ApiResponses(
+      value = {@ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model found"),
+          @ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND,
+              message = "Model could not be found."),
+      @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR,
+          message = "Internal server error")})
   public HttpResponse getModel(@PathParam("modelName") String modelName) {
     logMessage("getModel: searching for model with name " + modelName);
     Model model = null;
@@ -198,17 +221,17 @@ public class ModelPersistenceService extends Service {
       model = new Model(modelName, connection);
     } catch (ModelNotFoundException e) {
       logMessage("getModel: did not find model with name " + modelName);
-      HttpResponse r = new HttpResponse("Model not found!", 404);
+      HttpResponse r = new HttpResponse("Model not found!", HttpURLConnection.HTTP_NOT_FOUND);
       return r;
     } catch (SQLException e) {
       logError("getModel: exception fetching model: " + e);
       e.printStackTrace();
-      HttpResponse r = new HttpResponse("Database error!", 500);
+      HttpResponse r = new HttpResponse("Database error!", HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
     } catch (Exception e) {
       logError("getModel: something went seriously wrong: " + e);
       e.printStackTrace();
-      HttpResponse r = new HttpResponse("Server error!", 500);
+      HttpResponse r = new HttpResponse("Server error!", HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
     } finally {
       try {
@@ -221,7 +244,7 @@ public class ModelPersistenceService extends Service {
         "getModel: found model " + modelName + ", now converting to JSONObject and returning");
     JSONObject jsonModel = model.toJSONObject();
 
-    HttpResponse r = new HttpResponse(jsonModel.toJSONString(), 200);
+    HttpResponse r = new HttpResponse(jsonModel.toJSONString(), HttpURLConnection.HTTP_OK);
     return r;
   }
 
@@ -239,12 +262,13 @@ public class ModelPersistenceService extends Service {
   @GET
   @Path("/")
   @Produces(MediaType.APPLICATION_JSON)
-  @ResourceListApi(
-      description = "Retrieves a list of all models stored in the database. Returns a list of model names.")
-  @ApiResponses(value = {@ApiResponse(code = 200, message = "OK, model list is returned"),
-      @ApiResponse(code = 404, message = "No models in the database"),
-      @ApiResponse(code = 500, message = "Internal server error")})
-  @Summary("Retrieves a list of models from the database.")
+  @ApiOperation(value = "Retrieves a list of models from the database.",
+      notes = "Retrieves a list of all models stored in the database. Returns a list of model names.")
+  @ApiResponses(value = {
+      @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model list is returned"),
+      @ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "No models in the database"),
+      @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR,
+          message = "Internal server error")})
   public HttpResponse getModels() {
     ArrayList<String> modelNames = new ArrayList<String>();
     Connection connection = null;
@@ -260,19 +284,19 @@ public class ModelPersistenceService extends Service {
       }
       if (modelNames.isEmpty()) {
         logMessage("getModels: database is empty!");
-        HttpResponse r = new HttpResponse("Database is empty!", 404);
+        HttpResponse r = new HttpResponse("Database is empty!", HttpURLConnection.HTTP_NOT_FOUND);
         return r;
       }
       connection.close();
     } catch (SQLException e) {
       logError("getModels: exception fetching model: " + e);
       e.printStackTrace();
-      HttpResponse r = new HttpResponse("Database error!", 500);
+      HttpResponse r = new HttpResponse("Database error!", HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
     } catch (Exception e) {
       logError("getModels: something went seriously wrong: " + e);
       e.printStackTrace();
-      HttpResponse r = new HttpResponse("Server error!", 500);
+      HttpResponse r = new HttpResponse("Server error!", HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
     } finally {
       try {
@@ -285,7 +309,7 @@ public class ModelPersistenceService extends Service {
     JSONArray jsonModelList = new JSONArray();
     jsonModelList.addAll(modelNames);
 
-    HttpResponse r = new HttpResponse(jsonModelList.toJSONString(), 200);
+    HttpResponse r = new HttpResponse(jsonModelList.toJSONString(), HttpURLConnection.HTTP_OK);
     return r;
   }
 
@@ -302,11 +326,13 @@ public class ModelPersistenceService extends Service {
   @DELETE
   @Path("/{modelName}")
   @Consumes(MediaType.TEXT_PLAIN)
-  @ResourceListApi(description = "Deletes a model given by its name.")
-  @ApiResponses(value = {@ApiResponse(code = 200, message = "OK, model is deleted"),
-      @ApiResponse(code = 404, message = "Model does not exist"),
-      @ApiResponse(code = 500, message = "Internal server error")})
-  @Summary("Deletes a model given by its name.")
+  @ApiOperation(value = "Deletes a model given by its name.",
+      notes = "Deletes a model given by its name.")
+  @ApiResponses(
+      value = {@ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model is deleted"),
+          @ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
+          @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR,
+              message = "Internal server error")})
   public HttpResponse deleteModel(@PathParam("modelName") String modelName) {
     Connection connection = null;
     logMessage("deleteModel: trying to delete model with name: " + modelName);
@@ -315,16 +341,17 @@ public class ModelPersistenceService extends Service {
       Model model = new Model(modelName, connection);
       model.deleteFromDatabase(connection);
       logMessage("deleteModel: eleted model " + modelName);
-      HttpResponse r = new HttpResponse("Model deleted!", 200);
+      HttpResponse r = new HttpResponse("Model deleted!", HttpURLConnection.HTTP_OK);
       return r;
     } catch (ModelNotFoundException e) {
       logMessage("deleteModel: did not find model with name " + modelName);
-      HttpResponse r = new HttpResponse("Model not found!", 404);
+      HttpResponse r = new HttpResponse("Model not found!", HttpURLConnection.HTTP_NOT_FOUND);
       return r;
     } catch (SQLException e) {
       logError("deleteModel: exception deleting model: " + e);
       e.printStackTrace();
-      HttpResponse r = new HttpResponse("Internal server error..", 500);
+      HttpResponse r =
+          new HttpResponse("Internal server error..", HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
     } finally {
       try {
@@ -351,12 +378,14 @@ public class ModelPersistenceService extends Service {
   @PUT
   @Path("/{modelName}")
   @Consumes(MediaType.APPLICATION_JSON)
-  @ResourceListApi(description = "Updates a model.")
-  @ApiResponses(value = {@ApiResponse(code = 200, message = "OK, model is updated"),
-      @ApiResponse(code = 404, message = "Model does not exist"),
-      @ApiResponse(code = 409, message = "Model name may not be changed"),
-      @ApiResponse(code = 500, message = "Internal server error")})
-  @Summary("Updates a model.")
+  @ApiOperation(value = "Updates a model.", notes = "Updates a model.")
+  @ApiResponses(
+      value = {@ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model is updated"),
+          @ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
+          @ApiResponse(code = HttpURLConnection.HTTP_CONFLICT,
+              message = "Model name may not be changed"),
+      @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR,
+          message = "Internal server error")})
   public HttpResponse updateModel(@PathParam("modelName") String modelName,
       @ContentParam String inputModel) {
     logMessage("updateModel: trying to update model with name: " + modelName);
@@ -368,17 +397,20 @@ public class ModelPersistenceService extends Service {
       if (!model.getAttributes().getName().equals(modelName)) {
         logMessage("updateModel: posted model name " + modelName
             + " is different from posted model name attribute " + model.getAttributes().getName());
-        HttpResponse r = new HttpResponse("Model name is different!", 409);
+        HttpResponse r =
+            new HttpResponse("Model name is different!", HttpURLConnection.HTTP_CONFLICT);
         return r;
       }
     } catch (ParseException e) {
       logError("updateModel: exception parsing JSON input: " + e);
-      HttpResponse r = new HttpResponse("JSON parsing exception, file not valid!", 500);
+      HttpResponse r = new HttpResponse("JSON parsing exception, file not valid!",
+          HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
     } catch (Exception e) {
       logError("updateModel: something went seriously wrong: " + e);
       e.printStackTrace();
-      HttpResponse r = new HttpResponse("Internal server error!", 500);
+      HttpResponse r =
+          new HttpResponse("Internal server error!", HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
     }
 
@@ -402,12 +434,13 @@ public class ModelPersistenceService extends Service {
       // check if the "old" model did exist
     } catch (ModelNotFoundException e) {
       logMessage("updateModel: there exists no model with name: " + modelName);
-      HttpResponse r = new HttpResponse("Model not found!", 404);
+      HttpResponse r = new HttpResponse("Model not found!", HttpURLConnection.HTTP_NOT_FOUND);
       return r;
     } catch (SQLException e) {
       logError("updateModel: error deleting old model: " + e);
       e.printStackTrace();
-      HttpResponse r = new HttpResponse("Internal server error..", 500);
+      HttpResponse r =
+          new HttpResponse("Internal server error..", HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
     }
     // always close connections
@@ -425,17 +458,19 @@ public class ModelPersistenceService extends Service {
       int modelId = model.getId();
       logMessage("updateModel: model with new id " + modelId + " and name "
           + model.getAttributes().getName() + " stored!");
-      HttpResponse r = new HttpResponse("Model updated!", 200);
+      HttpResponse r = new HttpResponse("Model updated!", HttpURLConnection.HTTP_OK);
       return r;
     } catch (SQLException e) {
       logError("updateModel: exception persisting model: " + e);
       e.printStackTrace();
-      HttpResponse r = new HttpResponse("Could not persist, database rejected model!", 500);
+      HttpResponse r = new HttpResponse("Could not persist, database rejected model!",
+          HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
     } catch (Exception e) {
       logError("updateModel: something went seriously wrong: " + e);
       e.printStackTrace();
-      HttpResponse r = new HttpResponse("Internal server error..", 500);
+      HttpResponse r =
+          new HttpResponse("Internal server error..", HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
     }
     // always close connections
@@ -447,6 +482,7 @@ public class ModelPersistenceService extends Service {
       }
     }
   }
+
 
   ////////////////////////////////////////////////////////////////////////////////////////
   // Methods required by the LAS2peer framework.
@@ -469,25 +505,10 @@ public class ModelPersistenceService extends Service {
     return result;
   }
 
+
   ////////////////////////////////////////////////////////////////////////////////////////
   // Methods providing a Swagger documentation of the service API.
   ////////////////////////////////////////////////////////////////////////////////////////
-
-  /**
-   * 
-   * Returns a listing of all annotated top level resources for purposes of the Swagger
-   * documentation.
-   * 
-   * @return listing of all top level resources
-   * 
-   */
-  @GET
-  @Path("api-docs")
-  @Produces(MediaType.APPLICATION_JSON)
-  public HttpResponse getSwaggerResourceListing() {
-    return RESTMapper.getSwaggerResourceListing(this.getClass());
-  }
-
 
   /**
    * 
@@ -500,27 +521,24 @@ public class ModelPersistenceService extends Service {
    * Trouble shooting: Please make sure that the endpoint URL below is correct with respect to your
    * service.
    * 
-   * @param tlr A top level resource name.
-   * 
    * @return The resource's documentation.
    * 
    */
   @GET
-  @Path("api-docs/{tlr}")
+  @Path("/swagger.json")
   @Produces(MediaType.APPLICATION_JSON)
-  public HttpResponse getSwaggerApiDeclaration(@PathParam("tlr") String tlr) {
-    HttpResponse res;
-    Class<ModelPersistenceService> c = ModelPersistenceService.class;
-    if (!c.isAnnotationPresent(Path.class)) {
-      res = new HttpResponse("Swagger API declaration not available. Service path is not defined.");
-      res.setStatus(404);
-    } else {
-      Path path = (Path) c.getAnnotation(Path.class);
-      String endpoint = webconnectorProtocol + "://" + webconnectorIpAdress + ":" + webconnectorPort
-          + path.value() + "/";
-      System.out.println(endpoint);
-      res = RESTMapper.getSwaggerApiDeclaration(this.getClass(), tlr, endpoint);
+  public HttpResponse getSwaggerJSON() {
+    Swagger swagger = new Reader(new Swagger()).read(this.getClass());
+    if (swagger == null) {
+      return new HttpResponse("Swagger API declaration not available!",
+          HttpURLConnection.HTTP_NOT_FOUND);
     }
-    return res;
+    try {
+      return new HttpResponse(Json.mapper().writeValueAsString(swagger), HttpURLConnection.HTTP_OK);
+    } catch (JsonProcessingException e) {
+      e.printStackTrace();
+      return new HttpResponse(e.getMessage(), HttpURLConnection.HTTP_INTERNAL_ERROR);
+    }
   }
+
 }
