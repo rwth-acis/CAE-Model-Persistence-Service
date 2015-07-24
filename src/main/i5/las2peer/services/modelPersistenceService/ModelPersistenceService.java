@@ -60,7 +60,7 @@ import io.swagger.util.Json;
     contact = @Contact(name = "Peter de Lange", url = "https://github.com/PedeLa/",
         email = "lange@dbis.rwth-aachen.de") ,
     license = @License(name = "BSD",
-        url = "https://github.com/PedeLa/CAE-Model-Persistence-Service/LICENSE.txt") ) )
+        url = "https://github.com/PedeLa/CAE-Model-Persistence-Service//blob/master/LICENSE.txt") ) )
 public class ModelPersistenceService extends Service {
 
   /*
