@@ -138,18 +138,15 @@ public class Node {
 
     // label element of nodeContent
     JSONObject label = new JSONObject();
-    label.put("id", this.id + "[name]");
-    // currently, SyncMeta supports only "name" as label for nodes.
-    // Important: if one has no "name" attribute in the node, this will not work.
-    label.put("name", "name");
+
     JSONObject labelValue = new JSONObject();
-    labelValue.put("id", this.id + "[name]");
-    labelValue.put("name", "name");
+
     // at this point we have to "wait" for the attributes to be read out, since the "value" of the
     // name can be derived from the attribute with the name "name"
 
     // attribute element of nodeContent
     JSONObject attributes = new JSONObject();
+    boolean hasName = false;
     for (int attributeIndex = 0; attributeIndex < this.attributes.size(); attributeIndex++) {
       EntityAttribute currentAttribute = this.attributes.get(attributeIndex);
       JSONObject attributeContent = new JSONObject();
@@ -168,10 +165,26 @@ public class Node {
 
       // check for name of label, if found, add value to label
       if (currentAttribute.getName().equals("name")) {
+        // currently, SyncMeta supports only "name" as label for nodes. Important: if one has no
+        // "name" attribute in the node, this will not work. Then, we will just use the empty
+        // "Label" marker.
+        hasName = true;
+        label.put("id", this.id + "[name]");
+        label.put("name", "name");
+        labelValue.put("id", this.id + "[name]");
+        labelValue.put("name", "name");
         labelValue.put("value", currentAttribute.getValue());
         label.put("value", labelValue);
       }
-
+    }
+    // empty "Label" marker
+    if (!hasName) {
+      label.put("id", this.id + "[label]");
+      label.put("name", "Label");
+      labelValue.put("id", this.id + "[label]");
+      labelValue.put("name", "Label");
+      labelValue.put("value", "");
+      label.put("value", labelValue);
     }
 
     // add label and attributes to node content, then finally add content to node
