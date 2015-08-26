@@ -13,6 +13,8 @@ import org.json.simple.JSONObject;
  * (Data-)Class for EntityAttributes. Provides means to convert JSON to Object and Object to JSON.
  * Also provides means to persist the object to a database.
  *
+ * TODO care for different entity types (not only String!!)
+ * 
  */
 public class EntityAttribute {
   private int id = -1; // given by the database
@@ -34,6 +36,7 @@ public class EntityAttribute {
     jsonAttribute = (JSONObject) jsonAttribute.get("value");
     this.syncMetaId = syncMetaId;
     this.name = (String) jsonAttribute.get("name");
+
     this.value = (String) (jsonAttribute.get("value") + ""); // only store strings
   }
 
