@@ -157,7 +157,14 @@ public class Node {
       JSONObject attributeValue = new JSONObject();
       attributeValue.put("id", this.id + "[" + currentAttribute.getName() + "]");
       attributeValue.put("name", currentAttribute.getName());
-      attributeValue.put("value", currentAttribute.getValue());
+      String value = currentAttribute.getValue();
+      // TODO hotfix for boolean attributes
+      if (value.equals("true") || value.equals("false")) {
+        attributeValue.put("value", Boolean.parseBoolean(currentAttribute.getValue()));
+      } else {
+        // treat as String
+        attributeValue.put("value", currentAttribute.getValue());
+      }
       attributeContent.put("value", attributeValue);
 
       // add attribute to attribute list with the attribute's id as key
