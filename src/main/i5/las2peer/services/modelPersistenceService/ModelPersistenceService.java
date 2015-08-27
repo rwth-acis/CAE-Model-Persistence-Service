@@ -1,5 +1,6 @@
 package i5.las2peer.services.modelPersistenceService;
 
+import java.io.Serializable;
 import java.net.HttpURLConnection;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -22,6 +23,9 @@ import org.json.simple.parser.ParseException;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 
+import i5.cae.simpleModel.SimpleEntityAttribute;
+import i5.cae.simpleModel.SimpleModel;
+import i5.cae.simpleModel.node.SimpleNode;
 import i5.las2peer.api.Service;
 import i5.las2peer.restMapper.HttpResponse;
 import i5.las2peer.restMapper.MediaType;
@@ -491,7 +495,10 @@ public class ModelPersistenceService extends Service {
 
   /**
    * 
-   * Calls the code generation service to see if the model is a valid CAE model.
+   * Calls the code generation service to see if the model is a valid CAE model. Also implements a
+   * bit of CAE logic by checking if the code generation service needs additional models (in case of
+   * an application model) and serves them automatically, such that the rest of this service does
+   * not have to deal with this "special case".
    * 
    * @param methodName the method name of the code generation service
    * @param a {@link Model}
@@ -500,10 +507,41 @@ public class ModelPersistenceService extends Service {
    * 
    */
   private String callCodeGenerationService(String methodName, Model model) {
+    Serializable[] modelsToSend = null;
+    SimpleModel simpleModel = (SimpleModel) model.getMinifiedRepresentation();
+
+    for (SimpleEntityAttribute attribute : simpleModel.getAttributes()) {
+      if (attribute.getName().equals("type")) {
+        // handle special case of application model
+        if (attribute.getValue().equals("application")) {
+          modelsToSend = new SimpleModel[simpleModel.getNodes().size() + 1];
+          modelsToSend[0] = simpleModel;
+          int modelsToSendIndex = 1;
+          // iterate through the nodes and add corresponding models to array
+          for (SimpleNode node : simpleModel.getNodes()) {
+            // send application models only have one attribute with its label
+            String modelName = node.getAttributes().get(0).getValue();
+            try {
+              Connection connection = dbm.getConnection();
+              modelsToSend[modelsToSendIndex] =
+                  new Model(modelName, connection).getMinifiedRepresentation();
+            } catch (SQLException e) {
+              // model might not exist
+              e.printStackTrace();
+              return "Error loading application component: " + modelName;
+            }
+            modelsToSendIndex++;
+          }
+        } else {
+          modelsToSend = new SimpleModel[1];
+          modelsToSend[0] = simpleModel;
+        }
+      }
+    }
     try {
+      Serializable[] payload = {modelsToSend};
       String returnMessage = (String) this.invokeServiceMethod(
-          "i5.las2peer.services.codeGenerationService.CodeGenerationService", methodName,
-          model.getMinifiedRepresentation());
+          "i5.las2peer.services.codeGenerationService.CodeGenerationService", methodName, payload);
       return returnMessage;
     } catch (Exception e) {
       e.printStackTrace();
