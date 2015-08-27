@@ -139,20 +139,11 @@ public class ModelPersistenceService extends Service {
 
     // call code generation service
     if (this.useCodeGenerationService) {
-      try {
-        logMessage("postModel: invoking code generation service..");
-        String returnMessage = (String) this.invokeServiceMethod(
-            "i5.las2peer.services.codeGenerationService.CodeGenerationService", "createFromModel",
-            model.getMinifiedRepresentation());
-        if (!returnMessage.equals("done")) {
-          HttpResponse r = new HttpResponse("Model not valid: " + returnMessage,
-              HttpURLConnection.HTTP_INTERNAL_ERROR);
-          return r;
-        }
-      } catch (Exception e) {
-        e.printStackTrace();
-        HttpResponse r =
-            new HttpResponse("Internal server error..", HttpURLConnection.HTTP_INTERNAL_ERROR);
+      logMessage("postModel: invoking code generation service..");
+      String returnMessage = callCodeGenerationService("createFromModel", model);
+      if (!returnMessage.equals("done")) {
+        HttpResponse r = new HttpResponse("Model not valid: " + returnMessage,
+            HttpURLConnection.HTTP_INTERNAL_ERROR);
         return r;
       }
     }
@@ -343,20 +334,11 @@ public class ModelPersistenceService extends Service {
 
       // call code generation service
       if (this.useCodeGenerationService) {
-        try {
-          logMessage("deleteModel: invoking code generation service..");
-          String returnMessage = (String) this.invokeServiceMethod(
-              "i5.las2peer.services.codeGenerationService.CodeGenerationService",
-              "deleteRepositoryOfModel", model.getMinifiedRepresentation());
-          if (!returnMessage.equals("done")) {
-            HttpResponse r = new HttpResponse("Model not valid: " + returnMessage,
-                HttpURLConnection.HTTP_INTERNAL_ERROR);
-            return r;
-          }
-        } catch (Exception e) {
-          e.printStackTrace();
-          HttpResponse r =
-              new HttpResponse("Internal server error..", HttpURLConnection.HTTP_INTERNAL_ERROR);
+        logMessage("deleteModel: invoking code generation service..");
+        String returnMessage = callCodeGenerationService("deleteRepositoryOfModel", model);
+        if (!returnMessage.equals("done")) {
+          HttpResponse r = new HttpResponse("Model not valid: " + returnMessage,
+              HttpURLConnection.HTTP_INTERNAL_ERROR);
           return r;
         }
       }
@@ -438,20 +420,11 @@ public class ModelPersistenceService extends Service {
 
     // call code generation service
     if (this.useCodeGenerationService) {
-      try {
-        logMessage("deleteModel: invoking code generation service..");
-        String returnMessage = (String) this.invokeServiceMethod(
-            "i5.las2peer.services.codeGenerationService.CodeGenerationService",
-            "updateRepositoryOfModel", model.getMinifiedRepresentation());
-        if (!returnMessage.equals("done")) {
-          HttpResponse r = new HttpResponse("Model not valid: " + returnMessage,
-              HttpURLConnection.HTTP_INTERNAL_ERROR);
-          return r;
-        }
-      } catch (Exception e) {
-        e.printStackTrace();
-        HttpResponse r =
-            new HttpResponse("Internal server error..", HttpURLConnection.HTTP_INTERNAL_ERROR);
+      logMessage("updateModel: invoking code generation service..");
+      String returnMessage = callCodeGenerationService("updateRepositoryOfModel", model);
+      if (!returnMessage.equals("done")) {
+        HttpResponse r = new HttpResponse("Model not valid: " + returnMessage,
+            HttpURLConnection.HTTP_INTERNAL_ERROR);
         return r;
       }
     }
@@ -512,6 +485,29 @@ public class ModelPersistenceService extends Service {
       } catch (SQLException e) {
         e.printStackTrace();
       }
+    }
+  }
+
+
+  /**
+   * 
+   * Calls the code generation service to see if the model is a valid CAE model.
+   * 
+   * @param methodName the method name of the code generation service
+   * @param a {@link Model}
+   * 
+   * @return the return string of the called method or an error message
+   * 
+   */
+  private String callCodeGenerationService(String methodName, Model model) {
+    try {
+      String returnMessage = (String) this.invokeServiceMethod(
+          "i5.las2peer.services.codeGenerationService.CodeGenerationService", methodName,
+          model.getMinifiedRepresentation());
+      return returnMessage;
+    } catch (Exception e) {
+      e.printStackTrace();
+      return "Internal server error..";
     }
   }
 
