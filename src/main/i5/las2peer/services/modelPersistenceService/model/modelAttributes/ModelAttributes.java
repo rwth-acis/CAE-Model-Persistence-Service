@@ -11,7 +11,7 @@ import java.util.Map;
 
 import org.json.simple.JSONObject;
 
-import i5.las2peer.services.modelPersistenceService.database.exception.ModelNotFoundException;
+import i5.las2peer.services.modelPersistenceService.exception.ModelNotFoundException;
 import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
 
 /**

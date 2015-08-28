@@ -33,7 +33,8 @@ import i5.las2peer.restMapper.RESTMapper;
 import i5.las2peer.restMapper.annotations.ContentParam;
 import i5.las2peer.restMapper.annotations.Version;
 import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
-import i5.las2peer.services.modelPersistenceService.database.exception.ModelNotFoundException;
+import i5.las2peer.services.modelPersistenceService.exception.CGSInvocationException;
+import i5.las2peer.services.modelPersistenceService.exception.ModelNotFoundException;
 import i5.las2peer.services.modelPersistenceService.model.Model;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -143,10 +144,11 @@ public class ModelPersistenceService extends Service {
 
     // call code generation service
     if (this.useCodeGenerationService) {
-      logMessage("postModel: invoking code generation service..");
-      String returnMessage = callCodeGenerationService("createFromModel", model);
-      if (!returnMessage.equals("done")) {
-        HttpResponse r = new HttpResponse("Model not valid: " + returnMessage,
+      try {
+        logMessage("postModel: invoking code generation service..");
+        model = callCodeGenerationService("createFromModel", model);
+      } catch (CGSInvocationException e) {
+        HttpResponse r = new HttpResponse("Model not valid: " + e.getMessage(),
             HttpURLConnection.HTTP_INTERNAL_ERROR);
         return r;
       }
@@ -338,10 +340,11 @@ public class ModelPersistenceService extends Service {
 
       // call code generation service
       if (this.useCodeGenerationService) {
-        logMessage("deleteModel: invoking code generation service..");
-        String returnMessage = callCodeGenerationService("deleteRepositoryOfModel", model);
-        if (!returnMessage.equals("done")) {
-          HttpResponse r = new HttpResponse("Model not valid: " + returnMessage,
+        try {
+          logMessage("deleteModel: invoking code generation service..");
+          model = callCodeGenerationService("deleteRepositoryOfModel", model);
+        } catch (CGSInvocationException e) {
+          HttpResponse r = new HttpResponse("Model not valid: " + e.getMessage(),
               HttpURLConnection.HTTP_INTERNAL_ERROR);
           return r;
         }
@@ -368,6 +371,7 @@ public class ModelPersistenceService extends Service {
         e.printStackTrace();
       }
     }
+
   }
 
 
@@ -424,10 +428,11 @@ public class ModelPersistenceService extends Service {
 
     // call code generation service
     if (this.useCodeGenerationService) {
-      logMessage("updateModel: invoking code generation service..");
-      String returnMessage = callCodeGenerationService("updateRepositoryOfModel", model);
-      if (!returnMessage.equals("done")) {
-        HttpResponse r = new HttpResponse("Model not valid: " + returnMessage,
+      try {
+        logMessage("updateModel: invoking code generation service..");
+        model = callCodeGenerationService("updateRepositoryOfModel", model);
+      } catch (CGSInvocationException e) {
+        HttpResponse r = new HttpResponse("Model not valid: " + e.getMessage(),
             HttpURLConnection.HTTP_INTERNAL_ERROR);
         return r;
       }
@@ -503,10 +508,11 @@ public class ModelPersistenceService extends Service {
    * @param methodName the method name of the code generation service
    * @param a {@link Model}
    * 
-   * @return the return string of the called method or an error message
+   * @return the model, might be updated in case of an application model
    * 
    */
-  private String callCodeGenerationService(String methodName, Model model) {
+  private Model callCodeGenerationService(String methodName, Model model)
+      throws CGSInvocationException {
     Serializable[] modelsToSend = null;
     SimpleModel simpleModel = (SimpleModel) model.getMinifiedRepresentation();
 
@@ -515,7 +521,7 @@ public class ModelPersistenceService extends Service {
         // handle special case of application model
         if (attribute.getValue().equals("application")) {
           modelsToSend = new SimpleModel[simpleModel.getNodes().size() + 1];
-          modelsToSend[0] = simpleModel;
+          modelsToSend[0] = simpleModel; // first is always "application model itself
           int modelsToSendIndex = 1;
           // iterate through the nodes and add corresponding models to array
           for (SimpleNode node : simpleModel.getNodes()) {
@@ -528,7 +534,7 @@ public class ModelPersistenceService extends Service {
             } catch (SQLException e) {
               // model might not exist
               e.printStackTrace();
-              return "Error loading application component: " + modelName;
+              throw new CGSInvocationException("Error loading application component: " + modelName);
             }
             modelsToSendIndex++;
           }
@@ -538,14 +544,18 @@ public class ModelPersistenceService extends Service {
         }
       }
     }
+    // actual invocation
     try {
       Serializable[] payload = {modelsToSend};
-      String returnMessage = (String) this.invokeServiceMethod(
+      String answer = (String) this.invokeServiceMethod(
           "i5.las2peer.services.codeGenerationService.CodeGenerationService", methodName, payload);
-      return returnMessage;
+      if (answer != "done") {
+        throw new CGSInvocationException(answer);
+      }
+      return model;
     } catch (Exception e) {
       e.printStackTrace();
-      return "Internal server error..";
+      throw new CGSInvocationException("Internal server error..");
     }
   }
 
