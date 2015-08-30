@@ -371,7 +371,6 @@ public class ModelPersistenceService extends Service {
         e.printStackTrace();
       }
     }
-
   }
 
 
@@ -498,6 +497,99 @@ public class ModelPersistenceService extends Service {
   }
 
 
+  ////////////////////////////////////////////////////////////////////////////////////////
+  // Methods special to the CAE. Feel free to ignore them:-)
+  ///////////////////////////////////////////////////////////////////////////////////////
+
+  /**
+   * 
+   * Loads a model from the database (by calling the respective resource) and sends it to the code
+   * generation service, requesting a Communication Model view to be displayed in SyncMeta's
+   * application editor view.
+   * 
+   * TODO: Not tested..
+   * 
+   * @param modelName the name of the model to be loaded.
+   * 
+   * @return HttpResponse containing the status code of the request and the communication view model
+   *         as a JSON string
+   */
+  @GET
+  @Path("/commView/{modelName}")
+  @Consumes(MediaType.APPLICATION_JSON)
+  @ApiOperation(value = "Gets a CAE communication view model.",
+      notes = "Gets a CAE communication view model.")
+  @ApiResponses(
+      value = {@ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model found"),
+          @ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
+          @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR,
+              message = "Internal server error")})
+  public HttpResponse getCAECommunicationModel(@PathParam("modelName") String modelName) {
+    // load the application model from the database
+    SimpleModel appModel;
+    try {
+      Connection connection = dbm.getConnection();
+      logMessage("getCAECommunicationModel: Loading model " + modelName + " from the database");
+      appModel = (SimpleModel) new Model(modelName, connection).getMinifiedRepresentation();
+    } catch (SQLException e) {
+      // model might not exist
+      e.printStackTrace();
+      logError("getCAECommunicationModel: model " + modelName + " not found");
+      HttpResponse r = new HttpResponse("Model " + modelName + " does not exist!",
+          HttpURLConnection.HTTP_NOT_FOUND);
+      return r;
+    }
+    // load submodules of application model from the database
+    Serializable[] modelsToSend = null;
+    for (SimpleEntityAttribute attribute : appModel.getAttributes()) {
+      if (attribute.getName().equals("type") && attribute.getValue().equals("application")) {
+        modelsToSend = new SimpleModel[appModel.getNodes().size() + 1];
+        modelsToSend[0] = appModel; // first is always "application" model itself
+        int modelsToSendIndex = 1;
+        // iterate through the nodes and add corresponding models to array
+        for (SimpleNode node : appModel.getNodes()) {
+          // send application models only have one attribute with its label
+          String subModelName = node.getAttributes().get(0).getValue();
+          try {
+            Connection connection = dbm.getConnection();
+            modelsToSend[modelsToSendIndex] =
+                new Model(subModelName, connection).getMinifiedRepresentation();
+          } catch (SQLException e) {
+            // model might not exist
+            e.printStackTrace();
+            logError(
+                "getCAECommunicationModel: Error loading application component: " + subModelName);
+            HttpResponse r =
+                new HttpResponse("Internal server error..", HttpURLConnection.HTTP_INTERNAL_ERROR);
+            return r;
+          }
+          modelsToSendIndex++;
+        }
+        // invoke code generation service
+        try {
+          Serializable[] payload = {modelsToSend};
+          SimpleModel communicationModel = (SimpleModel) this.invokeServiceMethod(
+              "i5.las2peer.services.codeGenerationService.CodeGenerationService",
+              "getCommunicationViewOfApplicationModel", payload);
+          HttpResponse r =
+              new HttpResponse("Later will be a model here..", HttpURLConnection.HTTP_OK);
+          return r;
+        } catch (Exception e) {
+          e.printStackTrace();
+          HttpResponse r =
+              new HttpResponse("Internal server error..", HttpURLConnection.HTTP_INTERNAL_ERROR);
+          return r;
+        }
+
+      }
+    }
+    logError("getCAECommunicationModel: model is not an application: " + modelName);
+    HttpResponse r =
+        new HttpResponse("Internal server error..", HttpURLConnection.HTTP_INTERNAL_ERROR);
+    return r;
+  }
+
+
   /**
    * 
    * Calls the code generation service to see if the model is a valid CAE model. Also implements a
@@ -508,40 +600,46 @@ public class ModelPersistenceService extends Service {
    * @param methodName the method name of the code generation service
    * @param a {@link Model}
    * 
-   * @return the model, might be updated in case of an application model
+   * @return the model
+   * 
+   * @throws CGSInvocationException if something went wrong invoking the service
    * 
    */
   private Model callCodeGenerationService(String methodName, Model model)
       throws CGSInvocationException {
     Serializable[] modelsToSend = null;
     SimpleModel simpleModel = (SimpleModel) model.getMinifiedRepresentation();
-
+    boolean isApplication = false;
     for (SimpleEntityAttribute attribute : simpleModel.getAttributes()) {
       if (attribute.getName().equals("type")) {
         // handle special case of application model
         if (attribute.getValue().equals("application")) {
-          modelsToSend = new SimpleModel[simpleModel.getNodes().size() + 1];
-          modelsToSend[0] = simpleModel; // first is always "application model itself
-          int modelsToSendIndex = 1;
-          // iterate through the nodes and add corresponding models to array
-          for (SimpleNode node : simpleModel.getNodes()) {
-            // send application models only have one attribute with its label
-            String modelName = node.getAttributes().get(0).getValue();
-            try {
-              Connection connection = dbm.getConnection();
-              modelsToSend[modelsToSendIndex] =
-                  new Model(modelName, connection).getMinifiedRepresentation();
-            } catch (SQLException e) {
-              // model might not exist
-              e.printStackTrace();
-              throw new CGSInvocationException("Error loading application component: " + modelName);
-            }
-            modelsToSendIndex++;
-          }
-        } else {
-          modelsToSend = new SimpleModel[1];
-          modelsToSend[0] = simpleModel;
+          isApplication = true;
+          break;
         }
+      }
+      if (isApplication) {
+        modelsToSend = new SimpleModel[simpleModel.getNodes().size() + 1];
+        modelsToSend[0] = simpleModel; // first is always "application" model itself
+        int modelsToSendIndex = 1;
+        // iterate through the nodes and add corresponding models to array
+        for (SimpleNode node : simpleModel.getNodes()) {
+          // send application models only have one attribute with its label
+          String modelName = node.getAttributes().get(0).getValue();
+          try {
+            Connection connection = dbm.getConnection();
+            modelsToSend[modelsToSendIndex] =
+                new Model(modelName, connection).getMinifiedRepresentation();
+          } catch (SQLException e) {
+            // model might not exist
+            e.printStackTrace();
+            throw new CGSInvocationException("Error loading application component: " + modelName);
+          }
+          modelsToSendIndex++;
+        }
+      } else {
+        modelsToSend = new SimpleModel[1];
+        modelsToSend[0] = simpleModel;
       }
     }
     // actual invocation
@@ -549,7 +647,7 @@ public class ModelPersistenceService extends Service {
       Serializable[] payload = {modelsToSend};
       String answer = (String) this.invokeServiceMethod(
           "i5.las2peer.services.codeGenerationService.CodeGenerationService", methodName, payload);
-      if (answer != "done") {
+      if (!answer.equals("done")) {
         throw new CGSInvocationException(answer);
       }
       return model;
@@ -597,7 +695,7 @@ public class ModelPersistenceService extends Service {
    * Trouble shooting: Please make sure that the endpoint URL below is correct with respect to your
    * service.
    * 
-   * @return The resource's documentation.
+   * @return the resource's documentation
    * 
    */
   @GET
