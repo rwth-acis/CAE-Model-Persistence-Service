@@ -527,8 +527,9 @@ public class ModelPersistenceService extends Service {
   public HttpResponse getCAECommunicationModel(@PathParam("modelName") String modelName) {
     // load the application model from the database
     SimpleModel appModel;
+    Connection connection = null;
     try {
-      Connection connection = dbm.getConnection();
+      connection = dbm.getConnection();
       logMessage("getCAECommunicationModel: Loading model " + modelName + " from the database");
       appModel = (SimpleModel) new Model(modelName, connection).getMinifiedRepresentation();
     } catch (SQLException e) {
@@ -538,6 +539,12 @@ public class ModelPersistenceService extends Service {
       HttpResponse r = new HttpResponse("Model " + modelName + " does not exist!",
           HttpURLConnection.HTTP_NOT_FOUND);
       return r;
+    } finally {
+      try {
+        connection.close();
+      } catch (SQLException e) {
+        e.printStackTrace();
+      }
     }
     // load submodules of application model from the database
     Serializable[] modelsToSend = null;
@@ -551,7 +558,7 @@ public class ModelPersistenceService extends Service {
           // send application models only have one attribute with its label
           String subModelName = node.getAttributes().get(0).getValue();
           try {
-            Connection connection = dbm.getConnection();
+            connection = dbm.getConnection();
             modelsToSend[modelsToSendIndex] =
                 new Model(subModelName, connection).getMinifiedRepresentation();
           } catch (SQLException e) {
@@ -562,6 +569,12 @@ public class ModelPersistenceService extends Service {
             HttpResponse r =
                 new HttpResponse("Internal server error..", HttpURLConnection.HTTP_INTERNAL_ERROR);
             return r;
+          } finally {
+            try {
+              connection.close();
+            } catch (SQLException e) {
+              e.printStackTrace();
+            }
           }
           modelsToSendIndex++;
         }
@@ -613,6 +626,7 @@ public class ModelPersistenceService extends Service {
    */
   private Model callCodeGenerationService(String methodName, Model model)
       throws CGSInvocationException {
+    Connection connection = null;
     Serializable[] modelsToSend = null;
     SimpleModel simpleModel = (SimpleModel) model.getMinifiedRepresentation();
     boolean isApplication = false;
@@ -634,13 +648,19 @@ public class ModelPersistenceService extends Service {
         // since application models only have one attribute with its label
         String modelName = node.getAttributes().get(0).getValue();
         try {
-          Connection connection = dbm.getConnection();
+          connection = dbm.getConnection();
           modelsToSend[modelsToSendIndex] =
               new Model(modelName, connection).getMinifiedRepresentation();
         } catch (SQLException e) {
           // model might not exist
           e.printStackTrace();
           throw new CGSInvocationException("Error loading application component: " + modelName);
+        } finally {
+          try {
+            connection.close();
+          } catch (SQLException e) {
+            e.printStackTrace();
+          }
         }
         modelsToSendIndex++;
       }
