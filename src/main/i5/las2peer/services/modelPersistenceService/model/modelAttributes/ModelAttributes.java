@@ -11,6 +11,7 @@ import java.util.Map;
 
 import org.json.simple.JSONObject;
 
+import i5.cae.simpleModel.SimpleEntityAttribute;
 import i5.las2peer.services.modelPersistenceService.exception.ModelNotFoundException;
 import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
 
@@ -87,6 +88,24 @@ public class ModelAttributes {
       this.attributes.add(new EntityAttribute(queryResult.getInt(1), connection));
     }
     statement.close();
+  }
+
+
+  /**
+   * 
+   * Creates a ModelAttributes entry from passed on attributes from a simple model.
+   * 
+   * @param name the name of the simple model
+   * 
+   * @param attributes an array list of attributes
+   * 
+   */
+  public ModelAttributes(String name, ArrayList<SimpleEntityAttribute> attributes) {
+    this.attributes = new ArrayList<EntityAttribute>();
+    this.name = name;
+    for (SimpleEntityAttribute attribute : attributes) {
+      this.attributes.add(new EntityAttribute(attribute));
+    }
   }
 
 

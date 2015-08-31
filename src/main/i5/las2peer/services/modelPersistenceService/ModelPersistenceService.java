@@ -568,22 +568,28 @@ public class ModelPersistenceService extends Service {
         // invoke code generation service
         try {
           Serializable[] payload = {modelsToSend};
+          logMessage("getCAECommunicationModel: Invoking code generation service now..");
           SimpleModel communicationModel = (SimpleModel) this.invokeServiceMethod(
               "i5.las2peer.services.codeGenerationService.CodeGenerationService",
               "getCommunicationViewOfApplicationModel", payload);
-          HttpResponse r =
-              new HttpResponse("Later will be a model here..", HttpURLConnection.HTTP_OK);
+          logMessage(
+              "getCAECommunicationModel: Got communication model from code generation service..");
+          Model returnModel = new Model(communicationModel);
+          logMessage("getCAECommunicationModel: Created model " + modelName
+              + "from simple model, now converting to JSONObject and returning");
+          JSONObject jsonModel = returnModel.toJSONObject();
+          HttpResponse r = new HttpResponse(jsonModel.toJSONString(), HttpURLConnection.HTTP_OK);
           return r;
         } catch (Exception e) {
+          logError("getCAECommunicationModel: Internal error " + e.getMessage());
           e.printStackTrace();
           HttpResponse r =
               new HttpResponse("Internal server error..", HttpURLConnection.HTTP_INTERNAL_ERROR);
           return r;
         }
-
       }
     }
-    logError("getCAECommunicationModel: model is not an application: " + modelName);
+    logError("getCAECommunicationModel: model " + modelName + " is not an application");
     HttpResponse r =
         new HttpResponse("Internal server error..", HttpURLConnection.HTTP_INTERNAL_ERROR);
     return r;
@@ -618,29 +624,29 @@ public class ModelPersistenceService extends Service {
           break;
         }
       }
-      if (isApplication) {
-        modelsToSend = new SimpleModel[simpleModel.getNodes().size() + 1];
-        modelsToSend[0] = simpleModel; // first is always "application" model itself
-        int modelsToSendIndex = 1;
-        // iterate through the nodes and add corresponding models to array
-        for (SimpleNode node : simpleModel.getNodes()) {
-          // send application models only have one attribute with its label
-          String modelName = node.getAttributes().get(0).getValue();
-          try {
-            Connection connection = dbm.getConnection();
-            modelsToSend[modelsToSendIndex] =
-                new Model(modelName, connection).getMinifiedRepresentation();
-          } catch (SQLException e) {
-            // model might not exist
-            e.printStackTrace();
-            throw new CGSInvocationException("Error loading application component: " + modelName);
-          }
-          modelsToSendIndex++;
+    }
+    if (isApplication) {
+      modelsToSend = new SimpleModel[simpleModel.getNodes().size() + 1];
+      modelsToSend[0] = simpleModel; // first is always "application" model itself
+      int modelsToSendIndex = 1;
+      // iterate through the nodes and add corresponding models to array
+      for (SimpleNode node : simpleModel.getNodes()) {
+        // since application models only have one attribute with its label
+        String modelName = node.getAttributes().get(0).getValue();
+        try {
+          Connection connection = dbm.getConnection();
+          modelsToSend[modelsToSendIndex] =
+              new Model(modelName, connection).getMinifiedRepresentation();
+        } catch (SQLException e) {
+          // model might not exist
+          e.printStackTrace();
+          throw new CGSInvocationException("Error loading application component: " + modelName);
         }
-      } else {
-        modelsToSend = new SimpleModel[1];
-        modelsToSend[0] = simpleModel;
+        modelsToSendIndex++;
       }
+    } else {
+      modelsToSend = new SimpleModel[1];
+      modelsToSend[0] = simpleModel;
     }
     // actual invocation
     try {

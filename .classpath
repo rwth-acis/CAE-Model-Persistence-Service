@@ -10,6 +10,6 @@
 	<classpathentry kind="lib" path="lib/json-simple-1.1.1.jar"/>
 	<classpathentry kind="lib" path="lib/las2peer-web-connector-0.4-SNAPSHOT.jar"/>
 	<classpathentry kind="lib" path="lib/las2peer-rest-mapper-0.4-SNAPSHOT.jar"/>
-	<classpathentry kind="lib" path="lib/cae-simple-model-representation-0.3.jar"/>
+	<classpathentry kind="lib" path="lib/cae-simple-model-representation-0.3.jar" sourcepath="/CAE-Simple-Model-Representation"/>
 	<classpathentry kind="output" path="output"/>
 </classpath>

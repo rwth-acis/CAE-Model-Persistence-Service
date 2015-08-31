@@ -8,6 +8,8 @@ import java.sql.Statement;
 
 import org.json.simple.JSONObject;
 
+import i5.cae.simpleModel.SimpleEntityAttribute;
+
 /**
  * 
  * (Data-)Class for EntityAttributes. Provides means to convert JSON to Object and Object to JSON.
@@ -36,7 +38,6 @@ public class EntityAttribute {
     jsonAttribute = (JSONObject) jsonAttribute.get("value");
     this.syncMetaId = syncMetaId;
     this.name = (String) jsonAttribute.get("name");
-
     this.value = (String) (jsonAttribute.get("value") + ""); // only store strings
   }
 
@@ -67,6 +68,20 @@ public class EntityAttribute {
     } else {
       throw new SQLException("Could not find attribute");
     }
+  }
+
+
+  /**
+   * 
+   * Creates a new EntityAttribute from a passed {@link i5.cae.simpleModel.SimpleEntityAttribute}.
+   * 
+   * @param attribute a {@link i5.cae.simpleModel.SimpleEntityAttribute}
+   * 
+   */
+  public EntityAttribute(SimpleEntityAttribute attribute) {
+    this.syncMetaId = attribute.getSyncMetaId();
+    this.name = attribute.getName();
+    this.value = attribute.getValue();
   }
 
 
