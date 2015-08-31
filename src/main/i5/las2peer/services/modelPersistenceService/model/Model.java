@@ -21,6 +21,7 @@ import i5.cae.simpleModel.node.SimpleNode;
 import i5.las2peer.services.modelPersistenceService.model.edge.Edge;
 import i5.las2peer.services.modelPersistenceService.model.modelAttributes.ModelAttributes;
 import i5.las2peer.services.modelPersistenceService.model.node.Node;
+import i5.las2peer.services.modelPersistenceService.model.node.NodePosition;
 
 /**
  * 
@@ -125,17 +126,55 @@ public class Model {
     statement.close();
   }
 
+  /**
+   * 
+   * Creates a new model from a passed on {@link i5.cae.simpleModel.SimpleModel}. Please be aware
+   * that the positioning of the objects does not take into account overlapping edges between them.
+   * 
+   * @param simpleModel a {@link i5.cae.simpleModel.SimpleModel} containing the model that is to be
+   *        created
+   * 
+   */
+  public Model(SimpleModel simpleModel) {
+    // create empty node and edge lists
+    this.nodes = new ArrayList<Node>();
+    this.edges = new ArrayList<Edge>();
+    // create attributes
+    this.attributes = new ModelAttributes(simpleModel.getName(), simpleModel.getAttributes());
+
+    // now "initialize" the first node position (starting values are derived from observations and
+    // experiments;-) )
+    NodePosition currentNodePosition = new NodePosition(4000, 4000, 100, 60, 16001);
+
+    // create nodes
+    for (SimpleNode node : simpleModel.getNodes()) {
+      this.nodes.add(new Node(node, currentNodePosition));
+      // change next node position
+      currentNodePosition = new NodePosition(currentNodePosition.getLeft() + 50,
+          currentNodePosition.getTop() + 50, 100, 100, currentNodePosition.getzIndex() + 1);
+    }
+
+    // create edges
+    for (SimpleEdge edge : simpleModel.getEdges()) {
+      this.edges.add(new Edge(edge));
+    }
+  }
+
+
   public int getId() {
     return id;
   }
+
 
   public ArrayList<Node> getNodes() {
     return nodes;
   }
 
+
   public ArrayList<Edge> getEdges() {
     return edges;
   }
+
 
   public ModelAttributes getAttributes() {
     return attributes;

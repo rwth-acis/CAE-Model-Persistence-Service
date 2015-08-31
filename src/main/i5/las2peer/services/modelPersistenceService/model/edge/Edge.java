@@ -10,6 +10,8 @@ import java.util.Map;
 
 import org.json.simple.JSONObject;
 
+import i5.cae.simpleModel.SimpleEntityAttribute;
+import i5.cae.simpleModel.edge.SimpleEdge;
 import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
 
 /**
@@ -100,6 +102,26 @@ public class Edge {
       this.attributes.add(new EntityAttribute(queryResult.getInt(1), connection));
     }
     statement.close();
+  }
+
+
+  /**
+   * 
+   * Creates an edge from a passed on {@link i5.cae.simpleModel.edge.SimpleEdge}.
+   * 
+   * @param edge a {@link i5.cae.simpleModel.edge.SimpleEdge}
+   * 
+   */
+  public Edge(SimpleEdge edge) {
+    this.id = edge.getId();
+    this.sourceNode = edge.getSourceNode();
+    this.targetNode = edge.getTargetNode();
+    this.labelValue = edge.getLabelValue();
+    this.type = edge.getType();
+    this.attributes = new ArrayList<EntityAttribute>();
+    for (SimpleEntityAttribute attribute : edge.getAttributes()) {
+      this.attributes.add(new EntityAttribute(attribute));
+    }
   }
 
 

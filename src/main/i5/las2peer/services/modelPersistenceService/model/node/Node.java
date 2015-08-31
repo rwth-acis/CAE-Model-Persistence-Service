@@ -10,6 +10,8 @@ import java.util.Map;
 
 import org.json.simple.JSONObject;
 
+import i5.cae.simpleModel.SimpleEntityAttribute;
+import i5.cae.simpleModel.node.SimpleNode;
 import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
 
 /**
@@ -24,6 +26,7 @@ public class Node {
   private NodePosition position;
   private String type;
   private ArrayList<EntityAttribute> attributes;
+
 
   /**
    * 
@@ -92,6 +95,25 @@ public class Node {
       this.attributes.add(new EntityAttribute(queryResult.getInt(1), connection));
     }
     statement.close();
+  }
+
+
+  /**
+   * 
+   * Creates a node from a passed on {@link i5.cae.simpleModel.node.SimpleNode}.
+   * 
+   * @param node a {@link i5.cae.simpleModel.node.SimpleNode}
+   * @param position the position the node should have; should be calculated by the model class
+   * 
+   */
+  public Node(SimpleNode node, NodePosition position) {
+    this.id = node.getId();
+    this.type = node.getType();
+    this.attributes = new ArrayList<EntityAttribute>();
+    for (SimpleEntityAttribute attribute : node.getAttributes()) {
+      this.attributes.add(new EntityAttribute(attribute));
+    }
+    this.position = position;
   }
 
 
