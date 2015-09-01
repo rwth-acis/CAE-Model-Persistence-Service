@@ -142,16 +142,22 @@ public class Model {
     // create attributes
     this.attributes = new ModelAttributes(simpleModel.getName(), simpleModel.getAttributes());
 
-    // now "initialize" the first node position (starting values are derived from observations and
-    // experiments;-) )
-    NodePosition currentNodePosition = new NodePosition(4000, 4000, 100, 60, 16001);
-
-    // create nodes
+    // create nodes: "initialize" the first node position (starting values are derived from
+    // observations and experiments;-) )
+    NodePosition currentNodePosition = new NodePosition(3900, 4350, 200, 100, 16001);
+    int helper = 0;
     for (SimpleNode node : simpleModel.getNodes()) {
       this.nodes.add(new Node(node, currentNodePosition));
       // change next node position
-      currentNodePosition = new NodePosition(currentNodePosition.getLeft() + 50,
-          currentNodePosition.getTop() + 50, 100, 100, currentNodePosition.getzIndex() + 1);
+      currentNodePosition = new NodePosition(currentNodePosition.getLeft() + 300,
+          currentNodePosition.getTop(), 200, 100, currentNodePosition.getzIndex() + 1);
+      helper++;
+      // next row
+      if (helper == 7) {
+        currentNodePosition = new NodePosition(3900, currentNodePosition.getTop() + 500, 200, 100,
+            currentNodePosition.getzIndex() + 1);
+        helper = 0;
+      }
     }
 
     // create edges
