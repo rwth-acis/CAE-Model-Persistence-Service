@@ -679,7 +679,7 @@ public class ModelPersistenceService extends Service {
       return model;
     } catch (Exception e) {
       e.printStackTrace();
-      throw new CGSInvocationException("Internal server error..");
+      throw new CGSInvocationException(e.getMessage());
     }
   }
 
