@@ -27,6 +27,8 @@ import i5.cae.simpleModel.SimpleEntityAttribute;
 import i5.cae.simpleModel.SimpleModel;
 import i5.cae.simpleModel.node.SimpleNode;
 import i5.las2peer.api.Service;
+import i5.las2peer.logging.L2pLogger;
+import i5.las2peer.logging.NodeObserver.Event;
 import i5.las2peer.restMapper.HttpResponse;
 import i5.las2peer.restMapper.MediaType;
 import i5.las2peer.restMapper.RESTMapper;
@@ -83,6 +85,8 @@ public class ModelPersistenceService extends Service {
    */
   private boolean useCodeGenerationService;
 
+  private final L2pLogger logger = L2pLogger.getInstance(ModelPersistenceService.class.getName());
+
   public ModelPersistenceService() {
     // read and set properties values
     setFieldValues();
@@ -114,19 +118,19 @@ public class ModelPersistenceService extends Service {
       @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR,
           message = "Internal server error")})
   public HttpResponse postModel(@ContentParam String inputModel) {
-    logMessage("postModel: trying to store new model");
+    L2pLogger.logEvent(Event.SERVICE_MESSAGE, "postModel: trying to store new model");
     Model model;
     try {
       // create the model
       model = new Model(inputModel);
     } catch (ParseException e) {
-      logError("postModel: exception parsing JSON input: " + e);
+      L2pLogger.logEvent(Event.SERVICE_ERROR, "postModel: exception parsing JSON input: " + e);
       HttpResponse r = new HttpResponse("JSON parsing exception, file not valid!",
           HttpURLConnection.HTTP_BAD_REQUEST);
       return r;
     } catch (Exception e) {
-      logError("postModel: something went seriously wrong: " + e);
-      e.printStackTrace();
+      L2pLogger.logEvent(Event.SERVICE_ERROR, "postModel: something went seriously wrong: " + e);
+      logger.printStackTrace(e);
       HttpResponse r =
           new HttpResponse("Internal server error!", HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
@@ -135,7 +139,8 @@ public class ModelPersistenceService extends Service {
     // check if model name is already taken
     if (this.getModel(model.getAttributes().getName())
         .getStatus() != HttpURLConnection.HTTP_NOT_FOUND) {
-      logMessage("postModel: model name " + model.getAttributes().getName() + " is already taken");
+      L2pLogger.logEvent(Event.SERVICE_MESSAGE,
+          "postModel: model name " + model.getAttributes().getName() + " is already taken");
       HttpResponse r = new HttpResponse(
           "Model with name " + model.getAttributes().getName() + " already exists!",
           HttpURLConnection.HTTP_CONFLICT);
@@ -145,7 +150,7 @@ public class ModelPersistenceService extends Service {
     // call code generation service
     if (this.useCodeGenerationService) {
       try {
-        logMessage("postModel: invoking code generation service..");
+        L2pLogger.logEvent(Event.SERVICE_MESSAGE, "postModel: invoking code generation service..");
         model = callCodeGenerationService("createFromModel", model);
       } catch (CGSInvocationException e) {
         HttpResponse r = new HttpResponse("Model not valid: " + e.getMessage(),
@@ -160,19 +165,19 @@ public class ModelPersistenceService extends Service {
       connection = dbm.getConnection();
       model.persist(connection);
       int modelId = model.getId();
-      logMessage("postModel: model with id " + modelId + " and name "
+      L2pLogger.logEvent(Event.SERVICE_MESSAGE, "postModel: model with id " + modelId + " and name "
           + model.getAttributes().getName() + " stored!");
       HttpResponse r = new HttpResponse("Model stored!", HttpURLConnection.HTTP_CREATED);
       return r;
     } catch (SQLException e) {
-      logError("postModel: exception persisting model: " + e);
-      e.printStackTrace();
+      L2pLogger.logEvent(Event.SERVICE_ERROR, "postModel: exception persisting model: " + e);
+      logger.printStackTrace(e);
       HttpResponse r = new HttpResponse("Could not persist, database rejected model!",
           HttpURLConnection.HTTP_BAD_REQUEST);
       return r;
     } catch (Exception e) {
-      logError("postModel: something went seriously wrong: " + e);
-      e.printStackTrace();
+      L2pLogger.logEvent(Event.SERVICE_ERROR, "postModel: something went seriously wrong: " + e);
+      logger.printStackTrace(e);
       HttpResponse r =
           new HttpResponse("Internal server error..", HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
@@ -182,7 +187,7 @@ public class ModelPersistenceService extends Service {
       try {
         connection.close();
       } catch (SQLException e) {
-        e.printStackTrace();
+        logger.printStackTrace(e);
       }
     }
   }
@@ -211,34 +216,36 @@ public class ModelPersistenceService extends Service {
       @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR,
           message = "Internal server error")})
   public HttpResponse getModel(@PathParam("modelName") String modelName) {
-    logMessage("getModel: searching for model with name " + modelName);
+    L2pLogger.logEvent(Event.SERVICE_MESSAGE,
+        "getModel: searching for model with name " + modelName);
     Model model = null;
     Connection connection = null;
     try {
       connection = dbm.getConnection();
       model = new Model(modelName, connection);
     } catch (ModelNotFoundException e) {
-      logMessage("getModel: did not find model with name " + modelName);
+      L2pLogger.logEvent(Event.SERVICE_MESSAGE,
+          "getModel: did not find model with name " + modelName);
       HttpResponse r = new HttpResponse("Model not found!", HttpURLConnection.HTTP_NOT_FOUND);
       return r;
     } catch (SQLException e) {
-      logError("getModel: exception fetching model: " + e);
-      e.printStackTrace();
+      L2pLogger.logEvent(Event.SERVICE_ERROR, "getModel: exception fetching model: " + e);
+      logger.printStackTrace(e);
       HttpResponse r = new HttpResponse("Database error!", HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
     } catch (Exception e) {
-      logError("getModel: something went seriously wrong: " + e);
-      e.printStackTrace();
+      L2pLogger.logEvent(Event.SERVICE_ERROR, "getModel: something went seriously wrong: " + e);
+      logger.printStackTrace(e);
       HttpResponse r = new HttpResponse("Server error!", HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
     } finally {
       try {
         connection.close();
       } catch (SQLException e) {
-        e.printStackTrace();
+        logger.printStackTrace(e);
       }
     }
-    logMessage(
+    L2pLogger.logEvent(Event.SERVICE_MESSAGE,
         "getModel: found model " + modelName + ", now converting to JSONObject and returning");
     JSONObject jsonModel = model.toJSONObject();
 
@@ -275,35 +282,36 @@ public class ModelPersistenceService extends Service {
       // search for all models
       PreparedStatement statement =
           connection.prepareStatement("SELECT modelName FROM ModelAttributes;");
-      logMessage("getModels: retrieving all models..");
+      L2pLogger.logEvent(Event.SERVICE_MESSAGE, "getModels: retrieving all models..");
       ResultSet queryResult = statement.executeQuery();
       while (queryResult.next()) {
         modelNames.add(queryResult.getString(1));
       }
       if (modelNames.isEmpty()) {
-        logMessage("getModels: database is empty!");
+        L2pLogger.logEvent(Event.SERVICE_MESSAGE, "getModels: database is empty!");
         HttpResponse r = new HttpResponse("Database is empty!", HttpURLConnection.HTTP_NOT_FOUND);
         return r;
       }
       connection.close();
     } catch (SQLException e) {
-      logError("getModels: exception fetching model: " + e);
-      e.printStackTrace();
+      L2pLogger.logEvent(Event.SERVICE_ERROR, "getModels: exception fetching model: " + e);
+      logger.printStackTrace(e);
       HttpResponse r = new HttpResponse("Database error!", HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
     } catch (Exception e) {
-      logError("getModels: something went seriously wrong: " + e);
-      e.printStackTrace();
+      L2pLogger.logEvent(Event.SERVICE_ERROR, "getModels: something went seriously wrong: " + e);
+      logger.printStackTrace(e);
       HttpResponse r = new HttpResponse("Server error!", HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
     } finally {
       try {
         connection.close();
       } catch (SQLException e) {
-        e.printStackTrace();
+        logger.printStackTrace(e);
       }
     }
-    logMessage("getModels: created list of models, now converting to JSONObject and returning");
+    L2pLogger.logEvent(Event.SERVICE_MESSAGE,
+        "getModels: created list of models, now converting to JSONObject and returning");
     JSONArray jsonModelList = new JSONArray();
     jsonModelList.addAll(modelNames);
 
@@ -333,7 +341,8 @@ public class ModelPersistenceService extends Service {
               message = "Internal server error")})
   public HttpResponse deleteModel(@PathParam("modelName") String modelName) {
     Connection connection = null;
-    logMessage("deleteModel: trying to delete model with name: " + modelName);
+    L2pLogger.logEvent(Event.SERVICE_MESSAGE,
+        "deleteModel: trying to delete model with name: " + modelName);
     try {
       connection = dbm.getConnection();
       Model model = new Model(modelName, connection);
@@ -341,7 +350,8 @@ public class ModelPersistenceService extends Service {
       // call code generation service
       if (this.useCodeGenerationService) {
         try {
-          logMessage("deleteModel: invoking code generation service..");
+          L2pLogger.logEvent(Event.SERVICE_MESSAGE,
+              "deleteModel: invoking code generation service..");
           model = callCodeGenerationService("deleteRepositoryOfModel", model);
         } catch (CGSInvocationException e) {
           HttpResponse r = new HttpResponse("Model not valid: " + e.getMessage(),
@@ -351,16 +361,17 @@ public class ModelPersistenceService extends Service {
       }
 
       model.deleteFromDatabase(connection);
-      logMessage("deleteModel: deleted model " + modelName);
+      L2pLogger.logEvent(Event.SERVICE_MESSAGE, "deleteModel: deleted model " + modelName);
       HttpResponse r = new HttpResponse("Model deleted!", HttpURLConnection.HTTP_OK);
       return r;
     } catch (ModelNotFoundException e) {
-      logMessage("deleteModel: did not find model with name " + modelName);
+      L2pLogger.logEvent(Event.SERVICE_MESSAGE,
+          "deleteModel: did not find model with name " + modelName);
       HttpResponse r = new HttpResponse("Model not found!", HttpURLConnection.HTTP_NOT_FOUND);
       return r;
     } catch (SQLException e) {
-      logError("deleteModel: exception deleting model: " + e);
-      e.printStackTrace();
+      L2pLogger.logEvent(Event.SERVICE_ERROR, "deleteModel: exception deleting model: " + e);
+      logger.printStackTrace(e);
       HttpResponse r =
           new HttpResponse("Internal server error..", HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
@@ -368,7 +379,7 @@ public class ModelPersistenceService extends Service {
       try {
         connection.close();
       } catch (SQLException e) {
-        e.printStackTrace();
+        logger.printStackTrace(e);
       }
     }
   }
@@ -399,27 +410,28 @@ public class ModelPersistenceService extends Service {
           message = "Internal server error")})
   public HttpResponse updateModel(@PathParam("modelName") String modelName,
       @ContentParam String inputModel) {
-    logMessage("updateModel: trying to update model with name: " + modelName);
+    L2pLogger.logEvent(Event.SERVICE_MESSAGE,
+        "updateModel: trying to update model with name: " + modelName);
     Model model;
     // first parse the updated model and check for correctness of format
     try {
       model = new Model(inputModel);
       // the model name is its "id", it may not be changed
       if (!model.getAttributes().getName().equals(modelName)) {
-        logMessage("updateModel: posted model name " + modelName
+        L2pLogger.logEvent(Event.SERVICE_MESSAGE, "updateModel: posted model name " + modelName
             + " is different from posted model name attribute " + model.getAttributes().getName());
         HttpResponse r =
             new HttpResponse("Model name is different!", HttpURLConnection.HTTP_CONFLICT);
         return r;
       }
     } catch (ParseException e) {
-      logError("updateModel: exception parsing JSON input: " + e);
+      L2pLogger.logEvent(Event.SERVICE_ERROR, "updateModel: exception parsing JSON input: " + e);
       HttpResponse r = new HttpResponse("JSON parsing exception, file not valid!",
           HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
     } catch (Exception e) {
-      logError("updateModel: something went seriously wrong: " + e);
-      e.printStackTrace();
+      L2pLogger.logEvent(Event.SERVICE_ERROR, "updateModel: something went seriously wrong: " + e);
+      logger.printStackTrace(e);
       HttpResponse r =
           new HttpResponse("Internal server error!", HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
@@ -428,7 +440,8 @@ public class ModelPersistenceService extends Service {
     // call code generation service
     if (this.useCodeGenerationService) {
       try {
-        logMessage("updateModel: invoking code generation service..");
+        L2pLogger.logEvent(Event.SERVICE_MESSAGE,
+            "updateModel: invoking code generation service..");
         model = callCodeGenerationService("updateRepositoryOfModel", model);
       } catch (CGSInvocationException e) {
         HttpResponse r = new HttpResponse("Model not valid: " + e.getMessage(),
@@ -442,16 +455,18 @@ public class ModelPersistenceService extends Service {
     try {
       connection = dbm.getConnection();
       // load and delete the old model from the database
-      logMessage("updateModel: loading and deleting old model with name " + modelName);
+      L2pLogger.logEvent(Event.SERVICE_MESSAGE,
+          "updateModel: loading and deleting old model with name " + modelName);
       new Model(modelName, connection).deleteFromDatabase(connection);
       // check if the "old" model did exist
     } catch (ModelNotFoundException e) {
-      logMessage("updateModel: there exists no model with name: " + modelName);
+      L2pLogger.logEvent(Event.SERVICE_MESSAGE,
+          "updateModel: there exists no model with name: " + modelName);
       HttpResponse r = new HttpResponse("Model not found!", HttpURLConnection.HTTP_NOT_FOUND);
       return r;
     } catch (SQLException e) {
-      logError("updateModel: error deleting old model: " + e);
-      e.printStackTrace();
+      L2pLogger.logEvent(Event.SERVICE_ERROR, "updateModel: error deleting old model: " + e);
+      logger.printStackTrace(e);
       HttpResponse r =
           new HttpResponse("Internal server error..", HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
@@ -461,7 +476,7 @@ public class ModelPersistenceService extends Service {
       try {
         connection.close();
       } catch (SQLException e) {
-        e.printStackTrace();
+        logger.printStackTrace(e);
       }
     }
     try {
@@ -469,19 +484,20 @@ public class ModelPersistenceService extends Service {
       // save the model to the database
       model.persist(connection);
       int modelId = model.getId();
-      logMessage("updateModel: model with new id " + modelId + " and name "
+      L2pLogger.logEvent(Event.SERVICE_MESSAGE, "updateModel: model with new id " + modelId
+          + " and name "
           + model.getAttributes().getName() + " stored!");
       HttpResponse r = new HttpResponse("Model updated!", HttpURLConnection.HTTP_OK);
       return r;
     } catch (SQLException e) {
-      logError("updateModel: exception persisting model: " + e);
-      e.printStackTrace();
+      L2pLogger.logEvent(Event.SERVICE_ERROR, "updateModel: exception persisting model: " + e);
+      logger.printStackTrace(e);
       HttpResponse r = new HttpResponse("Could not persist, database rejected model!",
           HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
     } catch (Exception e) {
-      logError("updateModel: something went seriously wrong: " + e);
-      e.printStackTrace();
+      L2pLogger.logEvent(Event.SERVICE_ERROR, "updateModel: something went seriously wrong: " + e);
+      logger.printStackTrace(e);
       HttpResponse r =
           new HttpResponse("Internal server error..", HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
@@ -491,7 +507,7 @@ public class ModelPersistenceService extends Service {
       try {
         connection.close();
       } catch (SQLException e) {
-        e.printStackTrace();
+        logger.printStackTrace(e);
       }
     }
   }
@@ -530,12 +546,14 @@ public class ModelPersistenceService extends Service {
     Connection connection = null;
     try {
       connection = dbm.getConnection();
-      logMessage("getCAECommunicationModel: Loading model " + modelName + " from the database");
+      L2pLogger.logEvent(Event.SERVICE_MESSAGE,
+          "getCAECommunicationModel: Loading model " + modelName + " from the database");
       appModel = (SimpleModel) new Model(modelName, connection).getMinifiedRepresentation();
     } catch (SQLException e) {
       // model might not exist
-      e.printStackTrace();
-      logError("getCAECommunicationModel: model " + modelName + " not found");
+      logger.printStackTrace(e);
+      L2pLogger.logEvent(Event.SERVICE_ERROR,
+          "getCAECommunicationModel: model " + modelName + " not found");
       HttpResponse r = new HttpResponse("Model " + modelName + " does not exist!",
           HttpURLConnection.HTTP_NOT_FOUND);
       return r;
@@ -543,7 +561,7 @@ public class ModelPersistenceService extends Service {
       try {
         connection.close();
       } catch (SQLException e) {
-        e.printStackTrace();
+        logger.printStackTrace(e);
       }
     }
     // load submodules of application model from the database
@@ -563,8 +581,8 @@ public class ModelPersistenceService extends Service {
                 new Model(subModelName, connection).getMinifiedRepresentation();
           } catch (SQLException e) {
             // model might not exist
-            e.printStackTrace();
-            logError(
+            logger.printStackTrace(e);
+            L2pLogger.logEvent(Event.SERVICE_ERROR,
                 "getCAECommunicationModel: Error loading application component: " + subModelName);
             HttpResponse r =
                 new HttpResponse("Internal server error..", HttpURLConnection.HTTP_INTERNAL_ERROR);
@@ -573,7 +591,7 @@ public class ModelPersistenceService extends Service {
             try {
               connection.close();
             } catch (SQLException e) {
-              e.printStackTrace();
+              logger.printStackTrace(e);
             }
           }
           modelsToSendIndex++;
@@ -581,28 +599,32 @@ public class ModelPersistenceService extends Service {
         // invoke code generation service
         try {
           Serializable[] payload = {modelsToSend};
-          logMessage("getCAECommunicationModel: Invoking code generation service now..");
+          L2pLogger.logEvent(Event.SERVICE_MESSAGE,
+              "getCAECommunicationModel: Invoking code generation service now..");
           SimpleModel communicationModel = (SimpleModel) this.invokeServiceMethod(
               "i5.las2peer.services.codeGenerationService.CodeGenerationService",
               "getCommunicationViewOfApplicationModel", payload);
-          logMessage(
+          L2pLogger.logEvent(Event.SERVICE_MESSAGE,
               "getCAECommunicationModel: Got communication model from code generation service..");
           Model returnModel = new Model(communicationModel);
-          logMessage("getCAECommunicationModel: Created model " + modelName
+          L2pLogger.logEvent(Event.SERVICE_MESSAGE, "getCAECommunicationModel: Created model "
+              + modelName
               + "from simple model, now converting to JSONObject and returning");
           JSONObject jsonModel = returnModel.toJSONObject();
           HttpResponse r = new HttpResponse(jsonModel.toJSONString(), HttpURLConnection.HTTP_OK);
           return r;
         } catch (Exception e) {
-          logError("getCAECommunicationModel: Internal error " + e.getMessage());
-          e.printStackTrace();
+          L2pLogger.logEvent(Event.SERVICE_ERROR,
+              "getCAECommunicationModel: Internal error " + e.getMessage());
+          logger.printStackTrace(e);
           HttpResponse r =
               new HttpResponse("Internal server error..", HttpURLConnection.HTTP_INTERNAL_ERROR);
           return r;
         }
       }
     }
-    logError("getCAECommunicationModel: model " + modelName + " is not an application");
+    L2pLogger.logEvent(Event.SERVICE_ERROR,
+        "getCAECommunicationModel: model " + modelName + " is not an application");
     HttpResponse r =
         new HttpResponse("Internal server error..", HttpURLConnection.HTTP_INTERNAL_ERROR);
     return r;
@@ -653,13 +675,13 @@ public class ModelPersistenceService extends Service {
               new Model(modelName, connection).getMinifiedRepresentation();
         } catch (SQLException e) {
           // model might not exist
-          e.printStackTrace();
+          logger.printStackTrace(e);
           throw new CGSInvocationException("Error loading application component: " + modelName);
         } finally {
           try {
             connection.close();
           } catch (SQLException e) {
-            e.printStackTrace();
+            logger.printStackTrace(e);
           }
         }
         modelsToSendIndex++;
@@ -678,8 +700,8 @@ public class ModelPersistenceService extends Service {
       }
       return model;
     } catch (Exception e) {
-      e.printStackTrace();
-      throw new CGSInvocationException("Internal server error..");
+      logger.printStackTrace(e);
+      throw new CGSInvocationException(e.getMessage());
     }
   }
 
@@ -700,7 +722,7 @@ public class ModelPersistenceService extends Service {
     try {
       result = RESTMapper.getMethodsAsXML(this.getClass());
     } catch (Exception e) {
-      e.printStackTrace();
+      logger.printStackTrace(e);
     }
     return result;
   }
@@ -736,7 +758,7 @@ public class ModelPersistenceService extends Service {
     try {
       return new HttpResponse(Json.mapper().writeValueAsString(swagger), HttpURLConnection.HTTP_OK);
     } catch (JsonProcessingException e) {
-      e.printStackTrace();
+      logger.printStackTrace(e);
       return new HttpResponse(e.getMessage(), HttpURLConnection.HTTP_INTERNAL_ERROR);
     }
   }

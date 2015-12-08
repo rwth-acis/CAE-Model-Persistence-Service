@@ -18,6 +18,7 @@ import i5.cae.simpleModel.SimpleEntityAttribute;
 import i5.cae.simpleModel.SimpleModel;
 import i5.cae.simpleModel.edge.SimpleEdge;
 import i5.cae.simpleModel.node.SimpleNode;
+import i5.las2peer.logging.L2pLogger;
 import i5.las2peer.services.modelPersistenceService.model.edge.Edge;
 import i5.las2peer.services.modelPersistenceService.model.modelAttributes.ModelAttributes;
 import i5.las2peer.services.modelPersistenceService.model.node.Node;
@@ -34,6 +35,8 @@ public class Model {
   private ArrayList<Node> nodes;
   private ArrayList<Edge> edges;
   private ModelAttributes attributes;
+
+  private final L2pLogger logger = L2pLogger.getInstance(Model.class.getName());
 
   /**
    * 
@@ -346,12 +349,12 @@ public class Model {
 
         // we got here without errors, so commit now
         connection.commit();
-      } catch (SQLException e) {
-        e.printStackTrace();
+      } catch (SQLException e1) {
+        logger.printStackTrace(e1);
         try {
           connection.rollback();
-        } catch (SQLException e1) {
-          e1.printStackTrace();
+        } catch (SQLException e2) {
+          logger.printStackTrace(e2);
         }
         return false;
       }
