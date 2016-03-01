@@ -694,7 +694,7 @@ public class ModelPersistenceService extends Service {
     try {
       Serializable[] payload = {modelsToSend};
       String answer = (String) this.invokeServiceMethod(
-          "i5.las2peer.services.codeGenerationService.CodeGenerationService", methodName, payload);
+          "i5.las2peer.services.codeGenerationService.CodeGenerationService@0.1", methodName, payload);
       if (!answer.equals("done")) {
         throw new CGSInvocationException(answer);
       }
