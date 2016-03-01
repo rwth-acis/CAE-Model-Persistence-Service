@@ -12,3 +12,4 @@ etc/ivy/ivy.jar
 restMapping.xml
 /out
 /output/
+/.DS_Store
