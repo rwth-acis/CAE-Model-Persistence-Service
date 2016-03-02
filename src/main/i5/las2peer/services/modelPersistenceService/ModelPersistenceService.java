@@ -602,7 +602,7 @@ public class ModelPersistenceService extends Service {
           L2pLogger.logEvent(Event.SERVICE_MESSAGE,
               "getCAECommunicationModel: Invoking code generation service now..");
           SimpleModel communicationModel = (SimpleModel) this.invokeServiceMethod(
-              "i5.las2peer.services.codeGenerationService.CodeGenerationService",
+              "i5.las2peer.services.codeGenerationService.CodeGenerationService@0.1",
               "getCommunicationViewOfApplicationModel", payload);
           L2pLogger.logEvent(Event.SERVICE_MESSAGE,
               "getCAECommunicationModel: Got communication model from code generation service..");
