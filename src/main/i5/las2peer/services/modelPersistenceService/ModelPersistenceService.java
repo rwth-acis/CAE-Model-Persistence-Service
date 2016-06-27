@@ -16,6 +16,7 @@ import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -510,6 +511,113 @@ public class ModelPersistenceService extends Service {
     }
   }
 
+
+  /**
+   * Get the status / console text of a build. The build is identified by using the queue item that
+   * is returned when a job is created.
+   * 
+   * @param queueItem The queue item of the job
+   * @return The console text of the job
+   */
+
+  @GET
+  @Path("/deployStatus/")
+  @Consumes(MediaType.TEXT_PLAIN)
+  @ApiOperation(value = "Get the console text of the build from Jenkins",
+      notes = "Get the console text of the build.")
+  @ApiResponses(value = {
+      @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model will be deployed"),
+      @ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
+      @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR,
+          message = "Internal server error")})
+  public HttpResponse deployStatus(@QueryParam("queueItem") String queueItem) {
+
+    // delegate the request to the code generation service as it is the service responsible for
+    // Jenkins
+
+    try {
+      String answer = (String) this.invokeServiceMethod(
+          "i5.las2peer.services.codeGenerationService.CodeGenerationService@0.1", "deployStatus",
+          queueItem);
+      return new HttpResponse(answer, HttpURLConnection.HTTP_OK);
+    } catch (Exception e) {
+      logger.printStackTrace(e);
+      return new HttpResponse(e.getMessage(), HttpURLConnection.HTTP_INTERNAL_ERROR);
+    }
+
+
+  }
+
+  /**
+   * 
+   * Requests the code generation service to start a Jenkins job for an application model.
+   * 
+   * @param modelName a string containing the model name
+   * @param jobAlias the name/alias of the job to run, i.e. either "Build" or "Docker"
+   * 
+   * @return HttpResponse containing the status code of the request
+   * 
+   */
+  @GET
+  @Path("/deploy/{modelName}/{jobAlias}")
+  @Consumes(MediaType.TEXT_PLAIN)
+  @ApiOperation(value = "Deploys an application model.", notes = "Deploys an application model.")
+  @ApiResponses(value = {
+      @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model will be deployed"),
+      @ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
+      @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR,
+          message = "Internal server error")})
+  public HttpResponse deployModel(@PathParam("modelName") String modelName,
+      @PathParam("jobAlias") String jobAlias) {
+    L2pLogger.logEvent(Event.SERVICE_MESSAGE,
+        "deployModel: trying to deploy model with name: " + modelName);
+    Model model;
+    Connection connection = null;
+    // first parse the updated model and check for correctness of format
+    try {
+      connection = dbm.getConnection();
+      model = new Model(modelName, connection);
+      // the model name is its "id", it may not be changed
+      if (!model.getAttributes().getName().equals(modelName)) {
+        L2pLogger.logEvent(Event.SERVICE_MESSAGE, "deployModel: posted model name " + modelName
+            + " is different from posted model name attribute " + model.getAttributes().getName());
+        HttpResponse r =
+            new HttpResponse("Model name is different!", HttpURLConnection.HTTP_CONFLICT);
+        return r;
+      }
+      try {
+        // only create temp repository once, i.e. before the "Build" job is started in Jenkins
+        if (jobAlias.equals("Build")) {
+          L2pLogger.logEvent(Event.SERVICE_MESSAGE,
+              "deployModel: invoking code generation service..");
+          callCodeGenerationService("prepareDeploymentApplicationModel", model);
+        }
+        // start the jenkins job by the code generation service
+        String answer = (String) this.invokeServiceMethod(
+            "i5.las2peer.services.codeGenerationService.CodeGenerationService@0.1",
+            "startJenkinsJob", jobAlias);
+
+        return new HttpResponse(answer, HttpURLConnection.HTTP_OK);
+      } catch (CGSInvocationException e) {
+        HttpResponse r = new HttpResponse("Model not valid: " + e.getMessage(),
+            HttpURLConnection.HTTP_INTERNAL_ERROR);
+        return r;
+      }
+    } catch (Exception e) {
+      L2pLogger.logEvent(Event.SERVICE_ERROR, "updateModel: something went seriously wrong: " + e);
+      logger.printStackTrace(e);
+      HttpResponse r =
+          new HttpResponse("Internal server error!", HttpURLConnection.HTTP_INTERNAL_ERROR);
+      return r;
+    } // always close connections
+    finally {
+      try {
+        connection.close();
+      } catch (SQLException e) {
+        logger.printStackTrace(e);
+      }
+    }
+  }
 
   ////////////////////////////////////////////////////////////////////////////////////////
   // Methods special to the CAE. Feel free to ignore them:-)
