@@ -65,9 +65,9 @@ import io.swagger.util.Json;
     description = "A LAS2peer service used for persisting (and validating) application models. Part of the CAE.",
     termsOfService = "none",
     contact = @Contact(name = "Peter de Lange", url = "https://github.com/PedeLa/",
-        email = "lange@dbis.rwth-aachen.de") ,
+        email = "lange@dbis.rwth-aachen.de"),
     license = @License(name = "BSD",
-        url = "https://github.com/PedeLa/CAE-Model-Persistence-Service//blob/master/LICENSE.txt") ) )
+        url = "https://github.com/PedeLa/CAE-Model-Persistence-Service//blob/master/LICENSE.txt")))
 public class ModelPersistenceService extends Service {
 
   /*
@@ -113,10 +113,10 @@ public class ModelPersistenceService extends Service {
       value = {@ApiResponse(code = HttpURLConnection.HTTP_CREATED, message = "OK, model stored"),
           @ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST,
               message = "Input model was not valid"),
-      @ApiResponse(code = HttpURLConnection.HTTP_CONFLICT,
-          message = "Tried to save a model that already had a name and thus was not new"),
-      @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR,
-          message = "Internal server error")})
+          @ApiResponse(code = HttpURLConnection.HTTP_CONFLICT,
+              message = "Tried to save a model that already had a name and thus was not new"),
+          @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR,
+              message = "Internal server error")})
   public HttpResponse postModel(@ContentParam String inputModel) {
     L2pLogger.logEvent(Event.SERVICE_MESSAGE, "postModel: trying to store new model");
     Model model;
@@ -213,8 +213,8 @@ public class ModelPersistenceService extends Service {
       value = {@ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model found"),
           @ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND,
               message = "Model could not be found."),
-      @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR,
-          message = "Internal server error")})
+          @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR,
+              message = "Internal server error")})
   public HttpResponse getModel(@PathParam("modelName") String modelName) {
     L2pLogger.logEvent(Event.SERVICE_MESSAGE,
         "getModel: searching for model with name " + modelName);
@@ -252,7 +252,6 @@ public class ModelPersistenceService extends Service {
     HttpResponse r = new HttpResponse(jsonModel.toJSONString(), HttpURLConnection.HTTP_OK);
     return r;
   }
-
 
   /**
    * 
@@ -406,8 +405,8 @@ public class ModelPersistenceService extends Service {
           @ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
           @ApiResponse(code = HttpURLConnection.HTTP_CONFLICT,
               message = "Model name may not be changed"),
-      @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR,
-          message = "Internal server error")})
+          @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR,
+              message = "Internal server error")})
   public HttpResponse updateModel(@PathParam("modelName") String modelName,
       @ContentParam String inputModel) {
     L2pLogger.logEvent(Event.SERVICE_MESSAGE,
@@ -485,8 +484,7 @@ public class ModelPersistenceService extends Service {
       model.persist(connection);
       int modelId = model.getId();
       L2pLogger.logEvent(Event.SERVICE_MESSAGE, "updateModel: model with new id " + modelId
-          + " and name "
-          + model.getAttributes().getName() + " stored!");
+          + " and name " + model.getAttributes().getName() + " stored!");
       HttpResponse r = new HttpResponse("Model updated!", HttpURLConnection.HTTP_OK);
       return r;
     } catch (SQLException e) {
@@ -604,13 +602,14 @@ public class ModelPersistenceService extends Service {
           SimpleModel communicationModel = (SimpleModel) this.invokeServiceMethod(
               "i5.las2peer.services.codeGenerationService.CodeGenerationService@0.1",
               "getCommunicationViewOfApplicationModel", payload);
+
           L2pLogger.logEvent(Event.SERVICE_MESSAGE,
               "getCAECommunicationModel: Got communication model from code generation service..");
           Model returnModel = new Model(communicationModel);
           L2pLogger.logEvent(Event.SERVICE_MESSAGE, "getCAECommunicationModel: Created model "
-              + modelName
-              + "from simple model, now converting to JSONObject and returning");
+              + modelName + "from simple model, now converting to JSONObject and returning");
           JSONObject jsonModel = returnModel.toJSONObject();
+
           HttpResponse r = new HttpResponse(jsonModel.toJSONString(), HttpURLConnection.HTTP_OK);
           return r;
         } catch (Exception e) {
@@ -687,14 +686,41 @@ public class ModelPersistenceService extends Service {
         modelsToSendIndex++;
       }
     } else {
-      modelsToSend = new SimpleModel[1];
-      modelsToSend[0] = simpleModel;
+      SimpleModel oldModel = null;
+      String modelName = model.getAttributes().getName();
+      try {
+        connection = dbm.getConnection();
+        oldModel = (SimpleModel) new Model(modelName, connection).getMinifiedRepresentation();
+      } catch (SQLException e) {
+        // we can ignore sql exception for the loading of the old model. If such an exception is
+        // thrown, we assume that
+        // there is no old model
+      } catch (Exception e) {
+        // catch all other exceptions to ensure that the loading of the old model does not influence
+        // the call of the code generation service
+        logger.printStackTrace(e);
+      } finally {
+        try {
+          connection.close();
+        } catch (SQLException e) {
+          logger.printStackTrace(e);
+        }
+      }
+      if (oldModel != null) {
+        modelsToSend = new SimpleModel[2];
+        modelsToSend[0] = simpleModel;
+        modelsToSend[1] = oldModel;
+      } else {
+        modelsToSend = new SimpleModel[1];
+        modelsToSend[0] = simpleModel;
+      }
     }
     // actual invocation
     try {
       Serializable[] payload = {modelsToSend};
       String answer = (String) this.invokeServiceMethod(
-          "i5.las2peer.services.codeGenerationService.CodeGenerationService@0.1", methodName, payload);
+          "i5.las2peer.services.codeGenerationService.CodeGenerationService@0.1", methodName,
+          payload);
       if (!answer.equals("done")) {
         throw new CGSInvocationException(answer);
       }
