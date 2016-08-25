@@ -23,21 +23,28 @@ import org.json.simple.parser.ParseException;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 
+import i5.cae.semanticCheck.SemanticCheckResponse;
 import i5.cae.simpleModel.SimpleEntityAttribute;
 import i5.cae.simpleModel.SimpleModel;
 import i5.cae.simpleModel.node.SimpleNode;
 import i5.las2peer.api.Service;
+import i5.las2peer.execution.L2pServiceException;
 import i5.las2peer.logging.L2pLogger;
 import i5.las2peer.logging.NodeObserver.Event;
+import i5.las2peer.p2p.AgentNotKnownException;
+import i5.las2peer.p2p.TimeoutException;
 import i5.las2peer.restMapper.HttpResponse;
 import i5.las2peer.restMapper.MediaType;
 import i5.las2peer.restMapper.RESTMapper;
 import i5.las2peer.restMapper.annotations.ContentParam;
 import i5.las2peer.restMapper.annotations.Version;
+import i5.las2peer.security.L2pSecurityException;
 import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
 import i5.las2peer.services.modelPersistenceService.exception.CGSInvocationException;
 import i5.las2peer.services.modelPersistenceService.exception.ModelNotFoundException;
+import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
 import i5.las2peer.services.modelPersistenceService.model.Model;
+import i5.las2peer.services.modelPersistenceService.semantic.GeneralHttpException;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
@@ -58,7 +65,7 @@ import io.swagger.util.Json;
  * 
  */
 
-@Path("CAE/models")
+@Path("CAE")
 @Version("0.1")
 @Api
 @SwaggerDefinition(info = @Info(title = "CAE Model Persistence Service", version = "0.1",
@@ -78,8 +85,9 @@ public class ModelPersistenceService extends Service {
   private String jdbcPass;
   private String jdbcUrl;
   private String jdbcSchema;
+  private String semanticCheckService = "";
   private DatabaseManager dbm;
-
+  
   /*
    * Global variables
    */
@@ -105,7 +113,7 @@ public class ModelPersistenceService extends Service {
    * 
    */
   @POST
-  @Path("/")
+  @Path("/models/")
   @Consumes(MediaType.APPLICATION_JSON)
   @ApiOperation(value = "Entry point for storing a model to the database.",
       notes = "Entry point for storing a model to the database.")
@@ -146,6 +154,15 @@ public class ModelPersistenceService extends Service {
           HttpURLConnection.HTTP_CONFLICT);
       return r;
     }
+    
+    // do the semantic check
+    if (!this.semanticCheckService.isEmpty()) {
+	    try {
+			this.checkModel(model);
+		} catch (GeneralHttpException e) {
+			return e.getResponse();
+		}
+	}
 
     // call code generation service
     if (this.useCodeGenerationService) {
@@ -204,7 +221,7 @@ public class ModelPersistenceService extends Service {
    * 
    */
   @GET
-  @Path("/{modelName}")
+  @Path("/models/{modelName}")
   @Produces(MediaType.APPLICATION_JSON)
   @ApiOperation(
       value = "Searches for a model in the database. Takes the modelName as search parameter.",
@@ -265,7 +282,7 @@ public class ModelPersistenceService extends Service {
    */
   @SuppressWarnings("unchecked")
   @GET
-  @Path("/")
+  @Path("/models/")
   @Produces(MediaType.APPLICATION_JSON)
   @ApiOperation(value = "Retrieves a list of models from the database.",
       notes = "Retrieves a list of all models stored in the database. Returns a list of model names.")
@@ -274,7 +291,8 @@ public class ModelPersistenceService extends Service {
       @ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "No models in the database"),
       @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR,
           message = "Internal server error")})
-  public HttpResponse getModels() {
+  public HttpResponse getModels() {	  
+	  
     ArrayList<String> modelNames = new ArrayList<String>();
     Connection connection = null;
     try {
@@ -330,7 +348,7 @@ public class ModelPersistenceService extends Service {
    * 
    */
   @DELETE
-  @Path("/{modelName}")
+  @Path("/models/{modelName}")
   @Consumes(MediaType.TEXT_PLAIN)
   @ApiOperation(value = "Deletes a model given by its name.",
       notes = "Deletes a model given by its name.")
@@ -385,6 +403,7 @@ public class ModelPersistenceService extends Service {
   }
 
 
+
   /**
    * 
    * Updates a model. Basically only deletes the old one and creates a new one, but if the CAE Code
@@ -398,7 +417,7 @@ public class ModelPersistenceService extends Service {
    * 
    */
   @PUT
-  @Path("/{modelName}")
+  @Path("/models/{modelName}")
   @Consumes(MediaType.APPLICATION_JSON)
   @ApiOperation(value = "Updates a model.", notes = "Updates a model.")
   @ApiResponses(
@@ -437,6 +456,15 @@ public class ModelPersistenceService extends Service {
       return r;
     }
 
+    // do the semantic story check
+    if (!this.semanticCheckService.isEmpty()) {
+	    try {
+			this.checkModel(model);
+		} catch (GeneralHttpException e) {
+			return e.getResponse();
+		}
+	}
+    
     // call code generation service
     if (this.useCodeGenerationService) {
       try {
@@ -512,7 +540,6 @@ public class ModelPersistenceService extends Service {
     }
   }
 
-
   ////////////////////////////////////////////////////////////////////////////////////////
   // Methods special to the CAE. Feel free to ignore them:-)
   ///////////////////////////////////////////////////////////////////////////////////////
@@ -531,7 +558,7 @@ public class ModelPersistenceService extends Service {
    *         as a JSON string
    */
   @GET
-  @Path("/commView/{modelName}")
+  @Path("/models/commView/{modelName}")
   @Consumes(MediaType.APPLICATION_JSON)
   @ApiOperation(value = "Gets a CAE communication view model.",
       notes = "Gets a CAE communication view model.")
@@ -705,6 +732,111 @@ public class ModelPersistenceService extends Service {
     }
   }
 
+  ////////////////////////////////////////////////////////////////////////////////////////
+  // Methods for Semantic Check
+  ////////////////////////////////////////////////////////////////////////////////////////
+ 
+  /**
+   * 
+   * Performs the semantic check (if specified) on the model, without storing it
+   * 
+   * @param inputModel the model as a JSON string
+   * 
+   * @return HttpResponse status of the check
+   * 
+   */
+  @PUT
+  @Path("/semantics")
+  @Consumes(MediaType.APPLICATION_JSON)
+  @ApiOperation(value = "Performs the semantic check", notes = "Performs the semantic check")
+  @ApiResponses(
+      value = {@ApiResponse(code = HttpURLConnection.HTTP_NOT_MODIFIED, message = "Semantic Check successful"),
+    		  @ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR,
+    		  	message = "Internal server error")})
+  public HttpResponse checkModel(@ContentParam String inputModel) {
+    L2pLogger.logEvent(Event.SERVICE_MESSAGE,
+        "checkModel: performing semantic check");
+    Model model;
+    // first parse the updated model and check for correctness of format
+    try {
+      model = new Model(inputModel);
+    } catch (ParseException e) {
+      L2pLogger.logEvent(Event.SERVICE_ERROR, "semantic check: exception parsing JSON input: " + e);
+      HttpResponse r = new HttpResponse("JSON parsing exception, file not valid!",
+          HttpURLConnection.HTTP_INTERNAL_ERROR);
+      return r;
+    } catch (Exception e) {
+      L2pLogger.logEvent(Event.SERVICE_ERROR, "semantic check: something went seriously wrong: " + e);
+      logger.printStackTrace(e);
+      HttpResponse r =
+          new HttpResponse("Internal server error!", HttpURLConnection.HTTP_INTERNAL_ERROR);
+      return r;
+    }
+
+    // do the semantic story check
+    if (!this.semanticCheckService.isEmpty()) {
+	    try {
+			this.doSemanticCheck(model);
+		} catch (GeneralHttpException e) {
+			return e.getResponse();
+		}
+    } else {
+    	return new HttpResponse("No semantic check service available", HttpURLConnection.HTTP_BAD_METHOD);
+    }
+    
+    return new HttpResponse(SemanticCheckResponse.success().toJSONResultString(), HttpURLConnection.HTTP_OK);
+  }
+  
+  @SuppressWarnings("unchecked")
+  private void checkModel(Model model) throws GeneralHttpException {
+	SemanticCheckResponse result;
+	EntityAttribute semcheckAttr = findSemcheckAttribute(model);
+	try {
+		result = (SemanticCheckResponse) this.invokeServiceMethod(semanticCheckService, "doSemanticCheck", model.getMinifiedRepresentation());
+	} catch (Exception e) {
+		System.out.println(e);
+		throw new GeneralHttpException(new HttpResponse("could not execute semantic check service", HttpURLConnection.HTTP_INTERNAL_ERROR));
+	}
+	if (result == null) {
+		throw new GeneralHttpException(new HttpResponse("an error orrcured within the semantic check", HttpURLConnection.HTTP_INTERNAL_ERROR)); 
+	} else if (result.getError() != 0) {
+		if (semcheckAttr == null) {
+			throw new GeneralHttpException(new HttpResponse(result.toJSONResultString(), HttpURLConnection.HTTP_BAD_REQUEST));
+		} else if (!semcheckAttr.getValue().equals("false")) {
+			throw new GeneralHttpException(new HttpResponse("This model was supposed to be incorrect", HttpURLConnection.HTTP_BAD_REQUEST));
+		}
+	} else if (result.getError() == 0) {
+		if (semcheckAttr != null && !semcheckAttr.getValue().equals("true")) {
+			throw new GeneralHttpException(new HttpResponse("This model was supposed to be correct", HttpURLConnection.HTTP_BAD_REQUEST));
+		}
+	}
+  }
+  
+  @SuppressWarnings("unchecked")
+  private void doSemanticCheck(Model model) throws GeneralHttpException {
+	SemanticCheckResponse result;
+	try {
+		result = (SemanticCheckResponse) this.invokeServiceMethod(semanticCheckService, "doSemanticCheck", model.getMinifiedRepresentation());
+	} catch (Exception e) {
+		System.out.println(e);
+		throw new GeneralHttpException(new HttpResponse("could not execute semantic check service", HttpURLConnection.HTTP_INTERNAL_ERROR));
+	}
+	if (result == null) {
+		throw new GeneralHttpException(new HttpResponse("an error orrcured within the semantic check", HttpURLConnection.HTTP_INTERNAL_ERROR)); 
+	} else if (result.getError() != 0) {
+		throw new GeneralHttpException(new HttpResponse(result.toJSONResultString(), HttpURLConnection.HTTP_OK));
+	}
+  }  
+  
+  private EntityAttribute findSemcheckAttribute(Model model) {
+	  EntityAttribute res = null;
+	  for (EntityAttribute a:model.getAttributes().getAttributes()) {
+		  if (a.getName().equals("_semcheck")) {
+			  return a;
+		  }
+	  }
+	  return res;
+  }
 
   ////////////////////////////////////////////////////////////////////////////////////////
   // Methods required by the LAS2peer framework.
@@ -747,7 +879,7 @@ public class ModelPersistenceService extends Service {
    * 
    */
   @GET
-  @Path("/swagger.json")
+  @Path("/models/swagger.json")
   @Produces(MediaType.APPLICATION_JSON)
   public HttpResponse getSwaggerJSON() {
     Swagger swagger = new Reader(new Swagger()).read(this.getClass());
@@ -762,5 +894,4 @@ public class ModelPersistenceService extends Service {
       return new HttpResponse(e.getMessage(), HttpURLConnection.HTTP_INTERNAL_ERROR);
     }
   }
-
 }
