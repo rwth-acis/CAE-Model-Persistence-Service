@@ -86,13 +86,12 @@ public class ModelPersistenceService extends Service {
   private String jdbcUrl;
   private String jdbcSchema;
   private String semanticCheckService = "";
+  private String codeGenerationService = "";
   private DatabaseManager dbm;
   
   /*
    * Global variables
    */
-  private boolean useCodeGenerationService;
-
   private final L2pLogger logger = L2pLogger.getInstance(ModelPersistenceService.class.getName());
 
   public ModelPersistenceService() {
@@ -165,7 +164,7 @@ public class ModelPersistenceService extends Service {
 	}
 
     // call code generation service
-    if (this.useCodeGenerationService) {
+    if (!this.codeGenerationService.isEmpty()) {
       try {
         L2pLogger.logEvent(Event.SERVICE_MESSAGE, "postModel: invoking code generation service..");
         model = callCodeGenerationService("createFromModel", model);
@@ -366,7 +365,7 @@ public class ModelPersistenceService extends Service {
       Model model = new Model(modelName, connection);
 
       // call code generation service
-      if (this.useCodeGenerationService) {
+      if (!this.codeGenerationService.isEmpty()) {
         try {
           L2pLogger.logEvent(Event.SERVICE_MESSAGE,
               "deleteModel: invoking code generation service..");
@@ -466,7 +465,7 @@ public class ModelPersistenceService extends Service {
 	}
     
     // call code generation service
-    if (this.useCodeGenerationService) {
+    if (!this.codeGenerationService.isEmpty()) {
       try {
         L2pLogger.logEvent(Event.SERVICE_MESSAGE,
             "updateModel: invoking code generation service..");
@@ -629,8 +628,7 @@ public class ModelPersistenceService extends Service {
           L2pLogger.logEvent(Event.SERVICE_MESSAGE,
               "getCAECommunicationModel: Invoking code generation service now..");
           SimpleModel communicationModel = (SimpleModel) this.invokeServiceMethod(
-              "i5.las2peer.services.codeGenerationService.CodeGenerationService@0.1",
-              "getCommunicationViewOfApplicationModel", payload);
+        	  this.codeGenerationService, "getCommunicationViewOfApplicationModel", payload);
           L2pLogger.logEvent(Event.SERVICE_MESSAGE,
               "getCAECommunicationModel: Got communication model from code generation service..");
           Model returnModel = new Model(communicationModel);
@@ -721,7 +719,7 @@ public class ModelPersistenceService extends Service {
     try {
       Serializable[] payload = {modelsToSend};
       String answer = (String) this.invokeServiceMethod(
-          "i5.las2peer.services.codeGenerationService.CodeGenerationService@0.1", methodName, payload);
+          this.codeGenerationService, methodName, payload);
       if (!answer.equals("done")) {
         throw new CGSInvocationException(answer);
       }
