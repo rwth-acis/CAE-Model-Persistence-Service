@@ -11,5 +11,6 @@
 	<classpathentry kind="lib" path="lib/las2peer-0.6-SNAPSHOT.jar" sourcepath="/las2peer"/>
 	<classpathentry kind="lib" path="lib/las2peer-rest-mapper-0.6-SNAPSHOT.jar"/>
 	<classpathentry kind="lib" path="lib/las2peer-web-connector-0.6-SNAPSHOT.jar"/>
+	<classpathentry kind="lib" path="lib/semantic-check-response-0.1.jar"/> 
 	<classpathentry kind="output" path="output"/>
 </classpath>

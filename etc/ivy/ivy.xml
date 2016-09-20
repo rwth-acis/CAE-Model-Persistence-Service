@@ -8,6 +8,7 @@
 		<dependency org="i5" name="las2peer" rev="0.6-SNAPSHOT"/>
 		<dependency org="i5" name="las2peer-web-connector" rev="0.6-SNAPSHOT"/>
 		<dependency org="i5" name="cae-simple-model-representation" rev="0.3"/>
+		<dependency org="i5" name="semantic-check-response" rev="0.1"/>
 		<dependency org="mysql" name="mysql-connector-java" rev="5.1.6" />
 		<dependency org="org.apache.commons" name="commons-pool2" rev="2.2"/>
 		<dependency org="org.apache.commons" name="commons-dbcp2" rev="2.0"/>
