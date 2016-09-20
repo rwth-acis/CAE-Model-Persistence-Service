@@ -8,7 +8,7 @@
 --
 CREATE TABLE commedit.Model (
   modelId INT NOT NULL AUTO_INCREMENT,
-  CONSTRAINT moldelPK PRIMARY KEY (modelId)
+  CONSTRAINT modelPK PRIMARY KEY (modelId)
 );
 
 --
@@ -16,7 +16,7 @@ CREATE TABLE commedit.Model (
 --
 CREATE TABLE commedit.ModelAttributes (
   modelName VARCHAR(255) NOT NULL,
-  CONSTRAINT moldelAttributesPK PRIMARY KEY (modelName)
+  CONSTRAINT modelAttributesPK PRIMARY KEY (modelName)
 );
 
 --

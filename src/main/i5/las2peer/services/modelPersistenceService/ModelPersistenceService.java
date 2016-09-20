@@ -33,6 +33,7 @@ import i5.las2peer.logging.NodeObserver.Event;
 import i5.las2peer.restMapper.HttpResponse;
 import i5.las2peer.restMapper.MediaType;
 import i5.las2peer.restMapper.RESTMapper;
+import i5.las2peer.restMapper.RESTService;
 import i5.las2peer.restMapper.annotations.ContentParam;
 import i5.las2peer.restMapper.annotations.Version;
 import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
@@ -60,7 +61,6 @@ import io.swagger.util.Json;
  */
 
 @Path("CAE/models")
-@Version("0.1")
 @Api
 @SwaggerDefinition(info = @Info(title = "CAE Model Persistence Service", version = "0.1",
     description = "A LAS2peer service used for persisting (and validating) application models. Part of the CAE.",
@@ -69,7 +69,7 @@ import io.swagger.util.Json;
         email = "lange@dbis.rwth-aachen.de"),
     license = @License(name = "BSD",
         url = "https://github.com/PedeLa/CAE-Model-Persistence-Service//blob/master/LICENSE.txt")))
-public class ModelPersistenceService extends Service {
+public class ModelPersistenceService extends RESTService {
 
   /*
    * Database configuration
@@ -776,8 +776,11 @@ public class ModelPersistenceService extends Service {
       for (SimpleNode node : simpleModel.getNodes()) {
         // since application models only have one attribute with its label
         String modelName = node.getAttributes().get(0).getValue();
+        logger.info("Attributes: " + node.getAttributes().toString());
+        
         try {
           connection = dbm.getConnection();
+          logger.info("Modelname: " + modelName);
           modelsToSend[modelsToSendIndex] =
               new Model(modelName, connection).getMinifiedRepresentation();
         } catch (SQLException e) {
@@ -838,29 +841,6 @@ public class ModelPersistenceService extends Service {
       throw new CGSInvocationException(e.getMessage());
     }
   }
-
-
-  ////////////////////////////////////////////////////////////////////////////////////////
-  // Methods required by the LAS2peer framework.
-  ////////////////////////////////////////////////////////////////////////////////////////
-
-  /**
-   * 
-   * This method is needed for every RESTful application in LAS2peer.
-   * 
-   * @return the mapping
-   * 
-   */
-  public String getRESTMapping() {
-    String result = "";
-    try {
-      result = RESTMapper.getMethodsAsXML(this.getClass());
-    } catch (Exception e) {
-      logger.printStackTrace(e);
-    }
-    return result;
-  }
-
 
   ////////////////////////////////////////////////////////////////////////////////////////
   // Methods providing a Swagger documentation of the service API.

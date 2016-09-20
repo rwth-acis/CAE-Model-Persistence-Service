@@ -18,11 +18,9 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import i5.las2peer.p2p.LocalNode;
+import i5.las2peer.p2p.ServiceNameVersion;
 import i5.las2peer.restMapper.MediaType;
-import i5.las2peer.restMapper.RESTMapper;
 import i5.las2peer.restMapper.data.Pair;
-import i5.las2peer.restMapper.tools.ValidationResult;
-import i5.las2peer.restMapper.tools.XMLCheck;
 import i5.las2peer.security.ServiceAgent;
 import i5.las2peer.security.UserAgent;
 import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
@@ -51,8 +49,8 @@ public class ModelPersistenceServiceTest {
   private static UserAgent testAgent;
   private static final String testPass = "adamspass";
 
-  private static final String testTemplateService =
-      ModelPersistenceService.class.getCanonicalName();
+  private static final ServiceNameVersion testTemplateService =
+      new ServiceNameVersion(ModelPersistenceService.class.getCanonicalName(), "0.1");
 
   private static final String mainPath = "CAE/models/";
 
@@ -146,16 +144,6 @@ public class ModelPersistenceServiceTest {
     connector.start(node);
     Thread.sleep(1000); // wait a second for the connector to become ready
     testAgent = MockAgentFactory.getAdam();
-
-    connector.updateServiceList();
-    // avoid timing errors: wait for the repository manager to get all services before continuing
-    try {
-      System.out.println("waiting..");
-      Thread.sleep(10000);
-    } catch (InterruptedException e) {
-      e.printStackTrace();
-    }
-
   }
 
   /**
@@ -369,27 +357,4 @@ public class ModelPersistenceServiceTest {
     }
 
   }
-
-  /**
-   * Test the persistence service for valid rest mapping. Important for development.
-   */
-  @Test
-  public void testDebugMapping() {
-    ModelPersistenceService cl = new ModelPersistenceService();
-    String XML_LOCATION = "./restMapping.xml";
-    String xml = cl.getRESTMapping();
-
-    try {
-      RESTMapper.writeFile(XML_LOCATION, xml);
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-
-    XMLCheck validator = new XMLCheck();
-    ValidationResult result = validator.validate(xml);
-
-    if (!result.isValid())
-      fail();
-  }
-
 }
