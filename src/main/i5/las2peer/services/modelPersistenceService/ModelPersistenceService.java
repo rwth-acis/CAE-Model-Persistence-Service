@@ -591,25 +591,29 @@ public class ModelPersistenceService extends RESTService {
         "deployModel: trying to deploy model with name: " + modelName);
     Model model;
     Connection connection = null;
+    
+    
     // first parse the updated model and check for correctness of format
     try {
       connection = dbm.getConnection();
       model = new Model(modelName, connection);
+      
       // the model name is its "id", it may not be changed
       if (!model.getAttributes().getName().equals(modelName)) {
         L2pLogger.logEvent(Event.SERVICE_MESSAGE, "deployModel: posted model name " + modelName
             + " is different from posted model name attribute " + model.getAttributes().getName());
-        HttpResponse r =
-            new HttpResponse("Model name is different!", HttpURLConnection.HTTP_CONFLICT);
+        HttpResponse r = new HttpResponse("Model name is different!", HttpURLConnection.HTTP_CONFLICT);
         return r;
       }
       try {
+    	  
         // only create temp repository once, i.e. before the "Build" job is started in Jenkins
         if (jobAlias.equals("Build")) {
           L2pLogger.logEvent(Event.SERVICE_MESSAGE,
               "deployModel: invoking code generation service..");
           callCodeGenerationService("prepareDeploymentApplicationModel", model);
         }
+        
         // start the jenkins job by the code generation service
         String answer = (String) this.invokeServiceMethod(
             "i5.las2peer.services.codeGenerationService.CodeGenerationService@0.1",
@@ -617,15 +621,13 @@ public class ModelPersistenceService extends RESTService {
 
         return new HttpResponse(answer, HttpURLConnection.HTTP_OK);
       } catch (CGSInvocationException e) {
-        HttpResponse r = new HttpResponse("Model not valid: " + e.getMessage(),
-            HttpURLConnection.HTTP_INTERNAL_ERROR);
+        HttpResponse r = new HttpResponse("Model not valid: " + e.getMessage(),HttpURLConnection.HTTP_INTERNAL_ERROR);
         return r;
       }
     } catch (Exception e) {
       L2pLogger.logEvent(Event.SERVICE_ERROR, "updateModel: something went seriously wrong: " + e);
       logger.printStackTrace(e);
-      HttpResponse r =
-          new HttpResponse("Internal server error!", HttpURLConnection.HTTP_INTERNAL_ERROR);
+      HttpResponse r = new HttpResponse("Internal server error!", HttpURLConnection.HTTP_INTERNAL_ERROR);
       return r;
     } // always close connections
     finally {
@@ -849,8 +851,7 @@ public class ModelPersistenceService extends RESTService {
     // actual invocation
     try {
       Serializable[] payload = {modelsToSend};
-      String answer = (String) this.invokeServiceMethod(
-          this.codeGenerationService, methodName, payload);
+      String answer = (String) this.invokeServiceMethod(this.codeGenerationService, methodName, payload);
       if (!answer.equals("done")) {
         throw new CGSInvocationException(answer);
       }

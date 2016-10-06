@@ -8,9 +8,9 @@
 	<classpathentry kind="lib" path="lib/json-simple-1.1.1.jar"/>
 	<classpathentry kind="lib" path="lib/cae-simple-model-representation-0.3.jar" sourcepath="/CAE-Simple-Model-Representation"/>
 	<classpathentry kind="lib" path="lib/junit-4.12.jar"/>
-	<classpathentry kind="lib" path="lib/las2peer-0.6-SNAPSHOT.jar" sourcepath="/las2peer"/>
-	<classpathentry kind="lib" path="lib/las2peer-rest-mapper-0.6-SNAPSHOT.jar"/>
-	<classpathentry kind="lib" path="lib/las2peer-web-connector-0.6-SNAPSHOT.jar"/>
-	<classpathentry kind="lib" path="lib/semantic-check-response-0.1.jar"/> 
+	<classpathentry kind="lib" path="lib/las2peer-0.6.0.jar" sourcepath="/las2peer"/>
+	<classpathentry kind="lib" path="lib/las2peer-rest-mapper-0.6.0.jar"/>
+	<classpathentry kind="lib" path="lib/las2peer-web-connector-0.6.0.jar"/>
+	<classpathentry kind="lib" path="lib/semantic-check-response-0.1.jar"/>
 	<classpathentry kind="output" path="output"/>
 </classpath>
