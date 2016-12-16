@@ -5,11 +5,13 @@ import static org.junit.Assert.fail;
 
 import java.io.ByteArrayOutputStream;
 import java.io.FileReader;
-import java.io.IOException;
 import java.io.PrintStream;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.util.HashMap;
 import java.util.Properties;
+
+import javax.ws.rs.core.MediaType;
 
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -19,8 +21,6 @@ import org.junit.Test;
 
 import i5.las2peer.p2p.LocalNode;
 import i5.las2peer.p2p.ServiceNameVersion;
-import i5.las2peer.restMapper.MediaType;
-import i5.las2peer.restMapper.data.Pair;
 import i5.las2peer.security.ServiceAgent;
 import i5.las2peer.security.UserAgent;
 import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
@@ -217,7 +217,7 @@ public class ModelPersistenceServiceTest {
       c.setLogin(Long.toString(testAgent.getId()), testPass);
       @SuppressWarnings("unchecked")
       ClientResponse result = c.sendRequest("POST", mainPath + "", payload.toJSONString(),
-          MediaType.APPLICATION_JSON, "", new Pair[] {});
+          MediaType.APPLICATION_JSON, "", new HashMap<>());
       assertEquals(201, result.getHttpCode());
       System.out.println("Result of 'testModelPosting': " + result.getResponse().trim());
       Model model = new Model(payload.toJSONString());
@@ -263,13 +263,13 @@ public class ModelPersistenceServiceTest {
     try {
       c.setLogin(Long.toString(testAgent.getId()), testPass);
       ClientResponse result = c.sendRequest("DELETE", mainPath + "Third%20Model", "",
-          MediaType.TEXT_PLAIN, "", new Pair[] {});
+          MediaType.TEXT_PLAIN, "", new HashMap<>());
       assertEquals(200, result.getHttpCode());
       System.out.println("Result of 'testModelDeletion': " + result.getResponse().trim());
 
       // should return 404 now
       result = c.sendRequest("GET", mainPath + "Third%20Model", "", MediaType.TEXT_PLAIN,
-          MediaType.APPLICATION_JSON, new Pair[] {});
+          MediaType.APPLICATION_JSON, new HashMap<>());
       assertEquals(404, result.getHttpCode());
     } catch (Exception e) {
       e.printStackTrace();
@@ -294,7 +294,7 @@ public class ModelPersistenceServiceTest {
       c.setLogin(Long.toString(testAgent.getId()), testPass);
       @SuppressWarnings("unchecked")
       ClientResponse result = c.sendRequest("GET", mainPath + "First%20Model", "",
-          MediaType.TEXT_PLAIN, MediaType.APPLICATION_JSON, new Pair[] {});
+          MediaType.TEXT_PLAIN, MediaType.APPLICATION_JSON, new HashMap<>());
       assertEquals(200, result.getHttpCode());
       System.out.println("Result of 'testModelRetrieving': " + result.getResponse().trim());
     } catch (Exception e) {
@@ -320,7 +320,7 @@ public class ModelPersistenceServiceTest {
       c.setLogin(Long.toString(testAgent.getId()), testPass);
       @SuppressWarnings("unchecked")
       ClientResponse result =
-          c.sendRequest("GET", mainPath, "", "", MediaType.APPLICATION_JSON, new Pair[] {});
+          c.sendRequest("GET", mainPath, "", "", MediaType.APPLICATION_JSON, new HashMap<>());
       assertEquals(200, result.getHttpCode());
       System.out.println("Result of 'testModelListRetrieving': " + result.getResponse().trim());
     } catch (Exception e) {
@@ -348,7 +348,7 @@ public class ModelPersistenceServiceTest {
       c.setLogin(Long.toString(testAgent.getId()), testPass);
       @SuppressWarnings("unchecked")
       ClientResponse result = c.sendRequest("PUT", mainPath + "First%20Model",
-          payload.toJSONString(), MediaType.APPLICATION_JSON, "", new Pair[] {});
+          payload.toJSONString(), MediaType.APPLICATION_JSON, "", new HashMap<>());
       assertEquals(200, result.getHttpCode());
       System.out.println("Result of 'testModelUpdate': " + result.getResponse().trim());
     } catch (Exception e) {
