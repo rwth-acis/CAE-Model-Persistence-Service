@@ -6,9 +6,9 @@ package i5.las2peer.services.modelPersistenceService.exception;
  * 
  */
 public class CGSInvocationException extends Exception {
-  private static final long serialVersionUID = -2042392236272973357L;
+	private static final long serialVersionUID = -2042392236272973357L;
 
-  public CGSInvocationException(String message) {
-    super(message);
-  }
+	public CGSInvocationException(String message) {
+		super(message);
+	}
 }
