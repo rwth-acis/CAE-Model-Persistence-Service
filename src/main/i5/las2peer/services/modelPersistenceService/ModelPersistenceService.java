@@ -27,8 +27,6 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.ParseException;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.sun.research.ws.wadl.Resource;
-
 import i5.cae.semanticCheck.SemanticCheckResponse;
 import i5.cae.simpleModel.SimpleEntityAttribute;
 import i5.cae.simpleModel.SimpleModel;
@@ -173,7 +171,7 @@ public class ModelPersistenceService extends RESTService {
       int modelId = model.getId();
       L2pLogger.logEvent(Event.SERVICE_MESSAGE, "postModel: model with id " + modelId + " and name "
           + model.getAttributes().getName() + " stored!");
-      return Response.ok().entity("Model stored!").build();
+      return Response.status(201).entity("Model stored!").build();
     } catch (SQLException e) {
       L2pLogger.logEvent(Event.SERVICE_ERROR, "postModel: exception persisting model: " + e);
       logger.printStackTrace(e);
