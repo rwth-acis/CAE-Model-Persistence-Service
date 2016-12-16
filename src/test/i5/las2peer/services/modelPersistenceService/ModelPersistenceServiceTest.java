@@ -216,8 +216,7 @@ public class ModelPersistenceServiceTest {
     try {
       c.setLogin(Long.toString(testAgent.getId()), testPass);
       @SuppressWarnings("unchecked")
-      ClientResponse result = c.sendRequest("POST", mainPath + "", payload.toJSONString(),
-          MediaType.APPLICATION_JSON, "", new HashMap<>());
+      ClientResponse result = c.sendRequest("POST", mainPath + "", payload.toJSONString(), MediaType.APPLICATION_JSON, "",new HashMap<>());
       assertEquals(201, result.getHttpCode());
       System.out.println("Result of 'testModelPosting': " + result.getResponse().trim());
       Model model = new Model(payload.toJSONString());
@@ -319,8 +318,7 @@ public class ModelPersistenceServiceTest {
     try {
       c.setLogin(Long.toString(testAgent.getId()), testPass);
       @SuppressWarnings("unchecked")
-      ClientResponse result =
-          c.sendRequest("GET", mainPath, "", "", MediaType.APPLICATION_JSON, new HashMap<>());
+      ClientResponse result = c.sendRequest("GET", mainPath, "");
       assertEquals(200, result.getHttpCode());
       System.out.println("Result of 'testModelListRetrieving': " + result.getResponse().trim());
     } catch (Exception e) {
