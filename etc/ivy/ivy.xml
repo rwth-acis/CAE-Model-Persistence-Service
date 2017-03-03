@@ -5,8 +5,8 @@
 		<artifact type="jar" ext="jar" conf="default"/>
 	</publications>
 	<dependencies>
-		<dependency org="i5" name="las2peer" rev="0.6.5"/>
-		<dependency org="i5" name="las2peer-web-connector" rev="0.6.5"/>
+		<dependency org="i5" name="las2peer" rev="0.6.7"/>
+		<dependency org="i5" name="las2peer-web-connector" rev="0.6.7"/>
 		<dependency org="i5" name="cae-simple-model-representation" rev="0.3"/>
 		<dependency org="i5" name="semantic-check-response" rev="0.1"/>
 		<dependency org="mysql" name="mysql-connector-java" rev="5.1.6" />
