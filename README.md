@@ -14,9 +14,9 @@ Build the model persistence service and code generation service from source as d
 The CAE uses GitHub organizations as a central place for its generated code's repositories. Create a GitHub organization and enter its name in the [code generation service's](https://github.com/rwth-acis/CAE-Code-Generation-Service) .properties file. Then fork the [CAE-Template repository](https://github.com/rwth-acis/CAE-Templates) to your organization. The default name is CAE-Templates, if you want to use another one, e.g. your own templates, change the name in the .properties file.
 
 ### 3. Setting up a database
-TBA
+The model persistence service needs a database to store model data. JDBC is used for database connectivity and the .properties file contains the corresponding settings. By default it contains settings for a mysql database, just fill in the schema, user and password you want to use. To initialize your database for use with the model persistence service import the ModelPersistenceService_Database.sql file frome the database folder. By default the database name "commedit" is assumed.
 
 ### 4. Setting up the ROLE-SDK
-TBA [ROLE-SDK](https://github.com/rwth-acis/ROLE-SDK)
+The CAE's frontend consists of widgets in a ROLE environment. To set up your own [ROLE-SDK](https://github.com/rwth-acis/ROLE-SDK) instance follow the information provided in their repository. You need maven to build the latest ROLE-SDK version, alternatively you can use a binary release provided by the ROLE project.
 
 ### 5. Setting up the CAE Frontend
