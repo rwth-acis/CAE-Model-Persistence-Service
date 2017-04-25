@@ -37,4 +37,4 @@ The widgets can than be added by using the little plus button in the widget list
 In the modal enter the url to the xml file of the widget you want to add.
 ![Modal](http://i.imgur.com/LMtVzGW.png)
 
-It might be useful to check your browser's console for any errors that might occur due to misconfiguration, such as worng paths. If that is the case, re-run the build scripts with the correct parameters or do a manual replacement and create an issu or, even better, a pull request if something is missing from the scripts.
+It might be useful to check your browser's console for any errors that might occur due to misconfiguration, such as wrong paths. If that is the case, re-run the build scripts with the correct parameters or do a manual replacement and create an issue or, even better, a pull request if something is missing from the scripts.
