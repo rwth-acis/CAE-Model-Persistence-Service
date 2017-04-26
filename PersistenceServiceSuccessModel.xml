@@ -1,0 +1,34 @@
+<SucessModel name="Model Persistence Service" service="i5.las2peer.services.modelPersistenceService.ModelPersistenceService">
+    <dimension name="Model Quality">
+        <factor name="Application complexity">
+            <measure name="Average number of services in application"/>
+            <measure name="Average number of frontend components in application"/>
+        </factor>
+        <factor name="Microservice complexity">
+            <measure name="Average number of databases in microservice"/>
+            <measure name="Average number of tables in microservice"/>
+            <measure name="Average number of columns in table"/>
+            <measure name="Average number of HTTP methods in microservice"/>
+            <measure name="Average number of HTTP responses in microservice"/>
+            <measure name="Average number of HTTP payloads in microservice"/>
+            <measure name="Average number of Internal Service Calls"/>
+            <measure name="Average number of Service Call Parameters"/>
+        </factor>
+        <factor name="Frontend complexity">
+            <measure name="Average number of HTML elements"/>
+            <measure name="Average number of functions"/>
+            <measure name="Average number of events"/>
+            <measure name="Average number of IWC reponses"/>
+            <measure name="Average number of IWC calls"/>
+            <measure name="Average number of input parameters"/>
+            <measure name="Average number of microservice calls"/>
+        </factor>
+    </dimension>
+    <dimension name="Use">
+        <factor name="Active Use">
+            <measure name="Average time spend in frontend space"/>
+            <measure name="Average time spend in microservice space"/>
+            <measure name="Average time spend in application space"/>
+        </factor>
+    </dimension>
+</SucessModel>
