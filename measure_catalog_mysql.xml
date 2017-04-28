@@ -1,0 +1,44 @@
+<Catalog>
+    <measure name"Average number of services in application">
+    </measure>
+    <measure name="Average number of services in application">
+    </measure>
+    <measure name="Average number of frontend components in application">
+    </measure>
+    <measure name="Average number of databases in microservice">
+    </measure>
+    <measure name="Average number of tables in microservice">
+    </measure>
+    <measure name="Average number of columns in table">
+    </measure>
+    <measure name="Average number of HTTP methods in microservice">
+    </measure>
+    <measure name="Average number of HTTP responses in microservice">
+    </measure>
+    <measure name="Average number of HTTP payloads in microservice">
+    </measure>
+    <measure name="Average number of Internal Service Calls">
+    </measure>
+    <measure name="Average number of Service Call Parameters">
+    </measure>
+    <measure name="Average number of HTML elements">
+    </measure>
+    <measure name="Average number of functions">
+    </measure>
+    <measure name="Average number of events">
+    </measure>
+    <measure name="Average number of IWC reponses">
+    </measure>
+    <measure name="Average number of IWC calls">
+    </measure>
+    <measure name="Average number of input parameters">
+    </measure>
+    <measure name="Average number of microservice calls">
+    </measure>
+    <measure name="Average time spend in frontend space">
+    </measure>
+    <measure name="Average time spend in microservice space">
+    </measure>
+    <measure name="Average time spend in application space">
+    </measure>
+</Catalog>
