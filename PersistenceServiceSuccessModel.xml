@@ -29,6 +29,9 @@
             <measure name="Average time spend in frontend space"/>
             <measure name="Average time spend in microservice space"/>
             <measure name="Average time spend in application space"/>
+            <measure name="Applications created"/>
+            <measure name="Microservices created"/>
+            <measure name="Frontends created"/>
         </factor>
     </dimension>
 </SucessModel>
