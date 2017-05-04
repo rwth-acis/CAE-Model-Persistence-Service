@@ -35,6 +35,7 @@ import i5.cae.simpleModel.node.SimpleNode;
 import i5.las2peer.api.Context;
 import i5.las2peer.logging.L2pLogger;
 import i5.las2peer.logging.NodeObserver.Event;
+import i5.las2peer.services.modelPersistenceService.ModelPersistenceService.MobSOSEvent;
 import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
 import i5.las2peer.services.modelPersistenceService.exception.CGSInvocationException;
 import i5.las2peer.services.modelPersistenceService.exception.ModelNotFoundException;
@@ -122,31 +123,7 @@ public class RESTResources {
 		}
 
 		// save the model to the database
-		Connection connection = null;
-		try {
-			connection = dbm.getConnection();
-			model.persist(connection);
-			int modelId = model.getId();
-			L2pLogger.logEvent(Event.SERVICE_MESSAGE, "postModel: model with id " + modelId + " and name "
-					+ model.getAttributes().getName() + " stored!");
-			return Response.status(201).entity("Model stored!").build();
-		} catch (SQLException e) {
-			L2pLogger.logEvent(Event.SERVICE_ERROR, "postModel: exception persisting model: " + e);
-			logger.printStackTrace(e);
-			return Response.serverError().entity("Could not persist, database rejected model!").build();
-		} catch (Exception e) {
-			L2pLogger.logEvent(Event.SERVICE_ERROR, "postModel: something went seriously wrong: " + e);
-			logger.printStackTrace(e);
-			return Response.serverError().entity("Internal server error...").build();
-		}
-		// always close connections
-		finally {
-			try {
-				connection.close();
-			} catch (SQLException e) {
-				logger.printStackTrace(e);
-			}
-		}
+		return saveModelToDatabase(model);
 	}
 
 	/**
@@ -635,6 +612,52 @@ public class RESTResources {
 		return Response.serverError().entity("Internal server error...").build();
 	}
 
+	private Response saveModelToDatabase(Model model) {
+		Connection connection = null;
+		try {
+			connection = dbm.getConnection();
+			model.persist(connection);
+			int modelId = model.getId();
+			L2pLogger.logEvent(Event.SERVICE_MESSAGE, "postModel: model with id " + modelId + " and name "
+					+ model.getAttributes().getName() + " stored!");
+			
+			for (EntityAttribute attribute : model.getAttributes().getAttributes()) {
+				if (attribute.getName().equals("type")) {
+					// handle special case of application model
+					if (attribute.getValue().equals("application")) {
+						((ModelPersistenceService)Context.getCurrent().getService()).logMobSOSEvent(MobSOSEvent.APPLICATION_CREATED);
+						break;
+					} else if (attribute.getValue().equals("microservice")) {
+						((ModelPersistenceService)Context.getCurrent().getService()).logMobSOSEvent(MobSOSEvent.MICROSERVICE_CREATED);
+						break;
+					} else if (attribute.getValue().equals("frontend-component")) {
+						((ModelPersistenceService)Context.getCurrent().getService()).logMobSOSEvent(MobSOSEvent.FRONTEND_CREATED);
+						break;
+					}
+				}
+			}
+			
+			return Response.status(201).entity("Model stored!").build();
+		} catch (SQLException e) {
+			L2pLogger.logEvent(Event.SERVICE_ERROR, "postModel: exception persisting model: " + e);
+			logger.printStackTrace(e);
+			return Response.serverError().entity("Could not persist, database rejected model!").build();
+		} catch (Exception e) {
+			L2pLogger.logEvent(Event.SERVICE_ERROR, "postModel: something went seriously wrong: " + e);
+			logger.printStackTrace(e);
+			return Response.serverError().entity("Internal server error...").build();
+		
+		}finally {
+			try {
+				connection.close();
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+	}
+	
 	/**
 	 * 
 	 * Calls the code generation service to see if the model is a valid CAE

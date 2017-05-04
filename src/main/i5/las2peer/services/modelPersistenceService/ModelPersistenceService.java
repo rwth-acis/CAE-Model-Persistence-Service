@@ -77,6 +77,12 @@ public class ModelPersistenceService extends RESTService {
 	private String semanticCheckService = "";
 	private String codeGenerationService = "";
 	private DatabaseManager dbm;
+	
+	public enum MobSOSEvent {
+		APPLICATION_CREATED,
+		MICROSERVICE_CREATED,
+		FRONTEND_CREATED
+	}
 
 	/*
 	 * Global variables
@@ -110,6 +116,20 @@ public class ModelPersistenceService extends RESTService {
 	
 	public DatabaseManager getDbm(){
 		return dbm;
+	}
+	
+	public void logMobSOSEvent(MobSOSEvent event) {
+		switch(event) {
+			case APPLICATION_CREATED:
+				logger.logEvent(Event.SERVICE_CUSTOM_MESSAGE_1, "Application created");
+				break;
+			case MICROSERVICE_CREATED:
+				logger.logEvent(Event.SERVICE_CUSTOM_MESSAGE_2, "Microservice created");
+				break;
+			case FRONTEND_CREATED:
+				logger.logEvent(Event.SERVICE_CUSTOM_MESSAGE_3, "Frontend created");
+				break;
+		}
 	}
 	
 }
