@@ -121,13 +121,13 @@ public class ModelPersistenceService extends RESTService {
 	public void logMobSOSEvent(MobSOSEvent event) {
 		switch(event) {
 			case APPLICATION_CREATED:
-				logger.logEvent(Event.SERVICE_CUSTOM_MESSAGE_1, "Application created");
+				L2pLogger.logEvent(Event.SERVICE_CUSTOM_MESSAGE_1, Context.getCurrent().getMainAgent(), "Application created");
 				break;
 			case MICROSERVICE_CREATED:
-				logger.logEvent(Event.SERVICE_CUSTOM_MESSAGE_2, "Microservice created");
+				L2pLogger.logEvent(Event.SERVICE_CUSTOM_MESSAGE_2, Context.getCurrent().getMainAgent(), "Microservice created");
 				break;
 			case FRONTEND_CREATED:
-				logger.logEvent(Event.SERVICE_CUSTOM_MESSAGE_3, "Frontend created");
+				L2pLogger.logEvent(Event.SERVICE_CUSTOM_MESSAGE_3, Context.getCurrent().getMainAgent(), "Frontend created");
 				break;
 		}
 	}
