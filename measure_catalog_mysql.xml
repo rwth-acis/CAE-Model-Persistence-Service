@@ -1,18 +1,18 @@
 <Catalog>
     <measure name="ApplicationsCreated">
         <query name="ApplicationsCreated">
-            SELECT COUNT(*) FROM MESSAGE WHERE EVENT = 'ApplicationCreated'
+            SELECT COUNT(*) FROM MESSAGE WHERE EVENT = 'SERVICE_CUSTOM_MESSAGE_1'
         </query>
         <visualization type="Value">
     </measure>
     <measure name="MicroservicesCreated">
         <query name="MicroservicesCreated">
-            SELECT COUNT(*) FROM MESSAGE WHERE EVENT = 'MicroserviceCreated'
+            SELECT COUNT(*) FROM MESSAGE WHERE EVENT = 'SERVICE_CUSTOM_MESSAGE_2'
         </query>
     </measure>
     <measure name="FrontendsCreated">
         <query name="FrontendsCreated">
-            SELECT COUNT(*) FROM MESSAGE WHERE EVENT = 'FrontendCreated'
+            SELECT COUNT(*) FROM MESSAGE WHERE EVENT = 'SERVICE_CUSTOM_MESSAGE_3'
         </query>
     </measure>
     <measure name="Average number of services in application">
