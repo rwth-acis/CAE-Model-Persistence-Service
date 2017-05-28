@@ -197,6 +197,7 @@ public class RESTResources {
 
 		ArrayList<String> modelNames = new ArrayList<String>();
 		Connection connection = null;
+		
 		try {
 			connection = dbm.getConnection();
 			// search for all models

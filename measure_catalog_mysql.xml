@@ -9,17 +9,39 @@
         <query name="MicroservicesCreated">
             SELECT COUNT(*) FROM MESSAGE WHERE EVENT = 'SERVICE_CUSTOM_MESSAGE_2'
         </query>
+        <visualization type="Value">
     </measure>
     <measure name="FrontendsCreated">
         <query name="FrontendsCreated">
             SELECT COUNT(*) FROM MESSAGE WHERE EVENT = 'SERVICE_CUSTOM_MESSAGE_3'
         </query>
+        <visualization type="Value">
     </measure>
     <measure name="Average number of services in application">
-    </measure>
-    <measure name="Average number of services in application">
+        <query name="NumberOfApplications">
+            SELECT COUNT(*) FROM MESSAGE WHERE EVENT = 'SERVICE_CUSTOM_MESSAGE_1'
+        </query>
+        <query name="NumberOfServices">
+            SELECT COUNT(*) FROM MESSAGE WHERE EVENT = 'SERVICE_CUSTOM_MESSAGE_2'
+        </query>
+        <visualization type="KPI">
+            <operand name="NumberOfServices" index="0" />
+            <operator name="/" index="1" />
+            <operand name="NumberOfApplications" index="2" />
+        </visualization>
     </measure>
     <measure name="Average number of frontend components in application">
+        <query name="NumberOfFrontends">
+            SELECT COUNT(*) FROM MESSAGE WHERE EVENT = 'SERVICE_CUSTOM_MESSAGE_3'
+        </query>
+        <query name="NumberOfApplications">
+            SELECT COUNT(*) FROM MESSAGE WHERE EVENT = 'SERVICE_CUSTOM_MESSAGE_1'
+        </query>
+        <visualization type="KPI">
+            <operand name="NumberOfFrontends" index="0" />
+            <operator name="/" index="1" />
+            <operand name="NumberOfApplications" />
+        </visualization>
     </measure>
     <measure name="Average number of databases in microservice">
     </measure>
