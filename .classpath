@@ -3,11 +3,11 @@
 	<classpathentry kind="src" path="src/main"/>
 	<classpathentry kind="src" path="src/test"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry kind="lib" path="/Users/jonask/Development/i5/CAE-Model-Persistence-Service/lib/las2peer-rest-mapper-0.6.7.jar"/>
+	<classpathentry kind="lib" path="lib/las2peer-rest-mapper-0.6.7.jar"/>
 	<classpathentry kind="lib" path="lib/cae-simple-model-representation-0.3.jar"/>
 	<classpathentry kind="lib" path="lib/semantic-check-response-0.1.jar"/>
 	<classpathentry kind="lib" path="lib/json-simple-1.1.1.jar"/>
 	<classpathentry kind="lib" path="lib/commons-dbcp2-2.0.jar"/>
-	<classpathentry kind="lib" path="/Users/jonask/Development/i5/CAE-Model-Persistence-Service/lib/las2peer-web-connector-0.6.7.jar"/>
+	<classpathentry kind="lib" path="lib/las2peer-web-connector-0.6.7.jar"/>
 	<classpathentry kind="output" path="output"/>
 </classpath>
