@@ -53,6 +53,8 @@ import io.swagger.jaxrs.Reader;
 import io.swagger.models.Swagger;
 import io.swagger.util.Json;
 
+import i5.las2peer.services.modelPersistenceService.modelServices.*;
+
 /**
  * 
  * CAE Model Persistence Service
@@ -78,6 +80,10 @@ public class ModelPersistenceService extends RESTService {
 	private String codeGenerationService = "";
 	private DatabaseManager dbm;
 
+	private ComponentService componentService;
+	private ElementService elementService;
+	private MetadataDocService metadataDocService;
+
 	/*
 	 * Global variables
 	 */
@@ -89,6 +95,14 @@ public class ModelPersistenceService extends RESTService {
 		// instantiate a database manager to handle database connection pooling
 		// and credentials
 		dbm = new DatabaseManager(jdbcDriverClassName, jdbcLogin, jdbcPass, jdbcUrl, jdbcSchema);
+
+		try {
+			componentService = new ComponentService(this.dbm.getConnection(), this.logger);
+			elementService = new ElementService(this.dbm.getConnection(), this.logger);
+			metadataDocService = new MetadataDocService(this.dbm.getConnection(), this.logger);
+		} catch (SQLException e) {
+			logger.printStackTrace(e);
+		}
 	}
 
 	@Override
@@ -110,6 +124,18 @@ public class ModelPersistenceService extends RESTService {
 	
 	public DatabaseManager getDbm(){
 		return dbm;
+	}
+
+	public ComponentService getComponentService(){
+		return componentService;
+	}
+
+	public ElementService getElementService(){
+		return elementService;
+	}
+
+	public MetadataDocService getMetadataService(){
+		return metadataDocService;
 	}
 	
 }

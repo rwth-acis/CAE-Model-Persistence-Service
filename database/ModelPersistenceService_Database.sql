@@ -6,7 +6,7 @@
 --
 -- Table structure for table Model.
 --
-CREATE TABLE commedit.Model (
+CREATE TABLE commedit.model (
   modelId INT NOT NULL AUTO_INCREMENT,
   CONSTRAINT modelPK PRIMARY KEY (modelId)
 );
@@ -14,7 +14,7 @@ CREATE TABLE commedit.Model (
 --
 -- Table structure for table ModelAttributes.
 --
-CREATE TABLE commedit.ModelAttributes (
+CREATE TABLE commedit.modelAttributes (
   modelName VARCHAR(255) NOT NULL,
   CONSTRAINT modelAttributesPK PRIMARY KEY (modelName)
 );
@@ -22,7 +22,7 @@ CREATE TABLE commedit.ModelAttributes (
 --
 -- Table structure for table Node.
 --
-CREATE TABLE commedit.Node (
+CREATE TABLE commedit.node (
   nodeId VARCHAR(255) NOT NULL,
   type VARCHAR(255) NOT NULL,
   pLeft INT NOT NULL,
@@ -38,7 +38,7 @@ CREATE TABLE commedit.Node (
 -- Note that there exist not FK references to the source and target
 -- node because we stay independent of semantics.
 --
-CREATE TABLE commedit.Edge (
+CREATE TABLE commedit.edge (
   edgeId VARCHAR(255) NOT NULL,
   sourceNode VARCHAR(255) NOT NULL,
   targetNode VARCHAR(255) NOT NULL,

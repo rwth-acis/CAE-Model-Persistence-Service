@@ -1,5 +1,7 @@
 package i5.las2peer.services.modelPersistenceService;
 
+import java.io.IOError;
+import java.io.IOException;
 import java.io.Serializable;
 import java.net.HttpURLConnection;
 import java.sql.Connection;
@@ -27,6 +29,8 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.ParseException;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import i5.cae.semanticCheck.SemanticCheckResponse;
 import i5.cae.simpleModel.SimpleEntityAttribute;
@@ -47,6 +51,12 @@ import io.swagger.jaxrs.Reader;
 import io.swagger.models.Swagger;
 import io.swagger.util.Json;
 
+import i5.las2peer.services.modelPersistenceService.model.metadata.ComponentToComponent;
+import i5.las2peer.services.modelPersistenceService.model.metadata.ElementToElement;
+import i5.las2peer.services.modelPersistenceService.model.metadata.MetadataDoc;
+
+import i5.las2peer.services.modelPersistenceService.modelServices.*;
+
 @Path("/")
 public class RESTResources {
 
@@ -56,11 +66,18 @@ public class RESTResources {
 	private String codeGenerationService;
 	private DatabaseManager dbm;
 
+	private ComponentService componentService;
+	private ElementService elementService;
+	private MetadataDocService metadataDocService;
+
 	public RESTResources() {
 		this.logger = service.getLogger();
 		this.semanticCheckService = service.getSemanticCheckService();
 		this.codeGenerationService = service.getCodeGenerationService();
 		this.dbm = service.getDbm();
+		this.componentService = service.getComponentService();
+		this.elementService = service.getElementService();
+		this.metadataDocService = service.getMetadataService();
 	}
 
 	/**
@@ -115,7 +132,10 @@ public class RESTResources {
 		if (!codeGenerationService.isEmpty()) {
 			try {
 				L2pLogger.logEvent(Event.SERVICE_MESSAGE, "postModel: invoking code generation service..");
-				model = callCodeGenerationService("createFromModel", model);
+				// get metadataDoc
+				String metadataDocString = this.metadataDocService.getMetadataDocStringByComponentId(model.getAttributes().getName());
+				System.out.println(metadataDocString);
+				model = callCodeGenerationService("createFromModel", model, metadataDocString);
 			} catch (CGSInvocationException e) {
 				return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
 			}
@@ -285,7 +305,7 @@ public class RESTResources {
 			if (!codeGenerationService.isEmpty()) {
 				try {
 					L2pLogger.logEvent(Event.SERVICE_MESSAGE, "deleteModel: invoking code generation service..");
-					model = callCodeGenerationService("deleteRepositoryOfModel", model);
+					model = callCodeGenerationService("deleteRepositoryOfModel", model, "");
 				} catch (CGSInvocationException e) {
 					return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
 				}
@@ -362,7 +382,9 @@ public class RESTResources {
 		if (!codeGenerationService.isEmpty()) {
 			try {
 				L2pLogger.logEvent(Event.SERVICE_MESSAGE, "updateModel: invoking code generation service..");
-				model = callCodeGenerationService("updateRepositoryOfModel", model);
+				String metadataDocString = this.metadataDocService.getMetadataDocStringByComponentId(model.getAttributes().getName());
+				System.out.println(metadataDocString);
+				model = callCodeGenerationService("updateRepositoryOfModel", model, metadataDocString);
 			} catch (CGSInvocationException e) {
 				return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
 			}
@@ -499,7 +521,7 @@ public class RESTResources {
 				// job is started in Jenkins
 				if (jobAlias.equals("Build")) {
 					L2pLogger.logEvent(Event.SERVICE_MESSAGE, "deployModel: invoking code generation service..");
-					callCodeGenerationService("prepareDeploymentApplicationModel", model);
+					callCodeGenerationService("prepareDeploymentApplicationModel", model, "");
 				}
 
 				// start the jenkins job by the code generation service
@@ -653,7 +675,7 @@ public class RESTResources {
 	 *             if something went wrong invoking the service
 	 * 
 	 */
-	private Model callCodeGenerationService(String methodName, Model model) throws CGSInvocationException {
+	private Model callCodeGenerationService(String methodName, Model model, String metadataDoc) throws CGSInvocationException {
 		Connection connection = null;
 		Serializable[] modelsToSend = null;
 		SimpleModel simpleModel = (SimpleModel) model.getMinifiedRepresentation();
@@ -733,7 +755,7 @@ public class RESTResources {
 		}
 		// actual invocation
 		try {
-			Serializable[] payload = { modelsToSend };
+			Serializable[] payload = { metadataDoc, modelsToSend };
 			String answer = (String) Context.getCurrent().invoke(codeGenerationService, methodName, payload);
 			if (!answer.equals("done")) {
 				throw new CGSInvocationException(answer);
@@ -875,5 +897,451 @@ public class RESTResources {
 			logger.printStackTrace(e);
 			return Response.serverError().entity(e.getMessage()).build();
 		}
+	}
+
+	/***********COMPONENTS*************** */
+
+	/**
+	 * Get all component to component connections in the database
+	 * 
+	 * @return JSON data of the list of all element to element connections
+	 */
+	@GET
+	@Path("/components/")
+	@Produces(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Searches for all component to components connections in the database. Takes no parameter.", notes = "Searches for component to component connection in the database.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, Component to component connection found"),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "No component to component connection could be found."),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response getComponents() {
+		ArrayList<ComponentToComponent> components = null;
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+			components = componentService.getAll();
+			String jsonString = mapper.writeValueAsString(components);
+			return Response.ok(jsonString, MediaType.APPLICATION_JSON).build();
+		} catch (Exception e) {
+			this.logger.printStackTrace(e);
+			return Response.serverError().entity("Server error!").build();
+		}
+	}
+
+	/**
+	 * Get component to component connections in the database by id
+	 * 
+	 * @return JSON data of the list of all element to element connections
+	 */
+	@GET
+	@Path("/components/{id}")
+	@Produces(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Searches for all component to component connection in the database by id.", notes = "Searches for all component to component connection in the database by id.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, Component to component connection found"),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "No component to component connection could be found."),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response getComponentById(@PathParam("id") String id) {
+		ComponentToComponent component = null;
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+			component = componentService.getById(id);
+			String jsonString = mapper.writeValueAsString(component);
+			return Response.ok(jsonString, MediaType.APPLICATION_JSON).build();
+		} catch (Exception e) {
+			this.logger.printStackTrace(e);
+			return Response.serverError().entity("Server error!").build();
+		}
+	}
+
+	/**
+	 * Creates a new component to component connection.
+	 * 
+	 * @param inputJsonString json of the new model.
+	 * @return HttpResponse with the status
+	 */
+	@POST
+	@Path("/components/")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Create new component to component connection.", notes = "Create new component to component connection.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_CREATED, message = "OK, model stored"),
+			@ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST, message = "Input model was not valid"),
+			@ApiResponse(code = HttpURLConnection.HTTP_CONFLICT, message = "Tried to save a model that already had a name and thus was not new"),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response postComponent(String inputJsonString) {
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			ComponentToComponent inputModel = mapper.readValue(inputJsonString, ComponentToComponent.class);
+			componentService.create(inputModel);
+			return Response.ok().entity("Component to component model created").build();
+		} catch (SQLException e) {
+			logger.printStackTrace(e);
+			return Response.serverError().entity("Could not create new component to component connection, SQL exception").build();
+		} catch (IOException e) {
+			logger.printStackTrace(e);
+			return Response.serverError().entity("Could not create new component to component connection, JSON not valid").build();
+		}
+	}
+
+	/**
+	 * Modify a new component to component connection.
+	 * 
+	 * @param inputJsonString json of the new model.
+	 * @return HttpResponse with the status
+	 */
+	@PUT
+	@Path("/components/")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Modify component to component connection.", notes = "Modify component to component connection.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_CREATED, message = "OK, model stored"),
+			@ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST, message = "Input model was not valid"),
+			@ApiResponse(code = HttpURLConnection.HTTP_CONFLICT, message = "Tried to save a model that already had a name and thus was not new"),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response putComponent(String inputJsonString) {
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			ComponentToComponent inputModel = mapper.readValue(inputJsonString, ComponentToComponent.class);
+			componentService.update(inputModel);
+			return Response.ok().entity("Component to component model modified").build();
+		} catch (SQLException e) {
+			logger.printStackTrace(e);
+			return Response.serverError().entity("Could not modify component to component connection, SQL exception").build();
+		} catch (IOException e) {
+			logger.printStackTrace(e);
+			return Response.serverError().entity("Could not modify component to component connection, JSON not valid").build();
+		}
+	}
+
+	/**
+	 * 
+	 * Deletes a model.
+	 * 
+	 * @param modelName
+	 *            a string containing the model name
+	 * 
+	 * @return HttpResponse containing the status code of the request
+	 * 
+	 */
+	@DELETE
+	@Path("/components/{id}")
+	@Consumes(MediaType.TEXT_PLAIN)
+	@ApiOperation(value = "Deletes a component to component connection by id.", notes = "Deletes a component to component connection by id.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model is deleted"),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response deleteComponent(@PathParam("id") String id) {
+		try {
+			componentService.delete(id);
+			return Response.ok().entity("Component to component deleted").build();
+		} catch (SQLException e) {
+			logger.printStackTrace(e);
+			return Response.serverError().entity("Could not delete component to component connection, SQL exception").build();
+		}
+
+	}
+
+	/***********ELEMENTS*************** */
+	
+	/**
+	 * Get all element to element connections in the database
+	 * 
+	 * @return JSON data of the list of all element to element connections
+	 */
+	@GET
+	@Path("/elements/")
+	@Produces(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Searches for all element to element connections in the database. Takes no parameter.", notes = "Searches for element to element connection in the database.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, Element to element connection found"),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "No element to element connection could be found."),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response getElements() {
+		ArrayList<ElementToElement> elements = null;
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+			elements = this.elementService.getAll();
+			String jsonString = mapper.writeValueAsString(elements);
+			return Response.ok(jsonString, MediaType.APPLICATION_JSON).build();
+		} catch (Exception e) {
+			this.logger.printStackTrace(e);
+			return Response.serverError().entity("Server error!").build();
+		}
+	}
+
+	/**
+	 * Get element to element connections in the database by id
+	 * 
+	 * @return JSON data of the list of all element to element connections
+	 */
+	@GET
+	@Path("/elements/{id}")
+	@Produces(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Searches for all element to element connection in the database by id.", notes = "Searches for all element to element connection in the database by id.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, element to element connection found"),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "No element to element connection could be found."),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response getElementById(@PathParam("id") String id) {
+		ElementToElement element = null;
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+			element = this.elementService.getById(id);
+			String jsonString = mapper.writeValueAsString(element);
+			return Response.ok(jsonString, MediaType.APPLICATION_JSON).build();
+		} catch (Exception e) {
+			this.logger.printStackTrace(e);
+			return Response.serverError().entity("Server error!").build();
+		}
+	}
+
+	/**
+	 * Creates a new element to element connection.
+	 * 
+	 * @param inputJsonString json of the new model.
+	 * @return HttpResponse with the status
+	 */
+	@POST
+	@Path("/elements/")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Create new element to element connection.", notes = "Create new element to element connection.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_CREATED, message = "OK, model stored"),
+			@ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST, message = "Input model was not valid"),
+			@ApiResponse(code = HttpURLConnection.HTTP_CONFLICT, message = "Tried to save a model that already had a name and thus was not new"),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response postElement(String inputJsonString) {
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			ElementToElement inputModel = mapper.readValue(inputJsonString, ElementToElement.class);
+			this.elementService.create(inputModel);
+			return Response.ok().entity("element to element model created").build();
+		} catch (SQLException e) {
+			this.logger.printStackTrace(e);
+			return Response.serverError().entity("Could not create new element to element connection, SQL exception").build();
+		} catch (IOException e) {
+			this.logger.printStackTrace(e);
+			return Response.serverError().entity("Could not create new element to element connection, JSON not valid").build();
+		}
+	}
+
+	/**
+	 * Modify a new element to element connection.
+	 * 
+	 * @param inputJsonString json of the new model.
+	 * @return HttpResponse with the status
+	 */
+	@PUT
+	@Path("/elements/")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Modify element to element connection.", notes = "Modify element to element connection.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_CREATED, message = "OK, model stored"),
+			@ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST, message = "Input model was not valid"),
+			@ApiResponse(code = HttpURLConnection.HTTP_CONFLICT, message = "Tried to save a model that already had a name and thus was not new"),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response putElement(String inputJsonString) {
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			ElementToElement inputModel = mapper.readValue(inputJsonString, ElementToElement.class);
+			this.elementService.update(inputModel);
+			return Response.ok().entity("element to element model modified").build();
+		} catch (SQLException e) {
+			this.logger.printStackTrace(e);
+			return Response.serverError().entity("Could not modify element to element connection, SQL exception").build();
+		} catch (IOException e) {
+			this.logger.printStackTrace(e);
+			return Response.serverError().entity("Could not modify element to element connection, JSON not valid").build();
+		}
+	}
+
+	/**
+	 * 
+	 * Deletes a model.
+	 * 
+	 * @param modelName
+	 *            a string containing the model name
+	 * 
+	 * @return HttpResponse containing the status code of the request
+	 * 
+	 */
+	@DELETE
+	@Path("/elements/{id}")
+	@Consumes(MediaType.TEXT_PLAIN)
+	@ApiOperation(value = "Deletes a element to element connection by id.", notes = "Deletes a element to element connection by id.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model is deleted"),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response deleteElement(@PathParam("id") String id) {
+		try {
+			this.componentService.delete(id);
+			return Response.ok().entity("element to element deleted").build();
+		} catch (SQLException e) {
+			this.logger.printStackTrace(e);
+			return Response.serverError().entity("Could not delete element to element connection, SQL exception").build();
+		}
+
+	}
+
+	/***********METADATA DOCS*************** */
+
+	/**
+	 * Get all element to element connections in the database
+	 * 
+	 * @return JSON data of the list of all element to element connections
+	 */
+	@GET
+	@Path("/docs/")
+	@Produces(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Searches for all metadata docs in the database. Takes no parameter.", notes = "Searches for all metadata docs in the database.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, Metadata doc found"),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "No metadata doc could be found."),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response getDocs() {
+		ArrayList<MetadataDoc> docs = null;
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+			docs = this.metadataDocService.getAll();
+			String jsonString = mapper.writeValueAsString(docs);
+			return Response.ok(jsonString, MediaType.APPLICATION_JSON).build();
+		} catch (Exception e) {
+			this.logger.printStackTrace(e);
+			return Response.serverError().entity("Server error!").build();
+		}
+	}
+
+	/**
+	 * Get metadata docs in the database by id
+	 * 
+	 * @return JSON data of the list of all metadata docs
+	 */
+	@GET
+	@Path("/docs/{id}")
+	@Produces(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Searches for all metadata doc in the database by id.", notes = "Searches for all metadata doc in the database by id.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, metadata doc found"),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "No metadata doc could be found."),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response getDocById(@PathParam("id") String id) {
+		MetadataDoc doc = null;
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+			doc = this.metadataDocService.getById(id);
+			String jsonString = mapper.writeValueAsString(doc);
+			return Response.ok(jsonString, MediaType.APPLICATION_JSON).build();
+		} catch (Exception e) {
+			this.logger.printStackTrace(e);
+			return Response.serverError().entity("Server error!").build();
+		}
+	}
+
+	/**
+	 * Get metadata docs in the database by component id
+	 * 
+	 * @return JSON data of the list of all metadata docs
+	 */
+	@GET
+	@Path("/docs/component/{id}")
+	@Produces(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Searches for all metadata doc in the database by component id.", notes = "Searches for all metadata doc in the database by component id.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, metadata doc found"),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "No metadata doc could be found."),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response getDocByComponentId(@PathParam("id") String id) {
+		MetadataDoc doc = null;
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+			doc = this.metadataDocService.getByComponentId(id);
+			String jsonString = mapper.writeValueAsString(doc);
+			return Response.ok(jsonString, MediaType.APPLICATION_JSON).build();
+		} catch (Exception e) {
+			this.logger.printStackTrace(e);
+			return Response.serverError().entity("Server error!").build();
+		}
+	}
+
+	/**
+	 * Creates a new metadata doc.
+	 * 
+	 * @param inputJsonString json of the new model.
+	 * @return HttpResponse with the status
+	 */
+	@POST
+	@Path("/docs/")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Create new metadata doc.", notes = "Create new metadata doc.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_CREATED, message = "OK, model stored"),
+			@ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST, message = "Input model was not valid"),
+			@ApiResponse(code = HttpURLConnection.HTTP_CONFLICT, message = "Tried to save a model that already had a name and thus was not new"),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response postDoc(String inputJsonString) {
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			MetadataDoc inputModel = mapper.readValue(inputJsonString, MetadataDoc.class);
+			this.metadataDocService.create(inputModel);
+			return Response.ok().entity("element to element model created").build();
+		} catch (SQLException e) {
+			this.logger.printStackTrace(e);
+			return Response.serverError().entity("Could not create new metadata doc, SQL exception").build();
+		} catch (IOException e) {
+			this.logger.printStackTrace(e);
+			return Response.serverError().entity("Could not create new metadata doc, JSON not valid").build();
+		}
+	}
+
+	/**
+	 * Modify a new metadata doc.
+	 * 
+	 * @param inputJsonString json of the new model.
+	 * @return HttpResponse with the status
+	 */
+	@PUT
+	@Path("/docs/")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Modify metadata doc.", notes = "Modify metadata doc.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_CREATED, message = "OK, model stored"),
+			@ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST, message = "Input model was not valid"),
+			@ApiResponse(code = HttpURLConnection.HTTP_CONFLICT, message = "Tried to save a model that already had a name and thus was not new"),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response putDoc(String inputJsonString) {
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			MetadataDoc inputModel = mapper.readValue(inputJsonString, MetadataDoc.class);
+			this.metadataDocService.update(inputModel);
+			return Response.ok().entity("element to element model modified").build();
+		} catch (SQLException e) {
+			this.logger.printStackTrace(e);
+			return Response.serverError().entity("Could not modify metadata doc, SQL exception").build();
+		} catch (IOException e) {
+			this.logger.printStackTrace(e);
+			return Response.serverError().entity("Could not modify metadata doc, JSON not valid").build();
+		}
+	}
+
+	/**
+	 * 
+	 * Deletes a model.
+	 * 
+	 * @param modelName
+	 *            a string containing the model name
+	 * 
+	 * @return HttpResponse containing the status code of the request
+	 * 
+	 */
+	@DELETE
+	@Path("/docs/{id}")
+	@Consumes(MediaType.TEXT_PLAIN)
+	@ApiOperation(value = "Deletes a metadata doc by id.", notes = "Deletes a metadata doc by id.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model is deleted"),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response deleteDoc(@PathParam("id") String id) {
+		try {
+			this.metadataDocService.delete(id);
+			return Response.ok().entity("element to element deleted").build();
+		} catch (SQLException e) {
+			this.logger.printStackTrace(e);
+			return Response.serverError().entity("Could not delete metadata doc, SQL exception").build();
+		}
+
 	}
 }
