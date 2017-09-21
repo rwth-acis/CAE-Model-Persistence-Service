@@ -260,7 +260,7 @@ public class RESTResources {
 	/**
 	 * 
 	 * Deletes a model.
-	 * 
+	 *
 	 * @param modelName
 	 *            a string containing the model name
 	 * 
@@ -645,7 +645,7 @@ public class RESTResources {
 	 * 
 	 * @param methodName
 	 *            the method name of the code generation service
-	 * @param a
+	 * @param model
 	 *            {@link Model}
 	 * @return the model
 	 * 
@@ -731,9 +731,11 @@ public class RESTResources {
 				modelsToSend[0] = simpleModel;
 			}
 		}
+
+
 		// actual invocation
 		try {
-			Serializable[] payload = { modelsToSend };
+			Serializable[] payload = { modelsToSend};
 			String answer = (String) Context.getCurrent().invoke(codeGenerationService, methodName, payload);
 			if (!answer.equals("done")) {
 				throw new CGSInvocationException(answer);
@@ -744,6 +746,8 @@ public class RESTResources {
 			throw new CGSInvocationException(e.getMessage());
 		}
 	}
+
+
 	////////////////////////////////////////////////////////////////////////////////////////
 	// Methods for Semantic Check
 	////////////////////////////////////////////////////////////////////////////////////////

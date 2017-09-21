@@ -23,7 +23,7 @@ import i5.las2peer.services.modelPersistenceService.model.edge.Edge;
 import i5.las2peer.services.modelPersistenceService.model.modelAttributes.ModelAttributes;
 import i5.las2peer.services.modelPersistenceService.model.node.Node;
 import i5.las2peer.services.modelPersistenceService.model.node.NodePosition;
-
+import i5.las2peer.services.modelPersistenceService.model.wireframe.WireframeModel;
 /**
  * 
  * (Data-)Class for Models. Provides means to convert JSON to Object and Object
@@ -35,7 +35,7 @@ public class Model {
 	private ArrayList<Node> nodes;
 	private ArrayList<Edge> edges;
 	private ModelAttributes attributes;
-
+	private String wireframeModel;
 	private final L2pLogger logger = L2pLogger.getInstance(Model.class.getName());
 
 	/**
@@ -56,6 +56,9 @@ public class Model {
 		// attributes
 		JSONObject jsonAttribute = (JSONObject) completeJsonModel.get("attributes");
 		this.attributes = new ModelAttributes(jsonAttribute);
+
+		//wireframe model
+		this.wireframeModel = (String)completeJsonModel.get("wireframe");
 
 		// nodes
 		JSONObject jsonNodes = (JSONObject) completeJsonModel.get("nodes");
@@ -192,6 +195,8 @@ public class Model {
 	public ModelAttributes getAttributes() {
 		return attributes;
 	}
+
+	public String getWireframeModelAsString() {return wireframeModel; }
 
 	/**
 	 * 
@@ -388,8 +393,7 @@ public class Model {
 		for (int i = 0; i < this.nodes.size(); i++) {
 			Node node = this.nodes.get(i);
 			// "simplify" attributes of node
-			ArrayList<SimpleEntityAttribute> simpleAttributesOfNode = new ArrayList<SimpleEntityAttribute>(
-					node.getAttributes().size());
+			ArrayList<SimpleEntityAttribute> simpleAttributesOfNode = new ArrayList<SimpleEntityAttribute>(node.getAttributes().size());
 			for (int j = 0; j < node.getAttributes().size(); j++) {
 				EntityAttribute attribute = node.getAttributes().get(j);
 				SimpleEntityAttribute simpleAttribute = new SimpleEntityAttribute(attribute.getSyncMetaId(),
@@ -425,9 +429,14 @@ public class Model {
 			simpleModelAttributes.add(simpleAttribute);
 		}
 
+
+
 		SimpleModel simpleModel = new SimpleModel(this.attributes.getName(), simpleNodes, simpleEdges,
 				simpleModelAttributes);
-		return simpleModel;
+
+		WireframeModel wireframe = new WireframeModel(this.getWireframeModelAsString());
+		SimpleModel extended = wireframe.extendSimpleModel(simpleModel);
+		return extended;
 	}
 
 }
