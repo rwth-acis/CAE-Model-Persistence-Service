@@ -134,7 +134,13 @@ public class RESTResources {
 				L2pLogger.logEvent(Event.SERVICE_MESSAGE, "postModel: invoking code generation service..");
 				// get metadataDoc
 				String metadataDocString = this.metadataDocService.getMetadataDocStringByComponentId(model.getAttributes().getName());
+				
+				if (metadataDocString == null)
+					metadataDocString = "";
+				
+				System.out.println("====CREATE FROM MODEL");
 				System.out.println(metadataDocString);
+
 				model = callCodeGenerationService("createFromModel", model, metadataDocString);
 			} catch (CGSInvocationException e) {
 				return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
@@ -383,7 +389,10 @@ public class RESTResources {
 			try {
 				L2pLogger.logEvent(Event.SERVICE_MESSAGE, "updateModel: invoking code generation service..");
 				String metadataDocString = this.metadataDocService.getMetadataDocStringByComponentId(model.getAttributes().getName());
-				System.out.println(metadataDocString);
+				
+				if (metadataDocString == null)
+					metadataDocString = "";
+
 				model = callCodeGenerationService("updateRepositoryOfModel", model, metadataDocString);
 			} catch (CGSInvocationException e) {
 				return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
@@ -676,6 +685,15 @@ public class RESTResources {
 	 * 
 	 */
 	private Model callCodeGenerationService(String methodName, Model model, String metadataDoc) throws CGSInvocationException {
+		System.out.println("======CALL CODE GENERATION SERVICE " + methodName);
+		System.out.println(model);
+
+		if (metadataDoc == null)
+			metadataDoc = "";
+		
+		System.out.println("====METADATA DOC CHECK CALL CODE GENERATION SERVICE");
+		System.out.println(metadataDoc);
+
 		Connection connection = null;
 		Serializable[] modelsToSend = null;
 		SimpleModel simpleModel = (SimpleModel) model.getMinifiedRepresentation();
@@ -1253,6 +1271,9 @@ public class RESTResources {
 			doc = this.metadataDocService.getByComponentId(id);
 			String jsonString = mapper.writeValueAsString(doc);
 			return Response.ok(jsonString, MediaType.APPLICATION_JSON).build();
+		} catch (SQLException e) {
+			this.logger.printStackTrace(e);
+			return Response.ok("{}", MediaType.APPLICATION_JSON).build();
 		} catch (Exception e) {
 			this.logger.printStackTrace(e);
 			return Response.serverError().entity("Server error!").build();
