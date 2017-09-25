@@ -32,6 +32,7 @@ import i5.las2peer.services.modelPersistenceService.model.wireframe.WireframeMod
  */
 public class Model {
 	private int id = -1;
+	private int wireframeId = -1;
 	private ArrayList<Node> nodes;
 	private ArrayList<Edge> edges;
 	private ModelAttributes attributes;
@@ -296,6 +297,29 @@ public class Model {
 				statement.close();
 			}
 
+			//Add wireframe data
+			if(this.getWireframeModelAsString() != null) {
+				statement = connection.prepareStatement("INSERT INTO Wireframe (wireframeXML) VALUES (?);", Statement.RETURN_GENERATED_KEYS);
+				statement.setString(1, this.getWireframeModelAsString());
+				statement.executeUpdate();
+				// get the generated id and close statement
+				ResultSet gen = statement.getGeneratedKeys();
+				gen.next();
+				int wireframeId = gen.getInt(1);
+				statement.close();
+
+				//reference to the model
+				statement = connection.prepareStatement(
+						"INSERT INTO ModelToWireframe (modelId, wireframeId) VALUES (?, ?);");
+				statement.setInt(1, this.id);
+				statement.setInt(2, wireframeId);
+				// execute query
+				statement.executeUpdate();
+				statement.close();
+
+			}
+
+
 			// we got here without errors, so commit now
 			connection.commit();
 
@@ -355,6 +379,13 @@ public class Model {
 				for (int i = 0; i < this.edges.size(); i++) {
 					edges.get(i).deleteFromDatabase(connection);
 				}
+
+				if(this.getWireframeModelAsString() != null){
+					//delete the wireframe in the wireframe xml
+					statement = connection.prepareStatement("DELETE FROM Wireframe WHERE wireframeId = ?;");
+					statement.setInt(1, this.wireframeId);
+					statement.executeUpdate();
+					statement.close();				}
 
 				// we got here without errors, so commit now
 				connection.commit();
@@ -433,10 +464,14 @@ public class Model {
 
 		SimpleModel simpleModel = new SimpleModel(this.attributes.getName(), simpleNodes, simpleEdges,
 				simpleModelAttributes);
+		try {
+			WireframeModel wireframe = new WireframeModel(this.getWireframeModelAsString());
+			SimpleModel extended = wireframe.extendSimpleModel(simpleModel);
+			return extended;
+		} catch(Exception e){
+			return simpleModel;
+		}
 
-		WireframeModel wireframe = new WireframeModel(this.getWireframeModelAsString());
-		SimpleModel extended = wireframe.extendSimpleModel(simpleModel);
-		return extended;
 	}
 
 }
