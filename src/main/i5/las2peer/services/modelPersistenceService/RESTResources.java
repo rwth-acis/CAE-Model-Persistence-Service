@@ -384,6 +384,10 @@ public class RESTResources {
 			this.checkModel(model);
 		}
 
+		// generate metadata swagger doc
+		System.out.println("[MODEL PUT] Generate model to swagger string json");
+		metadataDocService.modelToSwagger(model);
+
 		// call code generation service
 		if (!codeGenerationService.isEmpty()) {
 			try {
@@ -434,6 +438,7 @@ public class RESTResources {
 			int modelId = model.getId();
 			L2pLogger.logEvent(Event.SERVICE_MESSAGE, "updateModel: model with new id " + modelId + " and name "
 					+ model.getAttributes().getName() + " stored!");
+
 			return Response.ok("Model updated!").build();
 		} catch (SQLException e) {
 			L2pLogger.logEvent(Event.SERVICE_ERROR, "updateModel: exception persisting model: " + e);
@@ -444,6 +449,7 @@ public class RESTResources {
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Internal server error...").build();
 		}
+
 		// always close connections
 		finally {
 			try {
@@ -692,7 +698,7 @@ public class RESTResources {
 			metadataDoc = "";
 		
 		System.out.println("====METADATA DOC CHECK CALL CODE GENERATION SERVICE");
-		System.out.println(metadataDoc);
+		//System.out.println(metadataDoc);
 
 		Connection connection = null;
 		Serializable[] modelsToSend = null;

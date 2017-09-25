@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.base.Strings;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 
 public class MetadataDocService {
@@ -212,7 +213,8 @@ public class MetadataDocService {
         }
 	}
 
-    private String modelToSwagger(Model model) {
+    public String modelToSwagger(Model model) {
+        System.out.println("========START MODEL TO SWAGGER==========");
         String swaggerString = "";
         ObjectMapper mapper = new ObjectMapper();
 
@@ -257,144 +259,206 @@ public class MetadataDocService {
         schemes.add("http");
         rootObject.put("schemes", schemes);
 
-        // ==================== PROCESS NODES ======================
-        ArrayList<Node> nodes = model.getNodes();
-        for(Node node: nodes) {
-            switch(node.getType()) {
-                // process base restful node
-                case "RESTful Resource":
-                    // get attributes
-                    ArrayList<EntityAttribute> restAttributes = node.getAttributes();
-                    for(EntityAttribute attribute: restAttributes) {
-                        switch(attribute.getName()) {
-                            case "path":
-                                rootObject.put("host", attribute.getValue());
-                                break;
-                            case "developer":
-                                ObjectNode contactNode = mapper.createObjectNode();
-                                contactNode.put("name", attribute.getValue());
-                                infoObject.put("contact", contactNode);
-                                break;
-                            default:
-                                break;
+        try {
+            // ==================== PROCESS NODES ======================
+            System.out.println("=======[Model to Swagger] Process Nodes ==========");
+            ArrayList<Node> nodes = model.getNodes();
+            for(Node node: nodes) {
+                switch(node.getType()) {
+                    // process base restful node
+                    case "RESTful Resource":
+                        // get attributes
+                        ArrayList<EntityAttribute> restAttributes = node.getAttributes();
+                        for(EntityAttribute attribute: restAttributes) {
+                            switch(attribute.getName()) {
+                                case "path":
+                                    rootObject.put("host", attribute.getValue());
+                                    break;
+                                case "developer":
+                                    ObjectNode contactNode = mapper.createObjectNode();
+                                    contactNode.put("name", attribute.getValue());
+                                    infoObject.put("contact", contactNode);
+                                    break;
+                                default:
+                                    break;
+                            };
                         };
-                    };
-                    break;
-                case "HTTP Method":
-                    httpMethodNodes.put(node.getId(), nodeToHttpMethod(node));
-                    break;
-                case "HTTP Payload":
-                    // parameters
-                    httpPayloadNodes.put(node.getId(), nodeToHttpPayload(node));
-                    break;
-                case "HTTP Response":
-                    // produces
-                    break;
-                default:
-                    break;
+                        break;
+                    case "HTTP Method":
+                        httpMethodNodes.put(node.getId(), nodeToHttpMethod(node));
+                        break;
+                    case "HTTP Payload":
+                        // parameters
+                        httpPayloadNodes.put(node.getId(), nodeToHttpPayload(node));
+                        break;
+                    case "HTTP Response":
+                        // produces
+                        httpResponseNodes.put(node.getId(), nodeToHttpResponse(node));
+                        break;
+                    default:
+                        break;
+                };
             };
-        };
+        } catch(Exception e) {
+            System.out.println("[Model to Swagger] Exception on process nodes");
+            System.out.println(e);
+        }
 
-        // ==================== PROCESS EDGES ======================
-        ArrayList<Edge> edges = model.getEdges();
-        for(Edge edge: edges) {
-            String sourceId = edge.getSourceNode();
-            String targetId = edge.getTargetNode();
-            switch(edge.getType()) {
-                case "RESTful Resource to HTTP Method":
-                    // do not process since we're going to put every http method into the root anyway
-                    break;
-                case "HTTP Method to HTTP Payload":
-                    //get the http method & payload object node
-                    if (httpMethodNodes.get(sourceId) != null) {
-                        // get payload object node
-                        ObjectNode httpPayloadNode = httpPayloadNodes.get(targetId);
-                        if (httpPayloadNode != null) {
-                            // add to parameters list
-                            if (httpMethodParameterNodes.get(sourceId) != null) {
-                                httpMethodParameterNodes.get(sourceId).add(httpPayloadNode);
-                            } else {
-                                ArrayList<ObjectNode> payloadList = new ArrayList<ObjectNode>();
-                                payloadList.add(httpPayloadNode);
-                                httpMethodParameterNodes.put(sourceId, payloadList);
-                            }
-                            
-                        }
-                    }
-                    break;
-                case "HTTP Method to HTTP Response":
-                    //get the http method & payload object node
-                    if (httpMethodNodes.get(sourceId) != null) {
-                        // get payload object node
-                        SimpleEntry<String, ObjectNode> httpResponseNode = httpResponseNodes.get(targetId);
-                        if (httpResponseNode != null) {
-                            // add to payload list
-                            if (httpMethodResponsesNodes.get(sourceId) != null) {
-                                httpMethodResponsesNodes.get(sourceId).add(httpResponseNode);
-                            } else {
-                                ArrayList<SimpleEntry<String, ObjectNode>> responseList = new ArrayList<SimpleEntry<String, ObjectNode>>();
-                                responseList.add(httpResponseNode);
-                                httpMethodResponsesNodes.put(sourceId, responseList);
+        try {
+            // ==================== PROCESS EDGES ======================
+            System.out.println("=======[Model to Swagger] Process Edges ==========");
+            System.out.println("httpPayloadNodes " + httpResponseNodes.size());
+            System.out.println("httpResponseNodes " + httpResponseNodes.size());
+
+            ArrayList<Edge> edges = model.getEdges();
+            for(Edge edge: edges) {
+                String sourceId = edge.getSourceNode();
+                String targetId = edge.getTargetNode();
+                switch(edge.getType()) {
+                    case "RESTful Resource to HTTP Method":
+                        // do not process since we're going to put every http method into the root anyway
+                        break;
+                    case "HTTP Method to HTTP Payload":
+                        System.out.println("HTTP Method to HTTP Payload source " + sourceId + " target " + targetId);
+                        //get the http method & payload object node
+                        if (httpMethodNodes.get(sourceId) != null) {
+                            System.out.println("HTTP Node found " + sourceId);
+                            // get payload object node
+                            ObjectNode httpPayloadNode = httpPayloadNodes.get(targetId);
+                            if (httpPayloadNode != null) {
+                                // add to parameters list
+                                System.out.println("Add to parameters list " + sourceId + " value " + targetId);
+                                if (httpMethodParameterNodes.get(sourceId) != null) {
+                                    System.out.println("Parameters list with key not null " + targetId);
+                                    httpMethodParameterNodes.get(sourceId).add(httpPayloadNode);
+                                } else {
+                                    System.out.println("Parameters list with key null, create " + targetId);
+                                    ArrayList<ObjectNode> payloadList = new ArrayList<ObjectNode>();
+                                    payloadList.add(httpPayloadNode);
+                                    System.out.println(payloadList.size());
+                                    System.out.println(payloadList);
+                                    httpMethodParameterNodes.put(sourceId, payloadList);
+                                }
+                                
                             }
                         }
-                    }
-                    break;
+                        break;
+                    case "HTTP Method to HTTP Response":
+                        System.out.println("HTTP Method to HTTP Response source " + sourceId + " target " + targetId);
+                        //get the http method & payload object node
+                        if (httpMethodNodes.get(sourceId) != null) {
+                            // get payload object node
+                            System.out.println("HTTP Node found " + sourceId);
+                            SimpleEntry<String, ObjectNode> httpResponseNode = httpResponseNodes.get(targetId);
+                            if (httpResponseNode != null) {
+                                System.out.println("Add to responses list " + sourceId + " value " + targetId);
+                                // add to payload list
+                                if (httpMethodResponsesNodes.get(sourceId) != null) {
+                                    System.out.println("Responses list with key not null " + targetId);
+                                    httpMethodResponsesNodes.get(sourceId).add(httpResponseNode);
+                                } else {
+                                    System.out.println("Response list with key null, create " + targetId);
+                                    ArrayList<SimpleEntry<String, ObjectNode>> responseList = new ArrayList<SimpleEntry<String, ObjectNode>>();
+                                    responseList.add(httpResponseNode);
+                                    System.out.println(responseList.size());
+                                    System.out.println(responseList);
+                                    httpMethodResponsesNodes.put(sourceId, responseList);
+                                }
+                            }
+                        }
+                        break;
+                }
+
             }
 
+        } catch(Exception e) {
+            System.out.println("[Model to Swagger] Exception on process edges");
+            System.out.println(e);
         }
 
         // add info node
         rootObject.put("info", infoObject);
 
-        // ==================== PROCESS JSON OBJECT HTTP NODES ======================
-        for(Map.Entry<String, SimpleEntry<String, SimpleEntry<String, ObjectNode>>> entry: httpMethodNodes.entrySet()) {
-            // get the object node
-            String methodPath = entry.getKey();
-            SimpleEntry<String, SimpleEntry<String, ObjectNode>> methodIdToTypeNode = entry.getValue();
-            String methodId = methodIdToTypeNode.getKey();
+        //try {
+            // ==================== PROCESS JSON OBJECT HTTP NODES ======================
+            System.out.println("httpMethodNodes count " + httpMethodNodes.size());
+            System.out.println("httpMethodParameterNodes count " + httpMethodParameterNodes.size());
+            System.out.println("httpMethodResponsesNodes count " + httpMethodResponsesNodes.size());
+            
+            System.out.println("=======[Model to Swagger] Process HTTP Nodes to Json ==========");
+            for(Map.Entry<String, SimpleEntry<String, SimpleEntry<String, ObjectNode>>> entry: httpMethodNodes.entrySet()) {
+                // get the object node
+                String methodId = entry.getKey();
+                SimpleEntry<String, SimpleEntry<String, ObjectNode>> methodPathToTypeNode = entry.getValue();
+                String methodPath = methodPathToTypeNode.getKey();
 
-            SimpleEntry<String, ObjectNode> methodTypeToNode = methodIdToTypeNode.getValue();
-            String methodType = methodTypeToNode.getKey();
-            ObjectNode methodObjectNode = methodTypeToNode.getValue();
+                SimpleEntry<String, ObjectNode> methodTypeToNode = methodPathToTypeNode.getValue();
+                String methodType = methodTypeToNode.getKey();
+                ObjectNode methodObjectNode = methodTypeToNode.getValue();
 
-            // get all parameters
-            ArrayNode parameters = mapper.createArrayNode();
-            ArrayList<ObjectNode> parametersArray = httpMethodParameterNodes.get(methodId);
-            for (ObjectNode parameter: parametersArray) {
-                parameters.add(parameter);
+                System.out.println("Method id " + methodId);
+                System.out.println("Method path " + methodPath);
+                System.out.println("Method type " + methodType);
+
+                // get all parameters
+                ArrayNode parameters = mapper.createArrayNode();
+                System.out.println("Array node created");
+                System.out.println(httpMethodParameterNodes.get(methodId));
+                for(Map.Entry<String, ArrayList<ObjectNode>> entryLog: httpMethodParameterNodes.entrySet()) {
+                    System.out.println(entryLog.getKey());
+                }
+                ArrayList<ObjectNode> parametersArray = httpMethodParameterNodes.get(methodId);
+                System.out.println("parametersArray count " + parametersArray.size());
+
+                for (ObjectNode parameter: parametersArray) {
+                    System.out.println("Add to array node parameters " + methodId);
+                    parameters.add(parameter);
+                }
+                methodObjectNode.put("parameters", parameters);
+
+                // get all responses
+                ObjectNode responses = mapper.createObjectNode();
+                ArrayList<SimpleEntry<String, ObjectNode>> responsesArray = httpMethodResponsesNodes.get(methodId);
+                System.out.println("responsesArray count " + responsesArray.size());
+                
+                for (SimpleEntry<String, ObjectNode> response: responsesArray) {
+                    System.out.println("Put to object node responses " + methodId);
+                    responses.put(response.getKey(), response.getValue());
+                }
+                methodObjectNode.put("responses", responses);
+
+                // add to path map list
+                if (pathToHttpMethod.get(methodPath) != null) {
+                    pathToHttpMethod.get(methodPath).add(methodTypeToNode);
+                } else {
+                    ArrayList<SimpleEntry<String, ObjectNode>> pathList = new ArrayList<SimpleEntry<String, ObjectNode>>();
+                    pathList.add(methodTypeToNode);
+                    pathToHttpMethod.put(methodPath, pathList);
+                }            
+
             }
-            methodObjectNode.put("parameters", parameters);
+        /*} catch(Exception e) {
+            System.out.println("[Model to Swagger] Exception on json object http nodes");
+            System.out.println(e);
+        }*/
 
-            // get all responses
-            ObjectNode responses = mapper.createObjectNode();
-            ArrayList<SimpleEntry<String, ObjectNode>> responsesArray = httpMethodResponsesNodes.get(methodId);
-            for (SimpleEntry<String, ObjectNode> response: responsesArray) {
-                responses.put(response.getKey(), response.getValue());
+        try {
+            // ==================== PROCESS JSON OBJECT PATH NODES ======================
+            System.out.println("=======[Model to Swagger] Process Path Nodes to JSON ==========");
+            for(Map.Entry<String, ArrayList<SimpleEntry<String, ObjectNode>>> entry: pathToHttpMethod.entrySet()) {
+                String path = entry.getKey();
+                ObjectNode pathNode = mapper.createObjectNode();
+                ArrayList<SimpleEntry<String, ObjectNode>> methodsArray = entry.getValue();
+                for (SimpleEntry<String, ObjectNode> methodTypeAndNode: methodsArray) {
+                    String methodType = methodTypeAndNode.getKey();
+                    ObjectNode methodNode = methodTypeAndNode.getValue();
+                    pathNode.put(methodType, methodNode);
+                }
+                pathsObject.put(path, pathNode);
             }
-            methodObjectNode.put("responses", responses);
-
-            // add to path map list
-            if (pathToHttpMethod.get(methodPath) != null) {
-                pathToHttpMethod.get(methodPath).add(methodTypeToNode);
-            } else {
-                ArrayList<SimpleEntry<String, ObjectNode>> pathList = new ArrayList<SimpleEntry<String, ObjectNode>>();
-                pathList.add(methodTypeToNode);
-                pathToHttpMethod.put(methodPath, pathList);
-            }            
-
-        }
-
-        // ==================== PROCESS JSON OBJECT PATH NODES ======================
-        for(Map.Entry<String, ArrayList<SimpleEntry<String, ObjectNode>>> entry: pathToHttpMethod.entrySet()) {
-            String path = entry.getKey();
-            ObjectNode pathNode = mapper.createObjectNode();
-            ArrayList<SimpleEntry<String, ObjectNode>> methodsArray = entry.getValue();
-            for (SimpleEntry<String, ObjectNode> methodTypeAndNode: methodsArray) {
-                String methodType = methodTypeAndNode.getKey();
-                ObjectNode methodNode = methodTypeAndNode.getValue();
-                pathNode.put(methodType, methodNode);
-            }
-            pathsObject.put(path, pathNode);
+        } catch(Exception e) {
+            System.out.println("[Model to Swagger] Exception on json object path nodes");
+            System.out.println(e);
         }
 
         // add path node to root
@@ -435,6 +499,10 @@ public class MetadataDocService {
 
         ObjectNode methodObject = mapper.createObjectNode();
         methodObject.put("operationId", operationId);
+
+        if(Strings.isNullOrEmpty(path)) {
+            path = "/";
+        }
 
         // create objectnode and store in path key
         SimpleEntry<String, ObjectNode> methodTypeObject = new SimpleEntry<String, ObjectNode>(methodType, methodObject);
