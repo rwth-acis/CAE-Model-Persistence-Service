@@ -32,7 +32,7 @@ public class WireframeModel implements Serializable {
             NamedNodeMap metaAttrs = meta.getAttributes();
             id = metaAttrs.getNamedItem("id") != null ? metaAttrs.getNamedItem("id").getNodeValue() : "";
             width = metaAttrs.getNamedItem("width") != null ? metaAttrs.getNamedItem("width").getNodeValue() : "";
-            height = metaAttrs.getNamedItem("width") != null ? metaAttrs.getNamedItem("height").getNodeValue() : "";
+            height = metaAttrs.getNamedItem("height") != null ? metaAttrs.getNamedItem("height").getNodeValue() : "";
 
             //ui controls
             uiControls = new HashMap<String, UIControl>();
@@ -77,6 +77,9 @@ public class WireframeModel implements Serializable {
                     uiControl = new UIControl(id, attrs.getNamedItem("uiType").getNodeValue(), geometry, attrsToAdd);
                     if (uiParent != null)
                         uiControl.setParent(uiParent);
+                    Node label = attrs.getNamedItem("label");
+                    if(label != null)
+                        uiControl.setLabel(label.getNodeValue());
                     uiControls.put(id, uiControl);
                 }
             }

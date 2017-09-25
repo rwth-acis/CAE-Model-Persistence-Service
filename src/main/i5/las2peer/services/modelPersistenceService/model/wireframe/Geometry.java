@@ -5,38 +5,31 @@ import org.w3c.dom.Node;
 import java.io.Serializable;
 
 public class Geometry implements Serializable{
-    private int x;
-    private int y;
-    private int height;
-    private int width;
+    private String x;
+    private String y;
+    private String height;
+    private String width;
 
     Geometry(Node x, Node y, Node width, Node height){
-        this.x = convertNode(x);
-        this.y = convertNode(y);
-        this.width = convertNode(width);
-        this.height = convertNode(height);
+        this.x = x.getNodeValue();
+        this.y = y.getNodeValue();
+        this.width = width.getNodeValue();
+        this.height = height.getNodeValue();
     }
 
-    private int convertNode(Node node){
-        if(node != null){
-            return Integer.valueOf(node.getNodeValue());
-        }
-        return 0;
-    }
-
-    int getX(){
+    String getX(){
         return x;
     }
 
-    int getY(){
+    String getY(){
         return y;
     }
 
-    public int getHeight(){
+    public String getHeight(){
         return height;
     }
 
-    public int getWidth(){
+    public String getWidth(){
         return width;
     }
 }
