@@ -5,12 +5,10 @@ import java.util.ArrayList;
 public class UIControl implements Serializable {
     private String id;
     private String type;
-    private UIControl parent;
+    //private UIControl parent; //the model already contains a reference to parent with the 'hasChild'-relationship
     private Geometry geometry;
     private String label;
     private ArrayList<UIControlAttribute> attributes;
-
-
 
     UIControl(String id, String type, Geometry geometry, ArrayList<UIControlAttribute> attributes){
         this.id = id;
@@ -31,9 +29,9 @@ public class UIControl implements Serializable {
         return geometry;
     }
 
-    void setParent(UIControl parent){
+    /*void setParent(UIControl parent){
         this.parent = parent;
-    }
+    }*/
 
     public void setLabel(String label){
         this.label = label;

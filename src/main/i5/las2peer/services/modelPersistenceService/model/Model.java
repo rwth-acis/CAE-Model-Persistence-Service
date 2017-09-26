@@ -135,6 +135,23 @@ public class Model {
 			this.edges.add(new Edge(queryResult.getString(1), connection));
 		}
 		statement.close();
+
+		StringBuilder sb = new StringBuilder();
+		sb.append("select wireframeXML ")
+                .append("from `Wireframe`, `Model`, `ModelToModelAttributes`, `ModelAttributes`, `ModelToWireframe` ")
+		        .append("where `Wireframe`.`wireframeId` = `ModelToWireframe`.`wireframeId` ")
+		.append("and `ModelToWireframe`.modelId = Model.modelId ")
+		.append("and Model.modelId = ModelToModelAttributes.modelId ")
+		.append("and ModelToModelAttributes.modelAttributesName = ModelAttributes.modelName ")
+		.append("and ModelAttributes.modelName = ?;");
+
+        statement = connection.prepareStatement(sb.toString());
+        statement.setString(1, this.attributes.getName());
+        queryResult = statement.executeQuery();
+        while (queryResult.next()) {
+            this.wireframeModel = queryResult.getString(1);
+        }
+        statement.close();
 	}
 
 	/**
@@ -230,7 +247,7 @@ public class Model {
 			jsonEdges.put(this.edges.get(edgeIndex).getId(), this.edges.get(edgeIndex).toJSONObject());
 		}
 		jsonModel.put("edges", jsonEdges);
-
+        jsonModel.put("wireframe", this.getWireframeModelAsString());
 		return jsonModel;
 	}
 

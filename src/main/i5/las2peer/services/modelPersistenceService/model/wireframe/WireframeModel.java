@@ -35,11 +35,11 @@ public class WireframeModel implements Serializable {
             height = metaAttrs.getNamedItem("height") != null ? metaAttrs.getNamedItem("height").getNodeValue() : "";
 
             //ui controls
-            uiControls = new HashMap<String, UIControl>();
+            uiControls = new HashMap<>();
             NodeList uiObjs = doc.getElementsByTagName("uiObj");
             for(int i=0; i<uiObjs.getLength(); i++) {
                 Node uiObj = uiObjs.item(i);
-                ArrayList<UIControlAttribute> attrsToAdd = new ArrayList<UIControlAttribute>();
+                ArrayList<UIControlAttribute> attrsToAdd = new ArrayList<>();
 
                 NamedNodeMap attrs = uiObj.getAttributes();
                 for (int j = 0; j < uiObj.getAttributes().getLength(); j++) {
@@ -53,17 +53,17 @@ public class WireframeModel implements Serializable {
                 }
 
                 Geometry geometry = null;
-                UIControl uiParent = null;
+                //UIControl uiParent = null;
                 NodeList children = uiObj.getChildNodes();
                 for (int k = 0; k < children.getLength(); k++) {
                     Node child = children.item(k);
                     String name = child.getNodeName();
                     if (!name.equals("tagRoot")) {
-                        //Create reference to the parent
-                        Node parent = child.getAttributes().getNamedItem("parent");
+                        //Create reference to the parent, actually not necessary because of hasChild-edge
+                        /*Node parent = child.getAttributes().getNamedItem("parent");
                         if (parent != null && uiControls.containsKey(parent.getNodeValue())) {
                             uiParent = uiControls.get(parent.getNodeValue());
-                        }
+                        }*/
 
                         //Create the geometry object
                         Node geo = child.getFirstChild();
@@ -75,8 +75,8 @@ public class WireframeModel implements Serializable {
                 String id = attrs.getNamedItem("id").getNodeValue();
                 if (geometry != null) {
                     uiControl = new UIControl(id, attrs.getNamedItem("uiType").getNodeValue(), geometry, attrsToAdd);
-                    if (uiParent != null)
-                        uiControl.setParent(uiParent);
+                    //if (uiParent != null)
+                    //    uiControl.setParent(uiParent);
                     Node label = attrs.getNamedItem("label");
                     if(label != null)
                         uiControl.setLabel(label.getNodeValue());
@@ -89,13 +89,7 @@ public class WireframeModel implements Serializable {
         }
     }
 
-    public UIControl getUIControl(String id){
-        return uiControls.get(id);
-    }
 
-    public HashMap<String, UIControl> getAllElements(){
-        return uiControls;
-    }
 
     public String getId(){
         return id;
