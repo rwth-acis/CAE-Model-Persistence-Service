@@ -132,8 +132,8 @@ public class RESTResources {
 		if (!codeGenerationService.isEmpty()) {
 			try {
 				L2pLogger.logEvent(Event.SERVICE_MESSAGE, "postModel: invoking code generation service..");
-				// get metadataDoc
-				String metadataDocString = this.metadataDocService.getMetadataDocStringByComponentId(model.getAttributes().getName());
+				// get user input metadata doc if available
+				String metadataDocString = this.metadataDocService.getUserInputMetadataDocStringByComponentId(model.getAttributes().getName());
 				
 				if (metadataDocString == null)
 					metadataDocString = "";
@@ -146,6 +146,10 @@ public class RESTResources {
 				return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
 			}
 		}
+
+		// generate metadata swagger doc after model valid in code generation
+		System.out.println("[MODEL PUT] Generate model to swagger string json");
+		metadataDocService.modelToSwagger(model);
 
 		// save the model to the database
 		Connection connection = null;
@@ -384,15 +388,11 @@ public class RESTResources {
 			this.checkModel(model);
 		}
 
-		// generate metadata swagger doc
-		System.out.println("[MODEL PUT] Generate model to swagger string json");
-		metadataDocService.modelToSwagger(model);
-
 		// call code generation service
 		if (!codeGenerationService.isEmpty()) {
 			try {
 				L2pLogger.logEvent(Event.SERVICE_MESSAGE, "updateModel: invoking code generation service..");
-				String metadataDocString = this.metadataDocService.getMetadataDocStringByComponentId(model.getAttributes().getName());
+				String metadataDocString = this.metadataDocService.getUserInputMetadataDocStringByComponentId(model.getAttributes().getName());
 				
 				if (metadataDocString == null)
 					metadataDocString = "";
@@ -404,6 +404,10 @@ public class RESTResources {
 		} else {
 			return Response.serverError().entity("CodeGeneration Service not specified").build();
 		}
+
+		// generate metadata swagger doc after model valid in code generation
+		System.out.println("[MODEL PUT] Generate model to swagger string json");
+		metadataDocService.modelToSwagger(model);
 
 		// if this has thrown no exception, we can delete the "old" model
 		// and persist the new one
@@ -1232,32 +1236,6 @@ public class RESTResources {
 	}
 
 	/**
-	 * Get metadata docs in the database by id
-	 * 
-	 * @return JSON data of the list of all metadata docs
-	 */
-	@GET
-	@Path("/docs/{id}")
-	@Produces(MediaType.APPLICATION_JSON)
-	@ApiOperation(value = "Searches for all metadata doc in the database by id.", notes = "Searches for all metadata doc in the database by id.")
-	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, metadata doc found"),
-			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "No metadata doc could be found."),
-			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
-	public Response getDocById(@PathParam("id") String id) {
-		MetadataDoc doc = null;
-		ObjectMapper mapper = new ObjectMapper();
-
-		try {
-			doc = this.metadataDocService.getById(id);
-			String jsonString = mapper.writeValueAsString(doc);
-			return Response.ok(jsonString, MediaType.APPLICATION_JSON).build();
-		} catch (Exception e) {
-			this.logger.printStackTrace(e);
-			return Response.serverError().entity("Server error!").build();
-		}
-	}
-
-	/**
 	 * Get metadata docs in the database by component id
 	 * 
 	 * @return JSON data of the list of all metadata docs
@@ -1287,7 +1265,7 @@ public class RESTResources {
 	}
 
 	/**
-	 * Creates a new metadata doc.
+	 * Creates or update user input metadata doc.
 	 * 
 	 * @param inputJsonString json of the new model.
 	 * @return HttpResponse with the status
@@ -1295,7 +1273,7 @@ public class RESTResources {
 	@POST
 	@Path("/docs/")
 	@Consumes(MediaType.APPLICATION_JSON)
-	@ApiOperation(value = "Create new metadata doc.", notes = "Create new metadata doc.")
+	@ApiOperation(value = "Create or update metadata doc.", notes = "Create or update metadata doc.")
 	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_CREATED, message = "OK, model stored"),
 			@ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST, message = "Input model was not valid"),
 			@ApiResponse(code = HttpURLConnection.HTTP_CONFLICT, message = "Tried to save a model that already had a name and thus was not new"),
@@ -1304,43 +1282,14 @@ public class RESTResources {
 		ObjectMapper mapper = new ObjectMapper();
 		try {
 			MetadataDoc inputModel = mapper.readValue(inputJsonString, MetadataDoc.class);
-			this.metadataDocService.create(inputModel);
-			return Response.ok().entity("element to element model created").build();
+			this.metadataDocService.createUpdateUserGeneratedMetadata(inputModel);
+			return Response.ok().entity("Doc updated or created").build();
 		} catch (SQLException e) {
 			this.logger.printStackTrace(e);
 			return Response.serverError().entity("Could not create new metadata doc, SQL exception").build();
 		} catch (IOException e) {
 			this.logger.printStackTrace(e);
 			return Response.serverError().entity("Could not create new metadata doc, JSON not valid").build();
-		}
-	}
-
-	/**
-	 * Modify a new metadata doc.
-	 * 
-	 * @param inputJsonString json of the new model.
-	 * @return HttpResponse with the status
-	 */
-	@PUT
-	@Path("/docs/")
-	@Consumes(MediaType.APPLICATION_JSON)
-	@ApiOperation(value = "Modify metadata doc.", notes = "Modify metadata doc.")
-	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_CREATED, message = "OK, model stored"),
-			@ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST, message = "Input model was not valid"),
-			@ApiResponse(code = HttpURLConnection.HTTP_CONFLICT, message = "Tried to save a model that already had a name and thus was not new"),
-			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
-	public Response putDoc(String inputJsonString) {
-		ObjectMapper mapper = new ObjectMapper();
-		try {
-			MetadataDoc inputModel = mapper.readValue(inputJsonString, MetadataDoc.class);
-			this.metadataDocService.update(inputModel);
-			return Response.ok().entity("element to element model modified").build();
-		} catch (SQLException e) {
-			this.logger.printStackTrace(e);
-			return Response.serverError().entity("Could not modify metadata doc, SQL exception").build();
-		} catch (IOException e) {
-			this.logger.printStackTrace(e);
-			return Response.serverError().entity("Could not modify metadata doc, JSON not valid").build();
 		}
 	}
 

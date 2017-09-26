@@ -6,6 +6,7 @@ import java.util.UUID;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.HashMap;
 import java.util.Map;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -23,6 +24,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Strings;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 
@@ -49,13 +51,13 @@ public class MetadataDocService {
     private MetadataDoc mapResultSetToObject(ResultSet queryResult) throws SQLException {
         _logger.info(String.format(_logPrefix, "Mapping result set to MetadataDoc object"));
         try {
-            String id = queryResult.getString("id");
             String componentId = queryResult.getString("componentId");
             String docType = queryResult.getString("docType");
             String docString = queryResult.getString("docString");
+            String docInput = queryResult.getString("docInput");
             Date timeCreated = queryResult.getDate("timeCreated");
             Date timeEdited = queryResult.getDate("timeEdited");
-            MetadataDoc model = new MetadataDoc(id, componentId, docType, docString, timeCreated, timeEdited);
+            MetadataDoc model = new MetadataDoc(componentId, docType, docString, docInput, timeCreated, timeEdited);
             return model;
         } catch (SQLException e) {
             _logger.printStackTrace(e);
@@ -85,33 +87,6 @@ public class MetadataDocService {
         }
         
         return result;
-    }
-    
-    /**
-     * Get metadata doc by id
-     * @param queryId id of metadata doc
-     * @return founded metadata doc
-     */
-    public MetadataDoc getById(String queryId) throws SQLException {
-        try {
-            PreparedStatement sqlQuery;
-            sqlQuery = _connection.prepareStatement("SELECT * FROM MetadataDoc WHERE id = ?;");
-            sqlQuery.setString(1, queryId);
-            _logger.info(String.format(_logPrefix, "Executing GET BY ID query with id " + queryId));
-            ResultSet queryResult = sqlQuery.executeQuery();
-            if(queryResult.next()) {
-                MetadataDoc model = mapResultSetToObject(queryResult);
-                sqlQuery.close();
-                return model;
-            } else {
-            	throw new SQLException("Could not find metadata doc!");
-            }
-            
-        } catch (SQLException e) {
-            _logger.printStackTrace(e);
-        }
-        
-        return new MetadataDoc();
     }
 
     /**
@@ -154,6 +129,63 @@ public class MetadataDocService {
         }
     }
 
+    /**
+     * Get user inputted metadata doc string by component id
+     * @param queryId id of metadata doc
+     * @return founded metadata doc string
+     */
+    public String getUserInputMetadataDocStringByComponentId(String queryId) {
+        try {
+            return getByComponentId(queryId).getDocInput();
+        } catch (SQLException e) {
+            return "";
+        }
+    }
+
+    /****** CREATE UPDATE MODEL GENERATED METADATA DOC */
+    public void createUpdateModelGeneratedMetadata(String componentId, String modelGenerateMetadata, String docType) throws SQLException {
+        try {
+            PreparedStatement sqlQuery = _connection.prepareStatement(
+                    " INSERT INTO MetadataDoc(componentId, docString, docType) VALUES (?,?,?) " + 
+                    " ON DUPLICATE KEY UPDATE docString=?, docType=?");
+            sqlQuery.setString(1, componentId);
+            sqlQuery.setString(2, modelGenerateMetadata);
+            sqlQuery.setString(3, docType);
+            sqlQuery.setString(4, modelGenerateMetadata);
+            sqlQuery.setString(5, docType);
+            _logger.info(String.format(_logPrefix, "Executing model generated metadata CREATE UPDATE query"));
+            sqlQuery.executeUpdate();
+            sqlQuery.close();
+        } catch (SQLException e) {
+            _logger.printStackTrace(e);
+            throw e;
+        }
+    }
+
+    /****** CREATE UPDATE MODEL GENERATED METADATA DOC */
+    public void createUpdateUserGeneratedMetadata(MetadataDoc inputModel) throws SQLException {
+        try {
+            String componentId = inputModel.getComponentId(); 
+            String userGenerateMetadata = inputModel.getDocInput();
+            String docType = inputModel.getDocType();
+            PreparedStatement sqlQuery = _connection.prepareStatement(
+                    " INSERT INTO MetadataDoc(componentId, docInput, docType) VALUES (?,?,?) " + 
+                    " ON DUPLICATE KEY UPDATE docInput=?, docType=?");
+            sqlQuery.setString(1, componentId);
+            sqlQuery.setString(2, userGenerateMetadata);
+            sqlQuery.setString(3, docType);
+            sqlQuery.setString(4, userGenerateMetadata);
+            sqlQuery.setString(5, docType);
+            _logger.info(String.format(_logPrefix, "Executing user generated metadata CREATE UPDATE query"));
+            sqlQuery.executeUpdate();
+            sqlQuery.close();
+        } catch (SQLException e) {
+            _logger.printStackTrace(e);
+            throw e;
+        }
+    }
+
+    /****** GENERIC CREATE UPDATE METADATA DOC */
 
     /**
 	 * Insert new metadata doc
@@ -161,14 +193,12 @@ public class MetadataDocService {
 	 */
     public void create(MetadataDoc insertModel) throws SQLException {
         try {
-            String uniqueID = UUID.randomUUID().toString();
             PreparedStatement sqlQuery = _connection.prepareStatement(
-				"INSERT INTO MetadataDoc(id, componentId, docString, docType) VALUES (?,?,?,?);");
-            sqlQuery.setString(1, uniqueID);
-            sqlQuery.setString(2, insertModel.getComponentId());
-            sqlQuery.setString(3, insertModel.getDocString());
-            sqlQuery.setString(4, insertModel.getDocType());
-            _logger.info(String.format(_logPrefix, "Executing CREATE query"));
+				"INSERT INTO MetadataDoc(componentId, docString, docType) VALUES (?,?,?);");
+            sqlQuery.setString(1, insertModel.getComponentId());
+            sqlQuery.setString(2, insertModel.getDocString());
+            sqlQuery.setString(3, insertModel.getDocType());
+            _logger.info(String.format(_logPrefix, "Executing generic CREATE query"));
             sqlQuery.executeUpdate();
             sqlQuery.close();
         } catch (SQLException e) {
@@ -183,12 +213,11 @@ public class MetadataDocService {
     public void update(MetadataDoc updateModel) throws SQLException {
         try {
             PreparedStatement sqlQuery = _connection.prepareStatement(
-				"UPDATE MetadataDoc SET componentId=?, docString=?, docType=? WHERE id=?;");
-            sqlQuery.setString(1, updateModel.getComponentId());
-            sqlQuery.setString(2, updateModel.getDocString());
-            sqlQuery.setString(3, updateModel.getDocType());
-            sqlQuery.setString(4, updateModel.getId());
-            _logger.info(String.format(_logPrefix, "Executing UPDATE query for id " + updateModel.getId()));
+				"UPDATE MetadataDoc SET docString=?, docType=? WHERE componentId=?;");
+            sqlQuery.setString(3, updateModel.getComponentId());
+            sqlQuery.setString(1, updateModel.getDocString());
+            sqlQuery.setString(2, updateModel.getDocType());
+            _logger.info(String.format(_logPrefix, "Executing UPDATE query for component id " + updateModel.getComponentId()));
             sqlQuery.executeUpdate();
             sqlQuery.close();
         } catch (SQLException e) {
@@ -213,9 +242,12 @@ public class MetadataDocService {
         }
 	}
 
+    /**
+     * Convert model object to swagger json object
+     * @param model CAE model, assumed valid
+     */
     public String modelToSwagger(Model model) {
         System.out.println("========START MODEL TO SWAGGER==========");
-        String swaggerString = "";
         ObjectMapper mapper = new ObjectMapper();
 
         // maps for model to http methods, payloads, responses, path
@@ -239,7 +271,31 @@ public class MetadataDocService {
         
         // create root, restful resource node, only 1 per microservice model
         ObjectNode rootObject = mapper.createObjectNode();
+
+        // get user input metadata doc if exists
+        String modelName = model.getAttributes().getName();
+        System.out.println("===PROCESS USER INPUT METADATA DOC for " + modelName);
+        String userInputMetadataDoc = getUserInputMetadataDocStringByComponentId(modelName);
         
+        String description = "No description";
+        String version = "1.0";
+        String termsOfService = "LICENSE.txt";
+        
+        if (!Strings.isNullOrEmpty(userInputMetadataDoc)) {
+            try {
+                JsonNode metadataTree = mapper.readTree(userInputMetadataDoc);
+                // get info node
+                if (metadataTree.hasNonNull("info")) {
+                    JsonNode infoNode = metadataTree.get("info");
+                    description = infoNode.get("description").asText();
+                    version = infoNode.get("version").asText();
+                    termsOfService = infoNode.get("termsOfService").asText();
+                }
+            } catch (IOException ex) {
+                System.out.println("Exception on parsing user input metadata doc");
+            }
+        }
+
         //get basic attributes for first level
         rootObject.put("swagger", "2.0");
 
@@ -248,12 +304,12 @@ public class MetadataDocService {
         ObjectNode infoObject = mapper.createObjectNode();
         infoObject.put("title", attributes.getName());
 
-        // TODO generate this from widget
-        infoObject.put("description", "Generated description");
-        infoObject.put("version", "1.0");
+        // generated from widget
+        infoObject.put("description", description);
+        infoObject.put("version", version);
+        infoObject.put("termsOfService", termsOfService);
 
         // Fixed value
-        infoObject.put("termsOfService", "LICENSE.txt");
         rootObject.put("basePath", "/");
         ArrayNode schemes = mapper.createArrayNode();
         schemes.add("http");
@@ -302,6 +358,7 @@ public class MetadataDocService {
         } catch(Exception e) {
             System.out.println("[Model to Swagger] Exception on process nodes");
             System.out.println(e);
+            return rootObject.toString();
         }
 
         try {
@@ -374,12 +431,13 @@ public class MetadataDocService {
         } catch(Exception e) {
             System.out.println("[Model to Swagger] Exception on process edges");
             System.out.println(e);
+            return rootObject.toString();
         }
 
         // add info node
         rootObject.put("info", infoObject);
 
-        //try {
+        try {
             // ==================== PROCESS JSON OBJECT HTTP NODES ======================
             System.out.println("httpMethodNodes count " + httpMethodNodes.size());
             System.out.println("httpMethodParameterNodes count " + httpMethodParameterNodes.size());
@@ -437,10 +495,11 @@ public class MetadataDocService {
                 }            
 
             }
-        /*} catch(Exception e) {
+        } catch(Exception e) {
             System.out.println("[Model to Swagger] Exception on json object http nodes");
             System.out.println(e);
-        }*/
+            return rootObject.toString();
+        }
 
         try {
             // ==================== PROCESS JSON OBJECT PATH NODES ======================
@@ -459,6 +518,7 @@ public class MetadataDocService {
         } catch(Exception e) {
             System.out.println("[Model to Swagger] Exception on json object path nodes");
             System.out.println(e);
+            return rootObject.toString();
         }
 
         // add path node to root
@@ -469,7 +529,7 @@ public class MetadataDocService {
         System.out.println(rootObject.toString());
 
         
-        return swaggerString;
+        return rootObject.toString();
     }
 
     private SimpleEntry<String, SimpleEntry<String, ObjectNode>> nodeToHttpMethod(Node node) {

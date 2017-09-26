@@ -13,10 +13,10 @@ import java.io.IOException;
  * 
  */
 public class MetadataDoc {
-    private String id;
     private String componentId;
     private String docType;
     private String docString;
+    private String docInput;
     private Date timeCreated;
     private Date timeEdited;
     
@@ -28,7 +28,9 @@ public class MetadataDoc {
     /**
      * Constructor with values without id
      * @param componentId component id
+     * @param docType string of the component doc type
      * @param docString string of the component doc
+     * @param docInput string of the user inputted component doc
      * @param timeCreated created time
      * @param timeEdited edited time
      */
@@ -36,47 +38,16 @@ public class MetadataDoc {
         String componentId, 
         String docType,
         String docString, 
+        String docInput,
         Date timeCreated,
         Date timeEdited) {
             this.componentId = componentId;
             this.docType = docType;
             this.docString = docString;
+            this.docInput = docInput;
             this.timeCreated = timeCreated;
             this.timeEdited = timeEdited;
         }
-    
-    /**
-     * Constructor with values with id
-     * @param id
-     * @param componentId component id
-     * @param docString string of the component doc
-     * @param timeCreated created time
-     * @param timeEdited edited time
-     */
-    public MetadataDoc(
-        String id,
-        String componentId, 
-        String docType, 
-        String docString, 
-        Date timeCreated,
-        Date timeEdited) {
-            this.id = id;
-            this.componentId = componentId;
-            this.docType = docType;
-            this.docString = docString;
-            this.timeCreated = timeCreated;
-            this.timeEdited = timeEdited;
-        }
-
-    /**
-     * Get current model id
-     */
-    public String getId() {
-        return id;
-    }
-    public void setId(String id) {
-        this.id = id;
-    }
 
 	/**
      * Get component id
@@ -100,6 +71,18 @@ public class MetadataDoc {
 
     public void setDocString(String docString) {
     	this.docString = docString;
+    }
+
+    /**
+     * Get user inputted component documentation as string
+     * @return string of user inputted component documentation
+     */
+    public String getDocInput() {
+        return docInput;
+    }
+
+    public void setDocInput(String docInput) {
+    	this.docInput = docInput;
     }
 
     /**
