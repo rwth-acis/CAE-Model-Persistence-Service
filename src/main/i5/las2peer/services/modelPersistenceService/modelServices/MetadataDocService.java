@@ -17,7 +17,7 @@ import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
 import i5.las2peer.services.modelPersistenceService.model.Model;
 import i5.las2peer.services.modelPersistenceService.model.node.Node;
 import i5.las2peer.services.modelPersistenceService.model.edge.Edge;
-import i5.las2peer.services.modelPersistenceService.model.metadata.MetadataDoc;
+import i5.las2peer.services.model.metadata.MetadataDoc;
 import i5.las2peer.services.modelPersistenceService.model.modelAttributes.ModelAttributes;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -276,6 +276,7 @@ public class MetadataDocService {
         String modelName = model.getAttributes().getName();
         System.out.println("===PROCESS USER INPUT METADATA DOC for " + modelName);
         String userInputMetadataDoc = getUserInputMetadataDocStringByComponentId(modelName);
+        System.out.println(userInputMetadataDoc);
         
         String description = "No description";
         String version = "1.0";
@@ -284,6 +285,8 @@ public class MetadataDocService {
         if (!Strings.isNullOrEmpty(userInputMetadataDoc)) {
             try {
                 JsonNode metadataTree = mapper.readTree(userInputMetadataDoc);
+                System.out.println("===Parsed json ");
+                System.out.println(metadataTree);
                 // get info node
                 if (metadataTree.hasNonNull("info")) {
                     JsonNode infoNode = metadataTree.get("info");
@@ -528,6 +531,12 @@ public class MetadataDocService {
         System.out.println("================================");
         System.out.println(rootObject.toString());
 
+        // save result to database
+        try {
+            createUpdateModelGeneratedMetadata(modelName, rootObject.toString(), "json");
+        } catch (SQLException e) {
+            System.out.println(e);
+        }
         
         return rootObject.toString();
     }
