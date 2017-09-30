@@ -231,7 +231,7 @@ public class RESTResources {
 			}
 			if (modelNames.isEmpty()) {
 				L2pLogger.logEvent(Event.SERVICE_MESSAGE, "getModels: database is empty!");
-				return Response.status(404).entity("Database is empty!").build();
+				return Response.ok(new JSONArray().toJSONString(), MediaType.APPLICATION_JSON).build();
 			}
 			connection.close();
 		} catch (SQLException e) {
@@ -333,7 +333,7 @@ public class RESTResources {
 			@ApiResponse(code = HttpURLConnection.HTTP_CONFLICT, message = "Model name may not be changed"),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
 	public Response updateModel(@PathParam("modelName") String modelName, String inputModel) {
-		L2pLogger.logEvent(Event.SERVICE_MESSAGE, "updateModel: trying to update model with name: " + modelName);
+			L2pLogger.logEvent(Event.SERVICE_MESSAGE, "updateModel: trying to update model with name: " + modelName);
 		Model model;
 		// first parse the updated model and check for correctness of format
 		try {
