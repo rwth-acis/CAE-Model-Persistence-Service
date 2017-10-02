@@ -6,6 +6,7 @@ import java.util.UUID;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Iterator;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -17,7 +18,7 @@ import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
 import i5.las2peer.services.modelPersistenceService.model.Model;
 import i5.las2peer.services.modelPersistenceService.model.node.Node;
 import i5.las2peer.services.modelPersistenceService.model.edge.Edge;
-import i5.las2peer.services.model.metadata.MetadataDoc;
+import i5.las2peer.services.modelPersistenceService.model.metadata.MetadataDoc;
 import i5.las2peer.services.modelPersistenceService.model.modelAttributes.ModelAttributes;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -265,9 +266,12 @@ public class MetadataDocService {
         // maps http methods to path
         HashMap<String, ArrayList<SimpleEntry<String, ObjectNode>>> pathToHttpMethod = new HashMap<String, ArrayList<SimpleEntry<String, ObjectNode>>>();
 
-        // array nodes for consumes produces
-        ArrayList<String> consumes = new ArrayList<String>();
-        ArrayList<String> produces = new ArrayList<String>();
+        // maps for node info, only description for now
+        HashMap<String, String> nodeInformations = new HashMap<String, String>();
+
+        // method id to produces & consumes
+        HashMap<String, ArrayList<String>> methodToProduces = new HashMap<String, ArrayList<String>>();
+        HashMap<String, ArrayList<String>> methodToConsumes = new HashMap<String, ArrayList<String>>();
         
         // create root, restful resource node, only 1 per microservice model
         ObjectNode rootObject = mapper.createObjectNode();
@@ -293,6 +297,17 @@ public class MetadataDocService {
                     description = infoNode.get("description").asText();
                     version = infoNode.get("version").asText();
                     termsOfService = infoNode.get("termsOfService").asText();
+                }
+
+                // get node info nodes
+                if (metadataTree.hasNonNull("nodes")) {
+                    JsonNode nodesNode = metadataTree.get("nodes");
+                    Iterator<Map.Entry<String, JsonNode>> nodes = nodesNode.fields();
+
+                    while (nodes.hasNext()) {
+                        Map.Entry<String, JsonNode> entry = (Map.Entry<String, JsonNode>) nodes.next();
+                        nodeInformations.put(entry.getKey(), entry.getValue().get("description").asText());
+                    }
                 }
             } catch (IOException ex) {
                 System.out.println("Exception on parsing user input metadata doc");
@@ -348,11 +363,11 @@ public class MetadataDocService {
                         break;
                     case "HTTP Payload":
                         // parameters
-                        httpPayloadNodes.put(node.getId(), nodeToHttpPayload(node));
+                        httpPayloadNodes.put(node.getId(), nodeToHttpPayload(node, nodeInformations));
                         break;
                     case "HTTP Response":
                         // produces
-                        httpResponseNodes.put(node.getId(), nodeToHttpResponse(node));
+                        httpResponseNodes.put(node.getId(), nodeToHttpResponse(node, nodeInformations));
                         break;
                     default:
                         break;
@@ -386,6 +401,19 @@ public class MetadataDocService {
                             // get payload object node
                             ObjectNode httpPayloadNode = httpPayloadNodes.get(targetId);
                             if (httpPayloadNode != null) {
+                                // get parameter type for consume list
+                                String nodeType = httpPayloadNode.get("type").asText();
+                                if (methodToConsumes.get(sourceId) != null) {
+                                    System.out.println("Consumes list with key not null " + targetId);
+                                    if (!methodToConsumes.get(sourceId).contains(nodeType))
+                                        methodToConsumes.get(sourceId).add(nodeType);
+                                } else {
+                                    System.out.println("Consumes list with key null, create " + targetId);
+                                    ArrayList<String> consumesList = new ArrayList<String>();
+                                    consumesList.add(nodeType);
+                                    methodToConsumes.put(sourceId, consumesList);
+                                }
+
                                 // add to parameters list
                                 System.out.println("Add to parameters list " + sourceId + " value " + targetId);
                                 if (httpMethodParameterNodes.get(sourceId) != null) {
@@ -399,7 +427,6 @@ public class MetadataDocService {
                                     System.out.println(payloadList);
                                     httpMethodParameterNodes.put(sourceId, payloadList);
                                 }
-                                
                             }
                         }
                         break;
@@ -411,6 +438,19 @@ public class MetadataDocService {
                             System.out.println("HTTP Node found " + sourceId);
                             SimpleEntry<String, ObjectNode> httpResponseNode = httpResponseNodes.get(targetId);
                             if (httpResponseNode != null) {
+                                // get parameter type for produces list
+                                String nodeType = httpResponseNode.getValue().get("type").asText();
+                                if (methodToProduces.get(sourceId) != null) {
+                                    System.out.println("Consumes list with key not null " + targetId);
+                                    if (!methodToProduces.get(sourceId).contains(nodeType))
+                                        methodToProduces.get(sourceId).add(nodeType);
+                                } else {
+                                    System.out.println("Consumes list with key null, create " + targetId);
+                                    ArrayList<String> producesList = new ArrayList<String>();
+                                    producesList.add(nodeType);
+                                    methodToProduces.put(sourceId, producesList);
+                                }
+
                                 System.out.println("Add to responses list " + sourceId + " value " + targetId);
                                 // add to payload list
                                 if (httpMethodResponsesNodes.get(sourceId) != null) {
@@ -460,6 +500,18 @@ public class MetadataDocService {
                 System.out.println("Method id " + methodId);
                 System.out.println("Method path " + methodPath);
                 System.out.println("Method type " + methodType);
+
+                // get consumes & produces list
+                ArrayList<String> producesList = methodToProduces.get(methodId);
+                ArrayList<String> consumesList = methodToConsumes.get(methodId);
+                ArrayNode produces = mapper.createArrayNode();
+                for (String produceString: producesList)
+                    produces.add(produceString);
+                ArrayNode consumes = mapper.createArrayNode();
+                for (String consumeString: consumesList)
+                    consumes.add(consumeString);
+                methodObjectNode.put("consumes", consumes);
+                methodObjectNode.put("produces", produces);
 
                 // get all parameters
                 ArrayNode parameters = mapper.createArrayNode();
@@ -579,7 +631,7 @@ public class MetadataDocService {
         return mapObject;
     }
 
-    private ObjectNode nodeToHttpPayload(Node node) {
+    private ObjectNode nodeToHttpPayload(Node node, HashMap<String, String> nodeInformations) {
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode nodeObject = mapper.createObjectNode();
 
@@ -602,10 +654,26 @@ public class MetadataDocService {
         }
 
         nodeObject.put("name", name);
-        nodeObject.put("type", type);
+        nodeObject.put("type", TypeToOpenApiSpec(type));
         nodeObject.put("required", true);
-        nodeObject.put("description", "Parameter description " + name);
+
+        // get description from node informations
+        nodeObject.put("description", nodeInformations.get(node.getId()));
         return nodeObject;
+    }
+
+    private String TypeToOpenApiSpec(String dataType) {
+        System.out.println("[TypeToOpenAPISPEC] Process dataType : " + dataType);
+        switch (dataType) {
+            case "JSON":
+            case "application/json":
+                return "application/json";
+            case "TEXT":
+            case "string":
+                return "string";
+            default:
+                return "custom";
+        }
     }
 
     private String StatusToCode(String status) {
@@ -633,7 +701,7 @@ public class MetadataDocService {
           }
     }
 
-    private SimpleEntry<String, ObjectNode> nodeToHttpResponse(Node node) {
+    private SimpleEntry<String, ObjectNode> nodeToHttpResponse(Node node, HashMap<String, String> nodeInformations) {
         ObjectMapper mapper = new ObjectMapper();
 
         String code = "";
@@ -672,8 +740,10 @@ public class MetadataDocService {
         }
 
         ObjectNode responseObject = mapper.createObjectNode();
-        responseObject.put("type", type);
-        responseObject.put("description", "Response description " + name);
+        responseObject.put("type", TypeToOpenApiSpec(type));
+
+        // get description from node informations
+        responseObject.put("description", nodeInformations.get(node.getId()));
 
         SimpleEntry<String, ObjectNode> mapObject = new SimpleEntry<String, ObjectNode>(code, responseObject);
         return mapObject;
