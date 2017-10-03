@@ -11,10 +11,10 @@ public class Geometry implements Serializable{
     private String width;
 
     Geometry(Node x, Node y, Node width, Node height){
-        this.x = x.getNodeValue();
-        this.y = y.getNodeValue();
-        this.width = width.getNodeValue();
-        this.height = height.getNodeValue();
+        this.x = x != null  ? x.getNodeValue() : "0";
+        this.y = y != null ?  y.getNodeValue() : "0";
+        this.width  = width != null ? width.getNodeValue() : "200";
+        this.height = height != null ? height.getNodeValue() : "200";
     }
 
     String getX(){

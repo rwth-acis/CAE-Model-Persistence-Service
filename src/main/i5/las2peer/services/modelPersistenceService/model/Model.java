@@ -402,7 +402,8 @@ public class Model {
 					statement = connection.prepareStatement("DELETE FROM Wireframe WHERE wireframeId = ?;");
 					statement.setInt(1, this.wireframeId);
 					statement.executeUpdate();
-					statement.close();				}
+					statement.close();
+				}
 
 				// we got here without errors, so commit now
 				connection.commit();
