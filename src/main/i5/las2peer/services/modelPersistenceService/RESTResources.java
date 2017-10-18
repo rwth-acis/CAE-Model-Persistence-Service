@@ -208,6 +208,7 @@ public class RESTResources {
 	 *         the database is not empty) the model-list as a JSON array
 	 * 
 	 */
+
 	@SuppressWarnings("unchecked")
 	@GET
 	@Path("/models/")
@@ -224,6 +225,60 @@ public class RESTResources {
 			connection = dbm.getConnection();
 			// search for all models
 			PreparedStatement statement = connection.prepareStatement("SELECT modelName FROM ModelAttributes;");
+			L2pLogger.logEvent(Event.SERVICE_MESSAGE, "getModels: retrieving all models..");
+			ResultSet queryResult = statement.executeQuery();
+			while (queryResult.next()) {
+				modelNames.add(queryResult.getString(1));
+			}
+			if (modelNames.isEmpty()) {
+				L2pLogger.logEvent(Event.SERVICE_MESSAGE, "getModels: database is empty!");
+				return Response.ok(new JSONArray().toJSONString(), MediaType.APPLICATION_JSON).build();
+			}
+			connection.close();
+		} catch (SQLException e) {
+			L2pLogger.logEvent(Event.SERVICE_ERROR, "getModels: exception fetching model: " + e);
+			logger.printStackTrace(e);
+			return Response.serverError().entity("Database error!").build();
+		} catch (Exception e) {
+			L2pLogger.logEvent(Event.SERVICE_ERROR, "getModels: something went seriously wrong: " + e);
+			logger.printStackTrace(e);
+			return Response.serverError().entity("Server error!").build();
+		} finally {
+			try {
+				connection.close();
+			} catch (SQLException e) {
+				logger.printStackTrace(e);
+			}
+		}
+		L2pLogger.logEvent(Event.SERVICE_MESSAGE,
+				"getModels: created list of models, now converting to JSONObject and returning");
+		JSONArray jsonModelList = new JSONArray();
+		jsonModelList.addAll(modelNames);
+
+		return Response.ok(jsonModelList.toJSONString(), MediaType.APPLICATION_JSON).build();
+	}
+
+	@SuppressWarnings("unchecked")
+	@GET
+	@Path("/models/type/{modelType}")
+	@Produces(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Retrieves a list of models from the database.", notes = "Retrieves a list of all models stored in the database. Returns a list of model names.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model list is returned"),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "No models in the database"),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response getModelsByType(@PathParam("modelType") String modelType) {
+
+		ArrayList<String> modelNames = new ArrayList<String>();
+		Connection connection = null;
+		try {
+			connection = dbm.getConnection();
+			String sql = "select `ModelAttributes`.`modelName` from `AttributeToModelAttributes`, `Attribute`, `ModelAttributes`\n" +
+					"where `AttributeToModelAttributes`.`attributeId` = `Attribute`.`attributeId`\n" +
+					"and `AttributeToModelAttributes`.`modelAttributesName` = `ModelAttributes`.`modelName`\n" +
+					"and `Attribute`.`name` = 'type'\n" +
+					"and `Attribute`.`value` = '" + modelType + "';";
+			// search for all models
+			PreparedStatement statement = connection.prepareStatement(sql);
 			L2pLogger.logEvent(Event.SERVICE_MESSAGE, "getModels: retrieving all models..");
 			ResultSet queryResult = statement.executeQuery();
 			while (queryResult.next()) {

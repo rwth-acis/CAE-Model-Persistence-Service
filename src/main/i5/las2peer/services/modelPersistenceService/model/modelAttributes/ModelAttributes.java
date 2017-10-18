@@ -39,13 +39,13 @@ public class ModelAttributes {
 		// that was just ugly. however the other model types (microservice, application) still use the label
 		// but also the other models should use the name attribute in modelAttributes
 		// for now we just stay with this work around
-		String type = ((String)((JSONObject)((JSONObject)((JSONObject)jsonModelAttribute.get("attributes"))
-				.get("modelAttributes[type]")).get("value")).get("value"));
-		if(type.equals("frontend-component"))
-			this.name = ((String)((JSONObject)((JSONObject)((JSONObject)jsonModelAttribute.get("attributes"))
-					.get("modelAttributes[name]")).get("value")).get("value"));
-		else this.name = (String) ((JSONObject) ((JSONObject) jsonModelAttribute.get("label")).get("value")).get("value");
-
+		try {
+			this.name = ((String) ((JSONObject) ((JSONObject) ((JSONObject) jsonModelAttribute.get("attributes"))
+						.get("modelAttributes[name]")).get("value")).get("value"));
+		}
+		catch (Exception e) {
+			this.name = (String) ((JSONObject) ((JSONObject) jsonModelAttribute.get("label")).get("value")).get("value");
+		}
 		// parse attributes
 		JSONObject jsonAttributes = (JSONObject) jsonModelAttribute.get("attributes");
 		this.attributes = new ArrayList<EntityAttribute>(jsonAttributes.size());
