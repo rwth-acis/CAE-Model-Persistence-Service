@@ -32,8 +32,8 @@ import i5.cae.simpleModel.SimpleEntityAttribute;
 import i5.cae.simpleModel.SimpleModel;
 import i5.cae.simpleModel.node.SimpleNode;
 import i5.las2peer.api.Context;
+import i5.las2peer.api.ManualDeployment;
 import i5.las2peer.logging.L2pLogger;
-import i5.las2peer.logging.NodeObserver.Event;
 import i5.las2peer.restMapper.RESTService;
 import i5.las2peer.restMapper.annotations.ServicePath;
 import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
@@ -64,6 +64,7 @@ import io.swagger.util.Json;
 @Api
 @SwaggerDefinition(info = @Info(title = "CAE Model Persistence Service", version = "0.1", description = "A LAS2peer service used for persisting (and validating) application models. Part of the CAE.", termsOfService = "none", contact = @Contact(name = "Peter de Lange", url = "https://github.com/PedeLa/", email = "lange@dbis.rwth-aachen.de"), license = @License(name = "BSD", url = "https://github.com/PedeLa/CAE-Model-Persistence-Service//blob/master/LICENSE.txt")))
 @ServicePath("CAE")
+@ManualDeployment
 public class ModelPersistenceService extends RESTService {
 
 	/*
@@ -94,10 +95,6 @@ public class ModelPersistenceService extends RESTService {
 	@Override
 	protected void initResources() {
 		getResourceConfig().register(RESTResources.class);
-	}
-	
-	public L2pLogger getLogger() {
-		return logger;
 	}
 	
 	public String getSemanticCheckService() {
