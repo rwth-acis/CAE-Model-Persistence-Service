@@ -6,6 +6,7 @@ import static org.junit.Assert.fail;
 import java.io.ByteArrayOutputStream;
 import java.io.FileReader;
 import java.io.PrintStream;
+import java.net.URL;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.util.HashMap;
@@ -196,7 +197,7 @@ public class ModelPersistenceServiceTest {
 
 		JSONObject payload = null;
 		MiniClient c = new MiniClient();
-		c.setAddressPort(HTTP_ADDRESS, HTTP_PORT);
+		c.setConnectorEndpoint(HTTP_ADDRESS+":"+HTTP_PORT);
 
 		// read in (test-)model
 		try {
@@ -240,7 +241,7 @@ public class ModelPersistenceServiceTest {
 
 		JSONObject payload = null;
 		MiniClient c = new MiniClient();
-		c.setAddressPort(HTTP_ADDRESS, HTTP_PORT);
+		c.setConnectorEndpoint(HTTP_ADDRESS+":"+HTTP_PORT);
 
 		// persist (test-)model first
 		try {
@@ -284,7 +285,7 @@ public class ModelPersistenceServiceTest {
 	public void testModelRetrieving() {
 
 		MiniClient c = new MiniClient();
-		c.setAddressPort(HTTP_ADDRESS, HTTP_PORT);
+		c.setConnectorEndpoint(HTTP_ADDRESS+":"+HTTP_PORT);
 
 		// test method
 		try {
@@ -309,7 +310,7 @@ public class ModelPersistenceServiceTest {
 	public void testModelListRetrieving() {
 
 		MiniClient c = new MiniClient();
-		c.setAddressPort(HTTP_ADDRESS, HTTP_PORT);
+		c.setConnectorEndpoint(HTTP_ADDRESS+":"+HTTP_PORT);
 
 		// test method
 		try {
@@ -335,7 +336,7 @@ public class ModelPersistenceServiceTest {
 
 		JSONObject payload = testModel1_updated.toJSONObject();
 		MiniClient c = new MiniClient();
-		c.setAddressPort(HTTP_ADDRESS, HTTP_PORT);
+		c.setConnectorEndpoint(HTTP_ADDRESS+":"+HTTP_PORT);
 
 		// test method
 		try {
