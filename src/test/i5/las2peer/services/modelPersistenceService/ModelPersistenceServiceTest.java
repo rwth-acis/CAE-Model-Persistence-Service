@@ -6,6 +6,7 @@ import static org.junit.Assert.fail;
 import java.io.ByteArrayOutputStream;
 import java.io.FileReader;
 import java.io.PrintStream;
+import java.net.URL;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.util.HashMap;
@@ -20,15 +21,16 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import i5.las2peer.p2p.LocalNode;
-import i5.las2peer.p2p.ServiceNameVersion;
-import i5.las2peer.security.ServiceAgent;
-import i5.las2peer.security.UserAgent;
+import i5.las2peer.p2p.LocalNodeManager;
+import i5.las2peer.api.p2p.ServiceNameVersion;
+import i5.las2peer.security.ServiceAgentImpl;
+import i5.las2peer.security.UserAgentImpl;
 import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
 import i5.las2peer.services.modelPersistenceService.model.Model;
 import i5.las2peer.testing.MockAgentFactory;
-import i5.las2peer.webConnector.WebConnector;
-import i5.las2peer.webConnector.client.ClientResponse;
-import i5.las2peer.webConnector.client.MiniClient;
+import i5.las2peer.connectors.webConnector.WebConnector;
+import i5.las2peer.connectors.webConnector.client.ClientResponse;
+import i5.las2peer.connectors.webConnector.client.MiniClient;
 
 /**
  * 
@@ -45,7 +47,7 @@ public class ModelPersistenceServiceTest {
 	private static WebConnector connector;
 	private static ByteArrayOutputStream logStream;
 
-	private static UserAgent testAgent;
+	private static UserAgentImpl testAgent;
 	private static final String testPass = "adamspass";
 
 	private static final ServiceNameVersion testTemplateService = new ServiceNameVersion(
@@ -122,15 +124,15 @@ public class ModelPersistenceServiceTest {
 		connection.commit();
 
 		// start node
-		node = LocalNode.newNode();
+		node = new LocalNodeManager().newNode();
 		testAgent = MockAgentFactory.getAdam();
-		testAgent.unlockPrivateKey(testPass); // agent must be unlocked in order
+		testAgent.unlock(testPass); // agent must be unlocked in order
 												// to be stored
 		node.storeAgent(testAgent);
 		node.launch();
 
-		ServiceAgent testService = ServiceAgent.createServiceAgent(testTemplateService, "a pass");
-		testService.unlockPrivateKey("a pass");
+		ServiceAgentImpl testService = ServiceAgentImpl.createServiceAgent(testTemplateService, "a pass");
+		testService.unlock("a pass");
 
 		node.registerReceiver(testService);
 
@@ -178,8 +180,6 @@ public class ModelPersistenceServiceTest {
 		connector = null;
 		node = null;
 
-		LocalNode.reset();
-
 		System.out.println("Connector-Log:");
 		System.out.println("--------------");
 
@@ -197,7 +197,7 @@ public class ModelPersistenceServiceTest {
 
 		JSONObject payload = null;
 		MiniClient c = new MiniClient();
-		c.setAddressPort(HTTP_ADDRESS, HTTP_PORT);
+		c.setConnectorEndpoint(HTTP_ADDRESS+":"+HTTP_PORT);
 
 		// read in (test-)model
 		try {
@@ -213,8 +213,7 @@ public class ModelPersistenceServiceTest {
 
 		// test method
 		try {
-			c.setLogin(Long.toString(testAgent.getId()), testPass);
-			@SuppressWarnings("unchecked")
+			c.setLogin(testAgent.getIdentifier(), testPass);
 			ClientResponse result = c.sendRequest("POST", mainPath + "", payload.toJSONString(),
 					MediaType.APPLICATION_JSON, "", new HashMap<>());
 			assertEquals(201, result.getHttpCode());
@@ -237,13 +236,12 @@ public class ModelPersistenceServiceTest {
 	 * 
 	 */
 
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testModelDeletion() {
 
 		JSONObject payload = null;
 		MiniClient c = new MiniClient();
-		c.setAddressPort(HTTP_ADDRESS, HTTP_PORT);
+		c.setConnectorEndpoint(HTTP_ADDRESS+":"+HTTP_PORT);
 
 		// persist (test-)model first
 		try {
@@ -261,7 +259,7 @@ public class ModelPersistenceServiceTest {
 
 		// test method
 		try {
-			c.setLogin(Long.toString(testAgent.getId()), testPass);
+			c.setLogin(testAgent.getIdentifier(), testPass);
 			ClientResponse result = c.sendRequest("DELETE", mainPath + "Third%20Model", "", MediaType.TEXT_PLAIN, "",
 					new HashMap<>());
 			assertEquals(200, result.getHttpCode());
@@ -287,12 +285,11 @@ public class ModelPersistenceServiceTest {
 	public void testModelRetrieving() {
 
 		MiniClient c = new MiniClient();
-		c.setAddressPort(HTTP_ADDRESS, HTTP_PORT);
+		c.setConnectorEndpoint(HTTP_ADDRESS+":"+HTTP_PORT);
 
 		// test method
 		try {
-			c.setLogin(Long.toString(testAgent.getId()), testPass);
-			@SuppressWarnings("unchecked")
+			c.setLogin(testAgent.getIdentifier(), testPass);
 			ClientResponse result = c.sendRequest("GET", mainPath + "First%20Model", "", MediaType.TEXT_PLAIN,
 					MediaType.APPLICATION_JSON, new HashMap<>());
 			assertEquals(200, result.getHttpCode());
@@ -313,12 +310,11 @@ public class ModelPersistenceServiceTest {
 	public void testModelListRetrieving() {
 
 		MiniClient c = new MiniClient();
-		c.setAddressPort(HTTP_ADDRESS, HTTP_PORT);
+		c.setConnectorEndpoint(HTTP_ADDRESS+":"+HTTP_PORT);
 
 		// test method
 		try {
-			c.setLogin(Long.toString(testAgent.getId()), testPass);
-			@SuppressWarnings("unchecked")
+			c.setLogin(testAgent.getIdentifier(), testPass);
 			ClientResponse result = c.sendRequest("GET", mainPath, "");
 			assertEquals(200, result.getHttpCode());
 			System.out.println("Result of 'testModelListRetrieving': " + result.getResponse().trim());
@@ -340,12 +336,11 @@ public class ModelPersistenceServiceTest {
 
 		JSONObject payload = testModel1_updated.toJSONObject();
 		MiniClient c = new MiniClient();
-		c.setAddressPort(HTTP_ADDRESS, HTTP_PORT);
+		c.setConnectorEndpoint(HTTP_ADDRESS+":"+HTTP_PORT);
 
 		// test method
 		try {
-			c.setLogin(Long.toString(testAgent.getId()), testPass);
-			@SuppressWarnings("unchecked")
+			c.setLogin(testAgent.getIdentifier(), testPass);
 			ClientResponse result = c.sendRequest("PUT", mainPath + "First%20Model", payload.toJSONString(),
 					MediaType.APPLICATION_JSON, "", new HashMap<>());
 			assertEquals(200, result.getHttpCode());
