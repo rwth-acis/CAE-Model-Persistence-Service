@@ -78,6 +78,7 @@ public class ModelPersistenceService extends RESTService {
 	private String jdbcSchema;
 	private String semanticCheckService = "";
 	private String codeGenerationService = "";
+	private String deploymentUrl = "";
 	private DatabaseManager dbm;
 
 	private ComponentService componentService;
@@ -120,6 +121,10 @@ public class ModelPersistenceService extends RESTService {
 	
 	public String getCodeGenerationService() {
 		return codeGenerationService;
+	}
+
+	public String getDeploymentUrl() {
+		return deploymentUrl;
 	}
 	
 	public DatabaseManager getDbm(){

@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Iterator;
 import java.io.IOException;
+import java.net.URL;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -56,9 +57,11 @@ public class MetadataDocService {
             String docType = queryResult.getString("docType");
             String docString = queryResult.getString("docString");
             String docInput = queryResult.getString("docInput");
+            String urlDeployed = queryResult.getString("urlDeployed");
             Date timeCreated = queryResult.getDate("timeCreated");
             Date timeEdited = queryResult.getDate("timeEdited");
-            MetadataDoc model = new MetadataDoc(componentId, docType, docString, docInput, timeCreated, timeEdited);
+            Date timeDeployed = queryResult.getDate("timeDeployed");
+            MetadataDoc model = new MetadataDoc(componentId, docType, docString, docInput, urlDeployed, timeCreated, timeEdited, timeDeployed);
             return model;
         } catch (SQLException e) {
             System.out.println("[mapResultSetToObject] Exception on mapping");
@@ -189,6 +192,57 @@ public class MetadataDocService {
         }
     }
 
+    public void updateDeploymentDetails(Model model, String urlDeployed) throws SQLException {
+        try {
+            System.out.println("========START updateDeploymentDetails==========");
+            System.out.println(urlDeployed);
+            // check for model type
+            String modelType = null;
+            ArrayList<EntityAttribute> modelAttributes = model.getAttributes().getAttributes();
+            for (EntityAttribute modelAttribute: modelAttributes) {
+                if (modelAttribute.getName().equals("type")) {
+                    modelType = modelAttribute.getValue();
+                }
+            }
+
+            System.out.println("======MODEL TYPE : " + modelType);
+            if (modelType.equals("application")) {
+
+                ArrayList<Node> appNodes = model.getNodes();
+                for (Node appNode: appNodes) {
+                    // check for node name
+                    String componentId = null;
+                    ArrayList<EntityAttribute> nodeAttributes = appNode.getAttributes();
+                    for (EntityAttribute nodeAttribute: nodeAttributes) {
+                        System.out.println(nodeAttribute.getName());
+                        System.out.println(nodeAttribute.getValue());
+
+                        if (nodeAttribute.getName().equals("label")) {
+                            componentId = nodeAttribute.getValue();
+                            System.out.println("======COMPONENT NAME : " + componentId);
+                        }
+                    }
+
+                    if (componentId != null) {
+                        PreparedStatement sqlQuery = _connection.prepareStatement(
+                            " UPDATE MetadataDoc SET urlDeployed=?, timeDeployed=NOW() " + 
+                            " WHERE componentId=? ");
+                        sqlQuery.setString(1, urlDeployed);
+                        sqlQuery.setString(2, componentId);
+
+                        _logger.info(String.format(_logPrefix, "Executing update deployment query"));
+                        sqlQuery.executeUpdate();
+                        sqlQuery.close();
+                    }
+                }
+            }
+            
+        } catch (SQLException e) {
+            _logger.printStackTrace(e);
+            throw e;
+        }
+    }
+
     /****** GENERIC CREATE UPDATE METADATA DOC */
 
     /**
@@ -252,6 +306,27 @@ public class MetadataDocService {
      */
     public String modelToSwagger(Model model) {
         System.out.println("========START MODEL TO SWAGGER==========");
+        // check for model type
+        String modelType = null;
+        ArrayList<EntityAttribute> modelAttributes = model.getAttributes().getAttributes();
+        for (EntityAttribute modelAttribute: modelAttributes) {
+            if (modelAttribute.getName().equals("type")) {
+                modelType = modelAttribute.getValue();
+            }
+        }
+
+        System.out.println("======MODEL TYPE : " + modelType);
+        
+        if (modelType.equals("microservice")) {
+            return microserviceToSwagger(model);
+        } else {
+            return "{}";
+        }
+    }
+
+    private String microserviceToSwagger(Model model) {
+
+        System.out.println("========START MICROSERVICE TO SWAGGER==========");
         ObjectMapper mapper = new ObjectMapper();
 
         // maps for model to http methods, payloads, responses, path
@@ -345,7 +420,6 @@ public class MetadataDocService {
         infoObject.put("termsOfService", termsOfService);
 
         // Fixed value
-        rootObject.put("basePath", "/");
         ArrayNode schemes = mapper.createArrayNode();
         schemes.add("http");
         rootObject.put("schemes", schemes);
@@ -363,7 +437,11 @@ public class MetadataDocService {
                         for(EntityAttribute attribute: restAttributes) {
                             switch(attribute.getName()) {
                                 case "path":
-                                    rootObject.put("host", attribute.getValue().replace("http://", ""));
+                                    String urlPath = attribute.getValue();
+                                    // get host
+                                    URL urlObject = new URL(urlPath);
+                                    rootObject.put("host", urlObject.getHost().replace("http://", ""));
+                                    rootObject.put("basePath", urlObject.getPath());
                                     break;
                                 case "developer":
                                     ObjectNode contactNode = mapper.createObjectNode();
@@ -543,12 +621,27 @@ public class MetadataDocService {
                 // get consumes & produces list
                 ArrayList<String> producesList = methodToProduces.get(methodId);
                 ArrayList<String> consumesList = methodToConsumes.get(methodId);
+
+                if (producesList == null)
+                    producesList = new ArrayList<String>();
+                if (consumesList == null)
+                    consumesList = new ArrayList<String>();
+                System.out.println("Process produces and consumes");
+                System.out.println(producesList.size());
+                System.out.println(consumesList.size());
+
                 ArrayNode produces = mapper.createArrayNode();
-                for (String produceString: producesList)
+                for (String produceString: producesList) {
+                    System.out.println(produceString);
                     produces.add(produceString);
+                }
+                
                 ArrayNode consumes = mapper.createArrayNode();
-                for (String consumeString: consumesList)
+                for (String consumeString: consumesList) {
+                    System.out.println(consumeString);
                     consumes.add(consumeString);
+                }
+                    
                 methodObjectNode.put("consumes", consumes);
                 methodObjectNode.put("produces", produces);
 
@@ -592,6 +685,7 @@ public class MetadataDocService {
         } catch(Exception e) {
             System.out.println("[Model to Swagger] Exception on json object http nodes");
             System.out.println(e);
+            e.printStackTrace(System.out);
             return rootObject.toString();
         }
 
@@ -651,6 +745,10 @@ public class MetadataDocService {
                     break;
                 case "path":
                     path = attribute.getValue();
+                    // check if begin with "/", if not, add
+                    if (!path.startsWith("/")) {
+                        path = "/" + path;
+                    }
                     break;
                 default:
                     break;

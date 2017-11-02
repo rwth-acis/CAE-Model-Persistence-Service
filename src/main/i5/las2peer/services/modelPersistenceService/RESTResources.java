@@ -50,7 +50,7 @@ import io.swagger.annotations.ApiResponses;
 import io.swagger.jaxrs.Reader;
 import io.swagger.models.Swagger;
 import io.swagger.util.Json;
-
+import jdk.nashorn.internal.runtime.regexp.joni.ast.Node;
 import i5.las2peer.services.modelPersistenceService.model.metadata.ComponentToComponent;
 import i5.las2peer.services.modelPersistenceService.model.metadata.ElementToElement;
 import i5.las2peer.services.modelPersistenceService.model.metadata.MetadataDoc;
@@ -64,6 +64,7 @@ public class RESTResources {
 	private L2pLogger logger;
 	private String semanticCheckService;
 	private String codeGenerationService;
+	private String deploymentUrl;
 	private DatabaseManager dbm;
 
 	private ComponentService componentService;
@@ -74,6 +75,7 @@ public class RESTResources {
 		this.logger = service.getLogger();
 		this.semanticCheckService = service.getSemanticCheckService();
 		this.codeGenerationService = service.getCodeGenerationService();
+		this.deploymentUrl = service.getDeploymentUrl();
 		this.dbm = service.getDbm();
 		this.componentService = service.getComponentService();
 		this.elementService = service.getElementService();
@@ -133,7 +135,7 @@ public class RESTResources {
 			try {
 				L2pLogger.logEvent(Event.SERVICE_MESSAGE, "postModel: invoking code generation service..");
 				// get user input metadata doc if available
-				String metadataDocString = this.metadataDocService.getUserInputMetadataDocStringByComponentId(model.getAttributes().getName());
+				String metadataDocString = model.getMetadataDoc();
 				
 				if (metadataDocString == null)
 					metadataDocString = "";
@@ -548,6 +550,11 @@ public class RESTResources {
 						"i5.las2peer.services.codeGenerationService.CodeGenerationService@0.1", "startJenkinsJob",
 						jobAlias);
 
+				// safe deployment time and url
+				System.out.println("DEPLOYMENT URL: " + deploymentUrl);
+				if(!deploymentUrl.isEmpty())
+					metadataDocService.updateDeploymentDetails(model, deploymentUrl);
+
 				return Response.ok(answer).build();
 			} catch (CGSInvocationException e) {
 				return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
@@ -783,8 +790,14 @@ public class RESTResources {
 		}
 		// actual invocation
 		try {
-			Serializable[] payload = { metadataDoc, modelsToSend };
-			String answer = (String) Context.getCurrent().invoke(codeGenerationService, methodName, payload);
+			String answer = "";
+			if (metadataDoc.equals("") && !methodName.equals("updateRepositoryOfModel")) {
+				Serializable[] payload = { modelsToSend };
+				answer = (String) Context.getCurrent().invoke(codeGenerationService, methodName, payload);
+			} else {
+				Serializable[] payload = { metadataDoc, modelsToSend };
+				answer = (String) Context.getCurrent().invoke(codeGenerationService, methodName, payload);
+			}
 			if (!answer.equals("done")) {
 				throw new CGSInvocationException(answer);
 			}

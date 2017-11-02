@@ -17,8 +17,10 @@ public class MetadataDoc {
     private String docType;
     private String docString;
     private String docInput;
+    private String urlDeployed;
     private Date timeCreated;
     private Date timeEdited;
+    private Date timeDeployed;
     
     /**
      * Default empty object constructor
@@ -47,6 +49,27 @@ public class MetadataDoc {
             this.docInput = docInput;
             this.timeCreated = timeCreated;
             this.timeEdited = timeEdited;
+            this.timeDeployed = null;
+            this.urlDeployed = null;
+        }
+
+        public MetadataDoc(
+        String componentId, 
+        String docType,
+        String docString, 
+        String docInput,
+        String urlDeployed,
+        Date timeCreated,
+        Date timeEdited,
+        Date timeDeployed) {
+            this.componentId = componentId;
+            this.docType = docType;
+            this.docString = docString;
+            this.docInput = docInput;
+            this.timeCreated = timeCreated;
+            this.timeEdited = timeEdited;
+            this.timeDeployed = timeDeployed;
+            this.urlDeployed = urlDeployed;
         }
 
 	/**
@@ -86,6 +109,18 @@ public class MetadataDoc {
     }
 
     /**
+     * Get component deployed url as string
+     * @return string of component's deployed url
+     */
+    public String getUrlDeployed() {
+        return urlDeployed;
+    }
+
+    public void setUrlDeployed(String urlDeployed) {
+    	this.urlDeployed = urlDeployed;
+    }
+
+    /**
      * Get component documentation type (JSON or YAML)
      * @return string of component type
      */
@@ -119,5 +154,17 @@ public class MetadataDoc {
 
     public void setTimeEdited(Date timeEdited) {
         this.timeEdited = timeEdited;
+    }
+
+    /**
+     * Get deployed time
+     * @return deployed time date
+     */
+    public Date getTimeDeployed() {
+    	return timeDeployed;
+    }
+
+    public void setTimeDeployed(Date timeDeployed) {
+        this.timeDeployed = timeDeployed;
     }
 }
