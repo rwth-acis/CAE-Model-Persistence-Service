@@ -61,7 +61,8 @@ public class MetadataDocService {
             Date timeCreated = queryResult.getDate("timeCreated");
             Date timeEdited = queryResult.getDate("timeEdited");
             Date timeDeployed = queryResult.getDate("timeDeployed");
-            MetadataDoc model = new MetadataDoc(componentId, docType, docString, docInput, urlDeployed, timeCreated, timeEdited, timeDeployed);
+            int version = queryResult.getInt("version");
+            MetadataDoc model = new MetadataDoc(componentId, docType, docString, docInput, urlDeployed, timeCreated, timeEdited, timeDeployed, version);
             return model;
         } catch (SQLException e) {
             System.out.println("[mapResultSetToObject] Exception on mapping");
@@ -104,9 +105,38 @@ public class MetadataDocService {
         System.out.println("[getByComponentId] Start");
         try {
             PreparedStatement sqlQuery;
-            sqlQuery = _connection.prepareStatement("SELECT * FROM MetadataDoc WHERE componentId = ?;");
+            sqlQuery = _connection.prepareStatement("SELECT * FROM MetadataDoc WHERE componentId = ? ORDER BY timeEdited DESC LIMIT 1;");
             sqlQuery.setString(1, queryId);
             _logger.info(String.format(_logPrefix, "Executing GET BY ID query with componentId " + queryId));
+            ResultSet queryResult = sqlQuery.executeQuery();
+            if(queryResult.next()) {
+                MetadataDoc model = mapResultSetToObject(queryResult);
+                sqlQuery.close();
+                return model;
+            } else {
+            	throw new SQLException("Could not find metadata doc!");
+            }
+            
+        } catch (SQLException e) {
+            _logger.printStackTrace(e);
+        }
+        
+        return new MetadataDoc();
+    }
+
+        /**
+     * Get metadata doc connection by component id
+     * @param queryId id of metadata doc
+     * @return founded metadata doc
+     */
+    public MetadataDoc getByComponentIdVersion(String queryId, int version) throws SQLException {
+        System.out.println("[getByComponentIdVersion] Start");
+        try {
+            PreparedStatement sqlQuery;
+            sqlQuery = _connection.prepareStatement("SELECT * FROM MetadataDoc WHERE componentId = ? AND version = ? ORDER BY timeEdited DESC LIMIT 1;");
+            sqlQuery.setString(1, queryId);
+            sqlQuery.setInt(2, version);
+            _logger.info(String.format(_logPrefix, "Executing GET BY ID query with componentId " + queryId + " and version " + version));
             ResultSet queryResult = sqlQuery.executeQuery();
             if(queryResult.next()) {
                 MetadataDoc model = mapResultSetToObject(queryResult);
@@ -150,16 +180,17 @@ public class MetadataDocService {
     }
 
     /****** CREATE UPDATE MODEL GENERATED METADATA DOC */
-    public void createUpdateModelGeneratedMetadata(String componentId, String modelGenerateMetadata, String docType) throws SQLException {
+    public void createUpdateModelGeneratedMetadata(String componentId, String modelGenerateMetadata, String docType, int version) throws SQLException {
         try {
             PreparedStatement sqlQuery = _connection.prepareStatement(
-                    " INSERT INTO MetadataDoc(componentId, docString, docType) VALUES (?,?,?) " + 
+                    " INSERT INTO MetadataDoc(componentId, docString, docType, version) VALUES (?,?,?,?) " + 
                     " ON DUPLICATE KEY UPDATE docString=?, docType=?");
             sqlQuery.setString(1, componentId);
             sqlQuery.setString(2, modelGenerateMetadata);
             sqlQuery.setString(3, docType);
-            sqlQuery.setString(4, modelGenerateMetadata);
-            sqlQuery.setString(5, docType);
+            sqlQuery.setInt(4, version);
+            sqlQuery.setString(5, modelGenerateMetadata);
+            sqlQuery.setString(6, docType);
             _logger.info(String.format(_logPrefix, "Executing model generated metadata CREATE UPDATE query"));
             sqlQuery.executeUpdate();
             sqlQuery.close();
@@ -170,19 +201,21 @@ public class MetadataDocService {
     }
 
     /****** CREATE UPDATE MODEL GENERATED METADATA DOC */
-    public void createUpdateUserGeneratedMetadata(MetadataDoc inputModel) throws SQLException {
+    public void createUpdateUserGeneratedMetadata(MetadataDoc inputModel, int version) throws SQLException {
         try {
+            System.out.println("[createUpdateUserGeneratedMetadata] VERSION " + Integer.toString(version));
             String componentId = inputModel.getComponentId(); 
             String userGenerateMetadata = inputModel.getDocInput();
             String docType = inputModel.getDocType();
             PreparedStatement sqlQuery = _connection.prepareStatement(
-                    " INSERT INTO MetadataDoc(componentId, docInput, docType) VALUES (?,?,?) " + 
+                    " INSERT INTO MetadataDoc(componentId, docInput, docType, version) VALUES (?,?,?,?) " + 
                     " ON DUPLICATE KEY UPDATE docInput=?, docType=?");
             sqlQuery.setString(1, componentId);
             sqlQuery.setString(2, userGenerateMetadata);
             sqlQuery.setString(3, docType);
-            sqlQuery.setString(4, userGenerateMetadata);
-            sqlQuery.setString(5, docType);
+            sqlQuery.setInt(4, version);
+            sqlQuery.setString(5, userGenerateMetadata);
+            sqlQuery.setString(6, docType);
             _logger.info(String.format(_logPrefix, "Executing user generated metadata CREATE UPDATE query"));
             sqlQuery.executeUpdate();
             sqlQuery.close();
@@ -308,23 +341,28 @@ public class MetadataDocService {
         System.out.println("========START MODEL TO SWAGGER==========");
         // check for model type
         String modelType = null;
+        int componentVersion = 1;
         ArrayList<EntityAttribute> modelAttributes = model.getAttributes().getAttributes();
         for (EntityAttribute modelAttribute: modelAttributes) {
             if (modelAttribute.getName().equals("type")) {
                 modelType = modelAttribute.getValue();
+            }
+
+            if (modelAttribute.getName().equals("version")) {
+                componentVersion = Integer.parseInt(modelAttribute.getValue());
             }
         }
 
         System.out.println("======MODEL TYPE : " + modelType);
         
         if (modelType.equals("microservice")) {
-            return microserviceToSwagger(model);
+            return microserviceToSwagger(model, componentVersion);
         } else {
             return "{}";
         }
     }
 
-    private String microserviceToSwagger(Model model) {
+    private String microserviceToSwagger(Model model, int componentVersion) {
 
         System.out.println("========START MICROSERVICE TO SWAGGER==========");
         ObjectMapper mapper = new ObjectMapper();
@@ -718,7 +756,7 @@ public class MetadataDocService {
 
         // save result to database
         try {
-            createUpdateModelGeneratedMetadata(modelName, rootObject.toString(), "json");
+            createUpdateModelGeneratedMetadata(modelName, rootObject.toString(), "json", componentVersion);
         } catch (SQLException e) {
             System.out.println(e);
         }

@@ -709,7 +709,7 @@ public class RESTResources {
 			metadataDoc = "";
 		
 		System.out.println("====METADATA DOC CHECK CALL CODE GENERATION SERVICE");
-		//System.out.println(metadataDoc);
+		System.out.println(metadataDoc);
 
 		Connection connection = null;
 		Serializable[] modelsToSend = null;
@@ -791,7 +791,7 @@ public class RESTResources {
 		// actual invocation
 		try {
 			String answer = "";
-			if (metadataDoc.equals("") && !methodName.equals("updateRepositoryOfModel")) {
+			if (!methodName.equals("updateRepositoryOfModel") && !methodName.equals("createFromModel")) {
 				Serializable[] payload = { modelsToSend };
 				answer = (String) Context.getCurrent().invoke(codeGenerationService, methodName, payload);
 			} else {
@@ -1278,24 +1278,53 @@ public class RESTResources {
 	}
 
 	/**
+	 * Get metadata docs in the database by component id
+	 * 
+	 * @return JSON data of the list of all metadata docs
+	 */
+	@GET
+	@Path("/docs/component/{id}/{version}")
+	@Produces(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Searches for all metadata doc in the database by component id.", notes = "Searches for all metadata doc in the database by component id.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, metadata doc found"),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "No metadata doc could be found."),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response getDocByComponentIdVersion(@PathParam("id") String id, @PathParam("version") int version) {
+		MetadataDoc doc = null;
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+			doc = this.metadataDocService.getByComponentIdVersion(id, version);
+			String jsonString = mapper.writeValueAsString(doc);
+			return Response.ok(jsonString, MediaType.APPLICATION_JSON).build();
+		} catch (SQLException e) {
+			this.logger.printStackTrace(e);
+			return Response.ok("{}", MediaType.APPLICATION_JSON).build();
+		} catch (Exception e) {
+			this.logger.printStackTrace(e);
+			return Response.serverError().entity("Server error!").build();
+		}
+	}
+
+	/**
 	 * Creates or update user input metadata doc.
 	 * 
 	 * @param inputJsonString json of the new model.
 	 * @return HttpResponse with the status
 	 */
 	@POST
-	@Path("/docs/")
+	@Path("/docs/{version}")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@ApiOperation(value = "Create or update metadata doc.", notes = "Create or update metadata doc.")
 	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_CREATED, message = "OK, model stored"),
 			@ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST, message = "Input model was not valid"),
 			@ApiResponse(code = HttpURLConnection.HTTP_CONFLICT, message = "Tried to save a model that already had a name and thus was not new"),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
-	public Response postDoc(String inputJsonString) {
+	public Response postDoc(String inputJsonString, @PathParam("version") int version) {
 		ObjectMapper mapper = new ObjectMapper();
 		try {
 			MetadataDoc inputModel = mapper.readValue(inputJsonString, MetadataDoc.class);
-			this.metadataDocService.createUpdateUserGeneratedMetadata(inputModel);
+			this.metadataDocService.createUpdateUserGeneratedMetadata(inputModel, version);
 			return Response.ok().entity("Doc updated or created").build();
 		} catch (SQLException e) {
 			this.logger.printStackTrace(e);
