@@ -37,8 +37,9 @@ import i5.cae.simpleModel.SimpleEntityAttribute;
 import i5.cae.simpleModel.SimpleModel;
 import i5.cae.simpleModel.node.SimpleNode;
 import i5.las2peer.api.Context;
+import i5.las2peer.api.ServiceException;
+import i5.las2peer.api.logging.MonitoringEvent;
 import i5.las2peer.logging.L2pLogger;
-import i5.las2peer.logging.NodeObserver.Event;
 import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
 import i5.las2peer.services.modelPersistenceService.exception.CGSInvocationException;
 import i5.las2peer.services.modelPersistenceService.exception.ModelNotFoundException;
@@ -66,13 +67,12 @@ public class RESTResources {
 	private String codeGenerationService;
 	private String deploymentUrl;
 	private DatabaseManager dbm;
-
 	private ComponentService componentService;
 	private ElementService elementService;
 	private MetadataDocService metadataDocService;
 
-	public RESTResources() {
-		this.logger = service.getLogger();
+	public RESTResources() throws ServiceException {
+		this.logger = (L2pLogger) service.getLogger();
 		this.semanticCheckService = service.getSemanticCheckService();
 		this.codeGenerationService = service.getCodeGenerationService();
 		this.deploymentUrl = service.getDeploymentUrl();
@@ -102,24 +102,24 @@ public class RESTResources {
 			@ApiResponse(code = HttpURLConnection.HTTP_CONFLICT, message = "Tried to save a model that already had a name and thus was not new"),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
 	public Response postModel(String inputModel) {
-		L2pLogger.logEvent(Event.SERVICE_MESSAGE, "postModel: trying to store new model");
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postModel: trying to store new model");
 		Model model;
 		try {
 			// create the model
 			model = new Model(inputModel);
 		} catch (ParseException e) {
-			L2pLogger.logEvent(Event.SERVICE_ERROR, "postModel: exception parsing JSON input: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "postModel: exception parsing JSON input: " + e);
 			throw new BadRequestException(e.getMessage());
 			// return Response.serverError().build();
 		} catch (Exception e) {
-			L2pLogger.logEvent(Event.SERVICE_ERROR, "postModel: something went seriously wrong: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "postModel: something went seriously wrong: " + e);
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Internal server error!").build();
 		}
 
 		// check if model name is already taken
 		if (this.getModel(model.getAttributes().getName()).getStatus() != HttpURLConnection.HTTP_NOT_FOUND) {
-			L2pLogger.logEvent(Event.SERVICE_MESSAGE,
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
 					"postModel: model name " + model.getAttributes().getName() + " is already taken");
 			return Response.serverError()
 					.entity("Model with name " + model.getAttributes().getName() + " already exists!").build();
@@ -133,7 +133,6 @@ public class RESTResources {
 		// call code generation service
 		if (!codeGenerationService.isEmpty()) {
 			try {
-				L2pLogger.logEvent(Event.SERVICE_MESSAGE, "postModel: invoking code generation service..");
 				// get user input metadata doc if available
 				String metadataDocString = model.getMetadataDoc();
 				
@@ -143,6 +142,7 @@ public class RESTResources {
 				System.out.println("====CREATE FROM MODEL");
 				System.out.println(metadataDocString);
 
+				Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postModel: invoking code generation service..");
 				model = callCodeGenerationService("createFromModel", model, metadataDocString);
 			} catch (CGSInvocationException e) {
 				return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
@@ -159,15 +159,15 @@ public class RESTResources {
 			connection = dbm.getConnection();
 			model.persist(connection);
 			int modelId = model.getId();
-			L2pLogger.logEvent(Event.SERVICE_MESSAGE, "postModel: model with id " + modelId + " and name "
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postModel: model with id " + modelId + " and name "
 					+ model.getAttributes().getName() + " stored!");
 			return Response.status(201).entity("Model stored!").build();
 		} catch (SQLException e) {
-			L2pLogger.logEvent(Event.SERVICE_ERROR, "postModel: exception persisting model: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "postModel: exception persisting model: " + e);
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Could not persist, database rejected model!").build();
 		} catch (Exception e) {
-			L2pLogger.logEvent(Event.SERVICE_ERROR, "postModel: something went seriously wrong: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "postModel: something went seriously wrong: " + e);
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Internal server error...").build();
 		}
@@ -200,21 +200,21 @@ public class RESTResources {
 			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model could not be found."),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
 	public Response getModel(@PathParam("modelName") String modelName) {
-		L2pLogger.logEvent(Event.SERVICE_MESSAGE, "getModel: searching for model with name " + modelName);
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "getModel: searching for model with name " + modelName);
 		Model model = null;
 		Connection connection = null;
 		try {
 			connection = dbm.getConnection();
 			model = new Model(modelName, connection);
 		} catch (ModelNotFoundException e) {
-			L2pLogger.logEvent(Event.SERVICE_MESSAGE, "getModel: did not find model with name " + modelName);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "getModel: did not find model with name " + modelName);
 			return Response.status(404).entity("Model not found!").build();
 		} catch (SQLException e) {
-			L2pLogger.logEvent(Event.SERVICE_ERROR, "getModel: exception fetching model: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "getModel: exception fetching model: " + e);
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Database error!").build();
 		} catch (Exception e) {
-			L2pLogger.logEvent(Event.SERVICE_ERROR, "getModel: something went seriously wrong: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "getModel: something went seriously wrong: " + e);
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Server error!").build();
 		} finally {
@@ -224,7 +224,7 @@ public class RESTResources {
 				logger.printStackTrace(e);
 			}
 		}
-		L2pLogger.logEvent(Event.SERVICE_MESSAGE,
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
 				"getModel: found model " + modelName + ", now converting to JSONObject and returning");
 		JSONObject jsonModel = model.toJSONObject();
 
@@ -256,22 +256,22 @@ public class RESTResources {
 			connection = dbm.getConnection();
 			// search for all models
 			PreparedStatement statement = connection.prepareStatement("SELECT modelName FROM ModelAttributes;");
-			L2pLogger.logEvent(Event.SERVICE_MESSAGE, "getModels: retrieving all models..");
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "getModels: retrieving all models..");
 			ResultSet queryResult = statement.executeQuery();
 			while (queryResult.next()) {
 				modelNames.add(queryResult.getString(1));
 			}
 			if (modelNames.isEmpty()) {
-				L2pLogger.logEvent(Event.SERVICE_MESSAGE, "getModels: database is empty!");
+				Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "getModels: database is empty!");
 				return Response.status(404).entity("Database is empty!").build();
 			}
 			connection.close();
 		} catch (SQLException e) {
-			L2pLogger.logEvent(Event.SERVICE_ERROR, "getModels: exception fetching model: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "getModels: exception fetching model: " + e);
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Database error!").build();
 		} catch (Exception e) {
-			L2pLogger.logEvent(Event.SERVICE_ERROR, "getModels: something went seriously wrong: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "getModels: something went seriously wrong: " + e);
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Server error!").build();
 		} finally {
@@ -281,7 +281,7 @@ public class RESTResources {
 				logger.printStackTrace(e);
 			}
 		}
-		L2pLogger.logEvent(Event.SERVICE_MESSAGE,
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
 				"getModels: created list of models, now converting to JSONObject and returning");
 		JSONArray jsonModelList = new JSONArray();
 		jsonModelList.addAll(modelNames);
@@ -308,7 +308,7 @@ public class RESTResources {
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
 	public Response deleteModel(@PathParam("modelName") String modelName) {
 		Connection connection = null;
-		L2pLogger.logEvent(Event.SERVICE_MESSAGE, "deleteModel: trying to delete model with name: " + modelName);
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deleteModel: trying to delete model with name: " + modelName);
 		try {
 			connection = dbm.getConnection();
 			Model model = new Model(modelName, connection);
@@ -316,7 +316,6 @@ public class RESTResources {
 			// call code generation service
 			if (!codeGenerationService.isEmpty()) {
 				try {
-					L2pLogger.logEvent(Event.SERVICE_MESSAGE, "deleteModel: invoking code generation service..");
 					model = callCodeGenerationService("deleteRepositoryOfModel", model, "");
 				} catch (CGSInvocationException e) {
 					return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
@@ -324,13 +323,13 @@ public class RESTResources {
 			}
 
 			model.deleteFromDatabase(connection);
-			L2pLogger.logEvent(Event.SERVICE_MESSAGE, "deleteModel: deleted model " + modelName);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deleteModel: deleted model " + modelName);
 			return Response.ok("Model deleted!").build();
 		} catch (ModelNotFoundException e) {
-			L2pLogger.logEvent(Event.SERVICE_MESSAGE, "deleteModel: did not find model with name " + modelName);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deleteModel: did not find model with name " + modelName);
 			return Response.status(404).entity("Model not found!").build();
 		} catch (SQLException e) {
-			L2pLogger.logEvent(Event.SERVICE_ERROR, "deleteModel: exception deleting model: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "deleteModel: exception deleting model: " + e);
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Internal server error...").build();
 		} finally {
@@ -365,22 +364,22 @@ public class RESTResources {
 			@ApiResponse(code = HttpURLConnection.HTTP_CONFLICT, message = "Model name may not be changed"),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
 	public Response updateModel(@PathParam("modelName") String modelName, String inputModel) {
-		L2pLogger.logEvent(Event.SERVICE_MESSAGE, "updateModel: trying to update model with name: " + modelName);
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "updateModel: trying to update model with name: " + modelName);
 		Model model;
 		// first parse the updated model and check for correctness of format
 		try {
 			model = new Model(inputModel);
 			// the model name is its "id", it may not be changed
 			if (!model.getAttributes().getName().equals(modelName)) {
-				L2pLogger.logEvent(Event.SERVICE_MESSAGE, "updateModel: posted model name " + modelName
+				Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "updateModel: posted model name " + modelName
 						+ " is different from posted model name attribute " + model.getAttributes().getName());
 				return Response.status(409).entity("Model name is different!").build();
 			}
 		} catch (ParseException e) {
-			L2pLogger.logEvent(Event.SERVICE_ERROR, "updateModel: exception parsing JSON input: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "updateModel: exception parsing JSON input: " + e);
 			return Response.serverError().entity("JSON parsing exception, file not valid!").build();
 		} catch (Exception e) {
-			L2pLogger.logEvent(Event.SERVICE_ERROR, "updateModel: something went seriously wrong: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "updateModel: something went seriously wrong: " + e);
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Internal server error!").build();
 		}
@@ -393,12 +392,12 @@ public class RESTResources {
 		// call code generation service
 		if (!codeGenerationService.isEmpty()) {
 			try {
-				L2pLogger.logEvent(Event.SERVICE_MESSAGE, "updateModel: invoking code generation service..");
 				String metadataDocString = this.metadataDocService.getUserInputMetadataDocStringByComponentId(model.getAttributes().getName());
 				
 				if (metadataDocString == null)
 					metadataDocString = "";
 
+				Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "updateModel: invoking code generation service..");
 				model = callCodeGenerationService("updateRepositoryOfModel", model, metadataDocString);
 			} catch (CGSInvocationException e) {
 				return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
@@ -417,15 +416,15 @@ public class RESTResources {
 		try {
 			connection = dbm.getConnection();
 			// load and delete the old model from the database
-			L2pLogger.logEvent(Event.SERVICE_MESSAGE,
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
 					"updateModel: loading and deleting old model with name " + modelName);
 			new Model(modelName, connection).deleteFromDatabase(connection);
 			// check if the "old" model did exist
 		} catch (ModelNotFoundException e) {
-			L2pLogger.logEvent(Event.SERVICE_MESSAGE, "updateModel: there exists no model with name: " + modelName);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "updateModel: there exists no model with name: " + modelName);
 			return Response.status(404).entity("Model not found!").build();
 		} catch (SQLException e) {
-			L2pLogger.logEvent(Event.SERVICE_ERROR, "updateModel: error deleting old model: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "updateModel: error deleting old model: " + e);
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Internal server error...").build();
 		}
@@ -442,16 +441,16 @@ public class RESTResources {
 			// save the model to the database
 			model.persist(connection);
 			int modelId = model.getId();
-			L2pLogger.logEvent(Event.SERVICE_MESSAGE, "updateModel: model with new id " + modelId + " and name "
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "updateModel: model with new id " + modelId + " and name "
 					+ model.getAttributes().getName() + " stored!");
 
 			return Response.ok("Model updated!").build();
 		} catch (SQLException e) {
-			L2pLogger.logEvent(Event.SERVICE_ERROR, "updateModel: exception persisting model: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "updateModel: exception persisting model: " + e);
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Could not persist, database rejected model!").build();
 		} catch (Exception e) {
-			L2pLogger.logEvent(Event.SERVICE_ERROR, "updateModel: something went seriously wrong: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "updateModel: something went seriously wrong: " + e);
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Internal server error...").build();
 		}
@@ -521,7 +520,7 @@ public class RESTResources {
 			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
 	public Response deployModel(@PathParam("modelName") String modelName, @PathParam("jobAlias") String jobAlias) {
-		L2pLogger.logEvent(Event.SERVICE_MESSAGE, "deployModel: trying to deploy model with name: " + modelName);
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deployModel: trying to deploy model with name: " + modelName);
 		Model model;
 		Connection connection = null;
 
@@ -532,7 +531,7 @@ public class RESTResources {
 
 			// the model name is its "id", it may not be changed
 			if (!model.getAttributes().getName().equals(modelName)) {
-				L2pLogger.logEvent(Event.SERVICE_MESSAGE, "deployModel: posted model name " + modelName
+				Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deployModel: posted model name " + modelName
 						+ " is different from posted model name attribute " + model.getAttributes().getName());
 				return Response.status(409).entity("Model name is different!").build();
 			}
@@ -541,7 +540,7 @@ public class RESTResources {
 				// only create temp repository once, i.e. before the "Build"
 				// job is started in Jenkins
 				if (jobAlias.equals("Build")) {
-					L2pLogger.logEvent(Event.SERVICE_MESSAGE, "deployModel: invoking code generation service..");
+					Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deployModel: invoking code generation service..");
 					callCodeGenerationService("prepareDeploymentApplicationModel", model, "");
 				}
 
@@ -560,7 +559,7 @@ public class RESTResources {
 				return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
 			}
 		} catch (Exception e) {
-			L2pLogger.logEvent(Event.SERVICE_ERROR, "updateModel: something went seriously wrong: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "updateModel: something went seriously wrong: " + e);
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Internal server error!").build();
 		} // always close connections
@@ -604,13 +603,13 @@ public class RESTResources {
 		Connection connection = null;
 		try {
 			connection = dbm.getConnection();
-			L2pLogger.logEvent(Event.SERVICE_MESSAGE,
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
 					"getCAECommunicationModel: Loading model " + modelName + " from the database");
 			appModel = (SimpleModel) new Model(modelName, connection).getMinifiedRepresentation();
 		} catch (SQLException e) {
 			// model might not exist
 			logger.printStackTrace(e);
-			L2pLogger.logEvent(Event.SERVICE_ERROR, "getCAECommunicationModel: model " + modelName + " not found");
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "getCAECommunicationModel: model " + modelName + " not found");
 			return Response.status(404).entity("Model " + modelName + " does not exist!").build();
 		} finally {
 			try {
@@ -640,7 +639,7 @@ public class RESTResources {
 					} catch (SQLException e) {
 						// model might not exist
 						logger.printStackTrace(e);
-						L2pLogger.logEvent(Event.SERVICE_ERROR,
+						Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR,
 								"getCAECommunicationModel: Error loading application component: " + subModelName);
 						return Response.serverError().entity("Internal server error...").build();
 					} finally {
@@ -656,29 +655,29 @@ public class RESTResources {
 				try {
 					Serializable[] payload = { modelsToSend };
 
-					L2pLogger.logEvent(Event.SERVICE_MESSAGE,
+					Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
 							"getCAECommunicationModel: Invoking code generation service now..");
 					SimpleModel communicationModel = (SimpleModel) Context.getCurrent().invoke(codeGenerationService,
 							"getCommunicationViewOfApplicationModel", payload);
 
-					L2pLogger.logEvent(Event.SERVICE_MESSAGE,
+					Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
 							"getCAECommunicationModel: Got communication model from code generation service..");
 
 					Model returnModel = new Model(communicationModel);
-					L2pLogger.logEvent(Event.SERVICE_MESSAGE, "getCAECommunicationModel: Created model " + modelName
+					Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "getCAECommunicationModel: Created model " + modelName
 							+ "from simple model, now converting to JSONObject and returning");
 
 					JSONObject jsonModel = returnModel.toJSONObject();
 					return Response.ok(jsonModel.toJSONString()).build();
 				} catch (Exception e) {
-					L2pLogger.logEvent(Event.SERVICE_ERROR,
+					Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR,
 							"getCAECommunicationModel: Internal error " + e.getMessage());
 					logger.printStackTrace(e);
 					return Response.serverError().entity("Internal server error...").build();
 				}
 			}
 		}
-		L2pLogger.logEvent(Event.SERVICE_ERROR,
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR,
 				"getCAECommunicationModel: model " + modelName + " is not an application");
 		return Response.serverError().entity("Internal server error...").build();
 	}
@@ -830,16 +829,16 @@ public class RESTResources {
 			@ApiResponse(code = HttpURLConnection.HTTP_NOT_MODIFIED, message = "Semantic Check successful"),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
 	public Response checkModel(String inputModel) {
-		L2pLogger.logEvent(Event.SERVICE_MESSAGE, "checkModel: performing semantic check");
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "checkModel: performing semantic check");
 		Model model;
 		// first parse the updated model and check for correctness of format
 		try {
 			model = new Model(inputModel);
 		} catch (ParseException e) {
-			L2pLogger.logEvent(Event.SERVICE_ERROR, "semantic check: exception parsing JSON input: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "semantic check: exception parsing JSON input: " + e);
 			return Response.serverError().entity("JSON parsing exception, file not valid!").build();
 		} catch (Exception e) {
-			L2pLogger.logEvent(Event.SERVICE_ERROR, "semantic check: something went seriously wrong: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "semantic check: something went seriously wrong: " + e);
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Internal server error!").build();
 		}
@@ -853,7 +852,6 @@ public class RESTResources {
 		return Response.ok(SemanticCheckResponse.success().toJSONResultString()).build();
 	}
 
-	@SuppressWarnings("unchecked")
 	private void checkModel(Model model) {
 		SemanticCheckResponse result;
 		EntityAttribute semcheckAttr = findSemcheckAttribute(model);
@@ -879,7 +877,6 @@ public class RESTResources {
 		}
 	}
 
-	@SuppressWarnings("unchecked")
 	private void doSemanticCheck(Model model) {
 		SemanticCheckResponse result;
 		try {

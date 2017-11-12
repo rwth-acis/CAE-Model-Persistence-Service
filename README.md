@@ -13,4 +13,4 @@ Otherwise feel free to continue down there.
 Building the service is just building a las2peer service. The [las2peer template project](https://github.com/rwth-acis/las2peer-Template-Project) and its wiki contain detailed information, but basically you should be able to clone the repository and execute a build using ant.
 
 ## How to set up the CAE
-To set up your own CAE instance take a look at the [wiki](https://github.com/rwth-acis/CAE-Model-Persistence-Service/wiki/Deployment-and-Configuration)
+To set up your own CAE instance take a look at the [wiki](https://github.com/rwth-acis/CAE/wiki/Deployment-and-Configuration)
