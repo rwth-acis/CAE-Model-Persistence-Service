@@ -201,20 +201,18 @@ public class MetadataDocService {
     }
 
     /****** CREATE UPDATE MODEL GENERATED METADATA DOC */
-    public void createUpdateUserGeneratedMetadata(MetadataDoc inputModel, int version) throws SQLException {
+    public void createUpdateUserGeneratedMetadata(String componentId, String inputJson, int version) throws SQLException {
         try {
             System.out.println("[createUpdateUserGeneratedMetadata] VERSION " + Integer.toString(version));
-            String componentId = inputModel.getComponentId(); 
-            String userGenerateMetadata = inputModel.getDocInput();
-            String docType = inputModel.getDocType();
+            String docType = "json";
             PreparedStatement sqlQuery = _connection.prepareStatement(
                     " INSERT INTO MetadataDoc(componentId, docInput, docType, version) VALUES (?,?,?,?) " + 
                     " ON DUPLICATE KEY UPDATE docInput=?, docType=?");
             sqlQuery.setString(1, componentId);
-            sqlQuery.setString(2, userGenerateMetadata);
+            sqlQuery.setString(2, inputJson);
             sqlQuery.setString(3, docType);
             sqlQuery.setInt(4, version);
-            sqlQuery.setString(5, userGenerateMetadata);
+            sqlQuery.setString(5, inputJson);
             sqlQuery.setString(6, docType);
             _logger.info(String.format(_logPrefix, "Executing user generated metadata CREATE UPDATE query"));
             sqlQuery.executeUpdate();
