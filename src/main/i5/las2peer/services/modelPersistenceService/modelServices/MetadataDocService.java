@@ -59,13 +59,12 @@ public class MetadataDocService {
             String docInput = queryResult.getString("docInput");
             String urlDeployed = queryResult.getString("urlDeployed");
             Date timeCreated = queryResult.getDate("timeCreated");
-            Date timeEdited = queryResult.getDate("timeEdited");
-            Date timeDeployed = queryResult.getDate("timeDeployed");
+            String timeEdited = queryResult.getString("timeEditedUnix");
+            String timeDeployed = queryResult.getString("timeDeployedUnix");
             int version = queryResult.getInt("version");
             MetadataDoc model = new MetadataDoc(componentId, docType, docString, docInput, urlDeployed, timeCreated, timeEdited, timeDeployed, version);
             return model;
         } catch (SQLException e) {
-            System.out.println("[mapResultSetToObject] Exception on mapping");
             _logger.printStackTrace(e);
         }
 
@@ -77,10 +76,9 @@ public class MetadataDocService {
      * @return list of all metadata doc
      */
     public ArrayList<MetadataDoc> getAll() throws SQLException {
-        System.out.println("[getAll] Start");
         ArrayList<MetadataDoc> result = new ArrayList<MetadataDoc>();
         try {
-            String query = "SELECT * FROM MetadataDoc";
+            String query = "SELECT *, UNIX_TIMESTAMP(timeEdited) as 'timeEditedUnix', UNIX_TIMESTAMP(timeDeployed) as 'timeDeployedUnix' FROM MetadataDoc";
             PreparedStatement sqlQuery;
             sqlQuery = _connection.prepareStatement(query);
             _logger.info(String.format(_logPrefix, "Executing GET ALL query " + query));
@@ -102,10 +100,9 @@ public class MetadataDocService {
      * @return founded metadata doc
      */
     public MetadataDoc getByComponentId(String queryId) throws SQLException {
-        System.out.println("[getByComponentId] Start");
         try {
             PreparedStatement sqlQuery;
-            sqlQuery = _connection.prepareStatement("SELECT * FROM MetadataDoc WHERE componentId = ? ORDER BY timeEdited DESC LIMIT 1;");
+            sqlQuery = _connection.prepareStatement("SELECT *, UNIX_TIMESTAMP(timeEdited) as 'timeEditedUnix', UNIX_TIMESTAMP(timeDeployed) as 'timeDeployedUnix' FROM MetadataDoc WHERE componentId = ? ORDER BY timeEdited DESC LIMIT 1;");
             sqlQuery.setString(1, queryId);
             _logger.info(String.format(_logPrefix, "Executing GET BY ID query with componentId " + queryId));
             ResultSet queryResult = sqlQuery.executeQuery();
@@ -130,10 +127,9 @@ public class MetadataDocService {
      * @return founded metadata doc
      */
     public MetadataDoc getByComponentIdVersion(String queryId, int version) throws SQLException {
-        System.out.println("[getByComponentIdVersion] Start");
         try {
             PreparedStatement sqlQuery;
-            sqlQuery = _connection.prepareStatement("SELECT * FROM MetadataDoc WHERE componentId = ? AND version = ? ORDER BY timeEdited DESC LIMIT 1;");
+            sqlQuery = _connection.prepareStatement("SELECT *, UNIX_TIMESTAMP(timeEdited) as 'timeEditedUnix', UNIX_TIMESTAMP(timeDeployed) as 'timeDeployedUnix' FROM MetadataDoc WHERE componentId = ? AND version = ? ORDER BY timeEdited DESC LIMIT 1;");
             sqlQuery.setString(1, queryId);
             sqlQuery.setInt(2, version);
             _logger.info(String.format(_logPrefix, "Executing GET BY ID query with componentId " + queryId + " and version " + version));
@@ -203,7 +199,6 @@ public class MetadataDocService {
     /****** CREATE UPDATE MODEL GENERATED METADATA DOC */
     public void createUpdateUserGeneratedMetadata(String componentId, String inputJson, int version) throws SQLException {
         try {
-            System.out.println("[createUpdateUserGeneratedMetadata] VERSION " + Integer.toString(version));
             String docType = "json";
             PreparedStatement sqlQuery = _connection.prepareStatement(
                     " INSERT INTO MetadataDoc(componentId, docInput, docType, version) VALUES (?,?,?,?) " + 
@@ -225,8 +220,6 @@ public class MetadataDocService {
 
     public void updateDeploymentDetails(Model model, String urlDeployed) throws SQLException {
         try {
-            System.out.println("========START updateDeploymentDetails==========");
-            System.out.println(urlDeployed);
             // check for model type
             String modelType = null;
             ArrayList<EntityAttribute> modelAttributes = model.getAttributes().getAttributes();
@@ -236,7 +229,6 @@ public class MetadataDocService {
                 }
             }
 
-            System.out.println("======MODEL TYPE : " + modelType);
             if (modelType.equals("application")) {
 
                 ArrayList<Node> appNodes = model.getNodes();
@@ -245,12 +237,8 @@ public class MetadataDocService {
                     String componentId = null;
                     ArrayList<EntityAttribute> nodeAttributes = appNode.getAttributes();
                     for (EntityAttribute nodeAttribute: nodeAttributes) {
-                        System.out.println(nodeAttribute.getName());
-                        System.out.println(nodeAttribute.getValue());
-
                         if (nodeAttribute.getName().equals("label")) {
                             componentId = nodeAttribute.getValue();
-                            System.out.println("======COMPONENT NAME : " + componentId);
                         }
                     }
 
@@ -336,7 +324,6 @@ public class MetadataDocService {
      * @param model CAE model, assumed valid
      */
     public String modelToSwagger(Model model) {
-        System.out.println("========START MODEL TO SWAGGER==========");
         // check for model type
         String modelType = null;
         int componentVersion = 1;
@@ -350,8 +337,6 @@ public class MetadataDocService {
                 componentVersion = Integer.parseInt(modelAttribute.getValue());
             }
         }
-
-        System.out.println("======MODEL TYPE : " + modelType);
         
         if (modelType.equals("microservice")) {
             return microserviceToSwagger(model, componentVersion);
@@ -361,8 +346,6 @@ public class MetadataDocService {
     }
 
     private String microserviceToSwagger(Model model, int componentVersion) {
-
-        System.out.println("========START MICROSERVICE TO SWAGGER==========");
         ObjectMapper mapper = new ObjectMapper();
 
         // maps for model to http methods, payloads, responses, path
@@ -393,9 +376,7 @@ public class MetadataDocService {
 
         // get user input metadata doc if exists
         String modelName = model.getAttributes().getName();
-        System.out.println("===PROCESS USER INPUT METADATA DOC for " + modelName);
         String userInputMetadataDoc = getUserInputMetadataDocStringByComponentId(modelName);
-        System.out.println(userInputMetadataDoc);
         
         String description = "No description";
         String version = "1.0";
@@ -405,8 +386,6 @@ public class MetadataDocService {
         if (!Strings.isNullOrEmpty(userInputMetadataDoc)) {
             try {
                 JsonNode metadataTree = mapper.readTree(userInputMetadataDoc);
-                System.out.println("===Parsed json ");
-                System.out.println(metadataTree);
                 // get info node
                 if (metadataTree.hasNonNull("info")) {
                     JsonNode infoNode = metadataTree.get("info");
@@ -425,8 +404,6 @@ public class MetadataDocService {
                 if (metadataTree.hasNonNull("nodes")) {
                     JsonNode nodesNode = metadataTree.get("nodes");
                     Iterator<Map.Entry<String, JsonNode>> nodes = nodesNode.fields();
-
-                    System.out.println("==PROCESS USER INPUT INFO NODES");
                     while (nodes.hasNext()) {
                         Map.Entry<String, JsonNode> entry = (Map.Entry<String, JsonNode>) nodes.next();
                         JsonNode entryValue = entry.getValue();
@@ -437,7 +414,7 @@ public class MetadataDocService {
                     }
                 }
             } catch (IOException ex) {
-                System.out.println("Exception on parsing user input metadata doc");
+                _logger.printStackTrace(ex);
             }
         }
 
@@ -450,7 +427,6 @@ public class MetadataDocService {
         infoObject.put("title", attributes.getName());
 
         // generated from widget
-        System.out.println("===PROCESS WIDGET GENERATED INFO====");
         infoObject.put("description", description);
         infoObject.put("version", version);
         infoObject.put("termsOfService", termsOfService);
@@ -462,7 +438,6 @@ public class MetadataDocService {
 
         try {
             // ==================== PROCESS NODES ======================
-            System.out.println("=======[Model to Swagger] Process Nodes ==========");
             ArrayList<Node> nodes = model.getNodes();
             for(Node node: nodes) {
                 switch(node.getType()) {
@@ -505,17 +480,12 @@ public class MetadataDocService {
                 };
             };
         } catch(Exception e) {
-            System.out.println("[Model to Swagger] Exception on process nodes");
-            System.out.println(e);
+            _logger.printStackTrace(e);
             return rootObject.toString();
         }
 
         try {
             // ==================== PROCESS EDGES ======================
-            System.out.println("=======[Model to Swagger] Process Edges ==========");
-            System.out.println("httpPayloadNodes " + httpResponseNodes.size());
-            System.out.println("httpResponseNodes " + httpResponseNodes.size());
-
             ArrayList<Edge> edges = model.getEdges();
             for(Edge edge: edges) {
                 String sourceId = edge.getSourceNode();
@@ -525,76 +495,58 @@ public class MetadataDocService {
                         // do not process since we're going to put every http method into the root anyway
                         break;
                     case "HTTP Method to HTTP Payload":
-                        System.out.println("HTTP Method to HTTP Payload source " + sourceId + " target " + targetId);
                         //get the http method & payload object node
                         if (httpMethodNodes.get(sourceId) != null) {
-                            System.out.println("HTTP Node found " + sourceId);
                             // get payload object node
                             ObjectNode httpPayloadNode = httpPayloadNodes.get(targetId);
                             if (httpPayloadNode != null) {
                                 // get parameter type for consume list
                                 String nodeType = (httpPayloadNode.hasNonNull("type")) ? httpPayloadNode.get("type").asText() : "application/json";
                                 if (methodToConsumes.get(sourceId) != null) {
-                                    System.out.println("Consumes list with key not null " + targetId);
                                     if (!methodToConsumes.get(sourceId).contains(nodeType))
                                         methodToConsumes.get(sourceId).add(nodeType);
                                 } else {
-                                    System.out.println("Consumes list with key null, create " + targetId);
                                     ArrayList<String> consumesList = new ArrayList<String>();
                                     consumesList.add(nodeType);
                                     methodToConsumes.put(sourceId, consumesList);
                                 }
 
                                 // add to parameters list
-                                System.out.println("Add to parameters list " + sourceId + " value " + targetId);
                                 if (httpMethodParameterNodes.get(sourceId) != null) {
-                                    System.out.println("Parameters list with key not null " + targetId);
                                     httpMethodParameterNodes.get(sourceId).add(httpPayloadNode);
                                 } else {
-                                    System.out.println("Parameters list with key null, create " + targetId);
                                     ArrayList<ObjectNode> payloadList = new ArrayList<ObjectNode>();
                                     payloadList.add(httpPayloadNode);
-                                    System.out.println(payloadList.size());
-                                    System.out.println(payloadList);
                                     httpMethodParameterNodes.put(sourceId, payloadList);
                                 }
                             }
                         }
                         break;
                     case "HTTP Method to HTTP Response":
-                        System.out.println("HTTP Method to HTTP Response source " + sourceId + " target " + targetId);
                         //get the http method & payload object node
                         if (httpMethodNodes.get(sourceId) != null) {
                             // get payload object node
-                            System.out.println("HTTP Node found " + sourceId);
                             SimpleEntry<String, ObjectNode> httpResponseNode = httpResponseNodes.get(targetId);
                             if (httpResponseNode != null) {
                                 // get parameter type for produces list
                                 String nodeType = (httpResponseNode.getValue().hasNonNull("schema")) ? "application/json" : "";
                                 if (!nodeType.equals("")) {
                                     if (methodToProduces.get(sourceId) != null) {
-                                        System.out.println("Consumes list with key not null " + targetId);
                                         if (!methodToProduces.get(sourceId).contains(nodeType))
                                             methodToProduces.get(sourceId).add(nodeType);
                                     } else {
-                                        System.out.println("Consumes list with key null, create " + targetId);
                                         ArrayList<String> producesList = new ArrayList<String>();
                                         producesList.add(nodeType);
                                         methodToProduces.put(sourceId, producesList);
                                     }
                                 }
 
-                                System.out.println("Add to responses list " + sourceId + " value " + targetId);
                                 // add to payload list
                                 if (httpMethodResponsesNodes.get(sourceId) != null) {
-                                    System.out.println("Responses list with key not null " + targetId);
                                     httpMethodResponsesNodes.get(sourceId).add(httpResponseNode);
                                 } else {
-                                    System.out.println("Response list with key null, create " + targetId);
                                     ArrayList<SimpleEntry<String, ObjectNode>> responseList = new ArrayList<SimpleEntry<String, ObjectNode>>();
                                     responseList.add(httpResponseNode);
-                                    System.out.println(responseList.size());
-                                    System.out.println(responseList);
                                     httpMethodResponsesNodes.put(sourceId, responseList);
                                 }
                             }
@@ -605,9 +557,7 @@ public class MetadataDocService {
             }
 
         } catch(Exception e) {
-            System.out.println("[Model to Swagger] Exception on process edges");
-            System.out.println(e);
-            e.printStackTrace(System.out);
+            _logger.printStackTrace(e);
             return rootObject.toString();
         }
 
@@ -620,7 +570,6 @@ public class MetadataDocService {
             ObjectNode definitionObjectNode = mapper.createObjectNode();
             ObjectNode definitionPropertiesNode = mapper.createObjectNode();
             
-            System.out.println("==PROCESS DEFINITIONS NODES");
             while (definitionIterator.hasNext()) {
                 ObjectNode iteratorObjectNode = mapper.createObjectNode();
                 Map.Entry<String, JsonNode> entry = (Map.Entry<String, JsonNode>) definitionIterator.next();
@@ -635,11 +584,6 @@ public class MetadataDocService {
 
         try {
             // ==================== PROCESS JSON OBJECT HTTP NODES ======================
-            System.out.println("httpMethodNodes count " + httpMethodNodes.size());
-            System.out.println("httpMethodParameterNodes count " + httpMethodParameterNodes.size());
-            System.out.println("httpMethodResponsesNodes count " + httpMethodResponsesNodes.size());
-            
-            System.out.println("=======[Model to Swagger] Process HTTP Nodes to Json ==========");
             for(Map.Entry<String, SimpleEntry<String, SimpleEntry<String, ObjectNode>>> entry: httpMethodNodes.entrySet()) {
                 // get the object node
                 String methodId = entry.getKey();
@@ -650,10 +594,6 @@ public class MetadataDocService {
                 String methodType = methodTypeToNode.getKey();
                 ObjectNode methodObjectNode = methodTypeToNode.getValue();
 
-                System.out.println("Method id " + methodId);
-                System.out.println("Method path " + methodPath);
-                System.out.println("Method type " + methodType);
-
                 // get consumes & produces list
                 ArrayList<String> producesList = methodToProduces.get(methodId);
                 ArrayList<String> consumesList = methodToConsumes.get(methodId);
@@ -662,19 +602,14 @@ public class MetadataDocService {
                     producesList = new ArrayList<String>();
                 if (consumesList == null)
                     consumesList = new ArrayList<String>();
-                System.out.println("Process produces and consumes");
-                System.out.println(producesList.size());
-                System.out.println(consumesList.size());
 
                 ArrayNode produces = mapper.createArrayNode();
                 for (String produceString: producesList) {
-                    System.out.println(produceString);
                     produces.add(produceString);
                 }
                 
                 ArrayNode consumes = mapper.createArrayNode();
                 for (String consumeString: consumesList) {
-                    System.out.println(consumeString);
                     consumes.add(consumeString);
                 }
                     
@@ -683,30 +618,25 @@ public class MetadataDocService {
 
                 // get all parameters
                 ArrayNode parameters = mapper.createArrayNode();
-                System.out.println("Array node created");
-                System.out.println(httpMethodParameterNodes.get(methodId));
-                for(Map.Entry<String, ArrayList<ObjectNode>> entryLog: httpMethodParameterNodes.entrySet()) {
-                    System.out.println(entryLog.getKey());
-                }
                 ArrayList<ObjectNode> parametersArray = httpMethodParameterNodes.get(methodId);
-                System.out.println("parametersArray count " + parametersArray.size());
 
-                for (ObjectNode parameter: parametersArray) {
-                    System.out.println("Add to array node parameters " + methodId);
-                    parameters.add(parameter);
+                if (parametersArray != null) {
+                    for (ObjectNode parameter: parametersArray) {
+                        parameters.add(parameter);
+                    }
+                    methodObjectNode.put("parameters", parameters);
                 }
-                methodObjectNode.put("parameters", parameters);
 
                 // get all responses
                 ObjectNode responses = mapper.createObjectNode();
                 ArrayList<SimpleEntry<String, ObjectNode>> responsesArray = httpMethodResponsesNodes.get(methodId);
-                System.out.println("responsesArray count " + responsesArray.size());
                 
-                for (SimpleEntry<String, ObjectNode> response: responsesArray) {
-                    System.out.println("Put to object node responses " + methodId);
-                    responses.put(response.getKey(), response.getValue());
+                if (responsesArray != null) {
+                    for (SimpleEntry<String, ObjectNode> response: responsesArray) {
+                        responses.put(response.getKey(), response.getValue());
+                    }
+                    methodObjectNode.put("responses", responses);
                 }
-                methodObjectNode.put("responses", responses);
 
                 // add to path map list
                 if (pathToHttpMethod.get(methodPath) != null) {
@@ -719,15 +649,12 @@ public class MetadataDocService {
 
             }
         } catch(Exception e) {
-            System.out.println("[Model to Swagger] Exception on json object http nodes");
-            System.out.println(e);
-            e.printStackTrace(System.out);
+            _logger.printStackTrace(e);
             return rootObject.toString();
         }
 
         try {
             // ==================== PROCESS JSON OBJECT PATH NODES ======================
-            System.out.println("=======[Model to Swagger] Process Path Nodes to JSON ==========");
             for(Map.Entry<String, ArrayList<SimpleEntry<String, ObjectNode>>> entry: pathToHttpMethod.entrySet()) {
                 String path = entry.getKey();
                 ObjectNode pathNode = mapper.createObjectNode();
@@ -740,24 +667,20 @@ public class MetadataDocService {
                 pathsObject.put(path, pathNode);
             }
         } catch(Exception e) {
-            System.out.println("[Model to Swagger] Exception on json object path nodes");
-            System.out.println(e);
+            _logger.printStackTrace(e);
             return rootObject.toString();
         }
 
         // add path node to root
         rootObject.put("paths", pathsObject);
-        
-        System.out.println("MODEL TO SWAGGER STRING");
-        System.out.println("================================");
-        System.out.println(rootObject.toString());
 
         // save result to database
         try {
             createUpdateModelGeneratedMetadata(modelName, rootObject.toString(), "json", componentVersion);
         } catch (SQLException e) {
-            System.out.println(e);
+            _logger.printStackTrace(e);
         }
+        _logger.info(rootObject.toString());
         
         return rootObject.toString();
     }
@@ -857,7 +780,6 @@ public class MetadataDocService {
     }
 
     private String TypeToOpenApiSpec(String dataType) {
-        System.out.println("[TypeToOpenAPISPEC] Process dataType : " + dataType);
         switch (dataType) {
             case "JSON":
             case "application/json":

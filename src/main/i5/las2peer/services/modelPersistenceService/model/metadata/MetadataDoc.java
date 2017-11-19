@@ -19,8 +19,8 @@ public class MetadataDoc {
     private String docInput;
     private String urlDeployed;
     private Date timeCreated;
-    private Date timeEdited;
-    private Date timeDeployed;
+    private String timeEdited;
+    private String timeDeployed;
     private int version;
     
     /**
@@ -43,7 +43,7 @@ public class MetadataDoc {
         String docString, 
         String docInput,
         Date timeCreated,
-        Date timeEdited,
+        String timeEdited,
         int version) {
             this.componentId = componentId;
             this.docType = docType;
@@ -63,8 +63,8 @@ public class MetadataDoc {
         String docInput,
         String urlDeployed,
         Date timeCreated,
-        Date timeEdited,
-        Date timeDeployed,
+        String timeEdited,
+        String timeDeployed,
         int version) {
             this.componentId = componentId;
             this.docType = docType;
@@ -139,7 +139,7 @@ public class MetadataDoc {
     
     /**
      * Get created time
-     * @return created time date
+     * @return created time String
      */
     public Date getTimeCreated() {
     	return timeCreated;
@@ -151,31 +151,31 @@ public class MetadataDoc {
     
     /**
      * Get edited time
-     * @return edited time date
+     * @return edited time String
      */
-    public Date getTimeEdited() {
+    public String getTimeEdited() {
     	return timeEdited;
     }
 
-    public void setTimeEdited(Date timeEdited) {
+    public void setTimeEdited(String timeEdited) {
         this.timeEdited = timeEdited;
     }
 
     /**
      * Get deployed time
-     * @return deployed time date
+     * @return deployed time String
      */
-    public Date getTimeDeployed() {
+    public String getTimeDeployed() {
     	return timeDeployed;
     }
 
-    public void setTimeDeployed(Date timeDeployed) {
+    public void setTimeDeployed(String timeDeployed) {
         this.timeDeployed = timeDeployed;
     }
 
     /**
      * Get deployed time
-     * @return deployed time date
+     * @return deployed time String
      */
     public int getVersion() {
     	return version;
