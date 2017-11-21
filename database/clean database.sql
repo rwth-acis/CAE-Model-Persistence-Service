@@ -1,5 +1,5 @@
-DELETE FROM `commedit`.`model`;
-DELETE FROM `commedit`.`modelAttributes`;
-DELETE FROM `commedit`.`attribute`;
-DELETE FROM `commedit`.`edge`;
-DELETE FROM `commedit`.`node`;
+DELETE FROM `commedit`.`Model`;
+DELETE FROM `commedit`.`ModelAttributes`;
+DELETE FROM `commedit`.`Attribute`;
+DELETE FROM `commedit`.`Edge`;
+DELETE FROM `commedit`.`Node`;

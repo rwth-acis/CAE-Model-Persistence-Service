@@ -34,10 +34,18 @@ public class ModelAttributes {
 	 * 
 	 */
 	public ModelAttributes(JSONObject jsonModelAttribute) {
-		// get the name (never mind input structure here, its non
-		// straight-forward..)
-		this.name = (String) ((JSONObject) ((JSONObject) jsonModelAttribute.get("label")).get("value")).get("value");
-
+		// TODO
+		// the name for the component is stored in the name-attribute no longer as the label
+		// that was just ugly. however the other model types (microservice, application) still use the label
+		// but also the other models should use the name attribute in modelAttributes
+		// for now we just stay with this work around
+		try {
+			this.name = ((String) ((JSONObject) ((JSONObject) ((JSONObject) jsonModelAttribute.get("attributes"))
+						.get("modelAttributes[name]")).get("value")).get("value"));
+		}
+		catch (Exception e) {
+			this.name = (String) ((JSONObject) ((JSONObject) jsonModelAttribute.get("label")).get("value")).get("value");
+		}
 		// parse attributes
 		JSONObject jsonAttributes = (JSONObject) jsonModelAttribute.get("attributes");
 		this.attributes = new ArrayList<EntityAttribute>(jsonAttributes.size());
