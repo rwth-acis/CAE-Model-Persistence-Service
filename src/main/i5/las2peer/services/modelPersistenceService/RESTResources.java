@@ -237,11 +237,11 @@ public class RESTResources {
 			}
 			connection.close();
 		} catch (SQLException e) {
-			L2pLogger.logEvent(Event.SERVICE_ERROR, "getModels: exception fetching model: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "getModels: exception fetching model: " + e);
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Database error!").build();
 		} catch (Exception e) {
-			L2pLogger.logEvent(Event.SERVICE_ERROR, "getModels: something went seriously wrong: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "getModels: something went seriously wrong: " + e);
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Server error!").build();
 		} finally {
@@ -251,8 +251,8 @@ public class RESTResources {
 				logger.printStackTrace(e);
 			}
 		}
-		L2pLogger.logEvent(Event.SERVICE_MESSAGE,
-				"getModels: created list of models, now converting to JSONObject and returning");
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "getModels: created list of models, now converting to JSONObject and returning");
+
 		JSONArray jsonModelList = new JSONArray();
 		jsonModelList.addAll(modelNames);
 
