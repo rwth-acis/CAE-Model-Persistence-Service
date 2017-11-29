@@ -23,7 +23,7 @@ import i5.las2peer.services.modelPersistenceService.model.edge.Edge;
 import i5.las2peer.services.modelPersistenceService.model.modelAttributes.ModelAttributes;
 import i5.las2peer.services.modelPersistenceService.model.node.Node;
 import i5.las2peer.services.modelPersistenceService.model.node.NodePosition;
-
+import i5.las2peer.services.modelPersistenceService.model.wireframe.WireframeModel;
 /**
  * 
  * (Data-)Class for Models. Provides means to convert JSON to Object and Object
@@ -32,10 +32,11 @@ import i5.las2peer.services.modelPersistenceService.model.node.NodePosition;
  */
 public class Model {
 	private int id = -1;
+	private int wireframeId = -1;
 	private ArrayList<Node> nodes;
 	private ArrayList<Edge> edges;
 	private ModelAttributes attributes;
-
+	private String wireframeModel;
 	private final L2pLogger logger = L2pLogger.getInstance(Model.class.getName());
 
 	/**
@@ -56,6 +57,9 @@ public class Model {
 		// attributes
 		JSONObject jsonAttribute = (JSONObject) completeJsonModel.get("attributes");
 		this.attributes = new ModelAttributes(jsonAttribute);
+
+		//wireframe model
+		this.wireframeModel = (String)completeJsonModel.get("wireframe");
 
 		// nodes
 		JSONObject jsonNodes = (JSONObject) completeJsonModel.get("nodes");
@@ -131,6 +135,23 @@ public class Model {
 			this.edges.add(new Edge(queryResult.getString(1), connection));
 		}
 		statement.close();
+
+		StringBuilder sb = new StringBuilder();
+		sb.append("select wireframeXML ")
+                .append("from `Wireframe`, `Model`, `ModelToModelAttributes`, `ModelAttributes`, `ModelToWireframe` ")
+		        .append("where `Wireframe`.`wireframeId` = `ModelToWireframe`.`wireframeId` ")
+		.append("and `ModelToWireframe`.modelId = Model.modelId ")
+		.append("and Model.modelId = ModelToModelAttributes.modelId ")
+		.append("and ModelToModelAttributes.modelAttributesName = ModelAttributes.modelName ")
+		.append("and ModelAttributes.modelName = ?;");
+
+        statement = connection.prepareStatement(sb.toString());
+        statement.setString(1, this.attributes.getName());
+        queryResult = statement.executeQuery();
+        while (queryResult.next()) {
+            this.wireframeModel = queryResult.getString(1);
+        }
+        statement.close();
 	}
 
 	/**
@@ -193,6 +214,8 @@ public class Model {
 		return attributes;
 	}
 
+	public String getWireframeModelAsString() {return wireframeModel; }
+
 	/**
 	 * 
 	 * Returns the JSON representation of this model. The representation is
@@ -224,7 +247,7 @@ public class Model {
 			jsonEdges.put(this.edges.get(edgeIndex).getId(), this.edges.get(edgeIndex).toJSONObject());
 		}
 		jsonModel.put("edges", jsonEdges);
-
+        jsonModel.put("wireframe", this.getWireframeModelAsString());
 		return jsonModel;
 	}
 
@@ -291,6 +314,29 @@ public class Model {
 				statement.close();
 			}
 
+			//Add wireframe data
+			if(this.getWireframeModelAsString() != null) {
+				statement = connection.prepareStatement("INSERT INTO Wireframe (wireframeXML) VALUES (?);", Statement.RETURN_GENERATED_KEYS);
+				statement.setString(1, this.getWireframeModelAsString());
+				statement.executeUpdate();
+				// get the generated id and close statement
+				ResultSet gen = statement.getGeneratedKeys();
+				gen.next();
+				int wireframeId = gen.getInt(1);
+				statement.close();
+
+				//reference to the model
+				statement = connection.prepareStatement(
+						"INSERT INTO ModelToWireframe (modelId, wireframeId) VALUES (?, ?);");
+				statement.setInt(1, this.id);
+				statement.setInt(2, wireframeId);
+				// execute query
+				statement.executeUpdate();
+				statement.close();
+
+			}
+
+
 			// we got here without errors, so commit now
 			connection.commit();
 
@@ -351,6 +397,14 @@ public class Model {
 					edges.get(i).deleteFromDatabase(connection);
 				}
 
+				if(this.getWireframeModelAsString() != null){
+					//delete the wireframe in the wireframe xml
+					statement = connection.prepareStatement("DELETE FROM Wireframe WHERE wireframeId = ?;");
+					statement.setInt(1, this.wireframeId);
+					statement.executeUpdate();
+					statement.close();
+				}
+
 				// we got here without errors, so commit now
 				connection.commit();
 			} catch (SQLException e1) {
@@ -388,8 +442,7 @@ public class Model {
 		for (int i = 0; i < this.nodes.size(); i++) {
 			Node node = this.nodes.get(i);
 			// "simplify" attributes of node
-			ArrayList<SimpleEntityAttribute> simpleAttributesOfNode = new ArrayList<SimpleEntityAttribute>(
-					node.getAttributes().size());
+			ArrayList<SimpleEntityAttribute> simpleAttributesOfNode = new ArrayList<SimpleEntityAttribute>(node.getAttributes().size());
 			for (int j = 0; j < node.getAttributes().size(); j++) {
 				EntityAttribute attribute = node.getAttributes().get(j);
 				SimpleEntityAttribute simpleAttribute = new SimpleEntityAttribute(attribute.getSyncMetaId(),
@@ -425,9 +478,18 @@ public class Model {
 			simpleModelAttributes.add(simpleAttribute);
 		}
 
+
+
 		SimpleModel simpleModel = new SimpleModel(this.attributes.getName(), simpleNodes, simpleEdges,
 				simpleModelAttributes);
-		return simpleModel;
+		try {
+			WireframeModel wireframe = new WireframeModel(this.getWireframeModelAsString());
+			SimpleModel extended = wireframe.extendSimpleModel(simpleModel);
+			return extended;
+		} catch(Exception e){
+			return simpleModel;
+		}
+
 	}
 
 }

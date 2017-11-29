@@ -159,15 +159,15 @@ public class ModelPersistenceServiceTest {
 		// remains are left
 		PreparedStatement statement;
 		try {
-			statement = connection.prepareStatement("DELETE FROM model;");
+			statement = connection.prepareStatement("DELETE FROM Model;");
 			statement.executeUpdate();
-			statement = connection.prepareStatement("DELETE FROM modelAttributes;");
+			statement = connection.prepareStatement("DELETE FROM ModelAttributes;");
 			statement.executeUpdate();
-			statement = connection.prepareStatement("DELETE FROM attribute;");
+			statement = connection.prepareStatement("DELETE FROM Attribute;");
 			statement.executeUpdate();
-			statement = connection.prepareStatement("DELETE FROM edge;");
+			statement = connection.prepareStatement("DELETE FROM Edge;");
 			statement.executeUpdate();
-			statement = connection.prepareStatement("DELETE FROM node;");
+			statement = connection.prepareStatement("DELETE FROM Node;");
 			statement.executeUpdate();
 			connection.commit();
 		} finally {
