@@ -448,7 +448,8 @@ public class RESTResources {
 		// call code generation service
 		if (!codeGenerationService.isEmpty()) {
 			try {
-				String metadataDocString = this.metadataDocService.getUserInputMetadataDocStringByComponentId(model.getAttributes().getName());
+
+				String metadataDocString = model.getMetadataDoc();
 				
 				if (metadataDocString == null)
 					metadataDocString = "";
@@ -1099,12 +1100,6 @@ public class RESTResources {
 			@ApiResponse(code = HttpURLConnection.HTTP_CONFLICT, message = "Tried to save a model that already had a name and thus was not new"),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
 	public Response postDoc(String inputJsonString, @PathParam("version") int version, @PathParam("id") String id) {
-		System.out.println("====POST DOCS WITH JSON STRING======");
-		System.out.println(inputJsonString);
-		System.out.println("====POST DOCS WITH VERSION======");
-		System.out.println(version);
-		System.out.println("====POST DOCS WITH COMPONENT======");
-		System.out.println(id);
 
 		ObjectMapper mapper = new ObjectMapper();
 		try {

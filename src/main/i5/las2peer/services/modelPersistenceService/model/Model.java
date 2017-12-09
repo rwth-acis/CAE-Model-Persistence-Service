@@ -88,7 +88,9 @@ public class Model {
 
 		// metadataDoc
 		if (completeJsonModel.get("metadataDoc") != null) {
+			System.out.println("SET METADATA DOC");
 			this.metadataDoc = completeJsonModel.get("metadataDoc").toString();
+			System.out.println(this.metadataDoc);
 		}
 	}
 

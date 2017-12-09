@@ -132,7 +132,7 @@ public class MetadataDocService {
             sqlQuery = _connection.prepareStatement("SELECT *, UNIX_TIMESTAMP(timeEdited) as 'timeEditedUnix', UNIX_TIMESTAMP(timeDeployed) as 'timeDeployedUnix' FROM MetadataDoc WHERE componentId = ? AND version = ? ORDER BY timeEdited DESC LIMIT 1;");
             sqlQuery.setString(1, queryId);
             sqlQuery.setInt(2, version);
-            _logger.info(String.format(_logPrefix, "Executing GET BY ID query with componentId " + queryId + " and version " + version));
+            _logger.info(String.format(_logPrefix, "Executing GET BY ID & VERSION query with componentId " + queryId + " and version " + version));
             ResultSet queryResult = sqlQuery.executeQuery();
             if(queryResult.next()) {
                 MetadataDoc model = mapResultSetToObject(queryResult);
