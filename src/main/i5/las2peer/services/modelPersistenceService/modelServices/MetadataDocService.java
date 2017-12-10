@@ -77,10 +77,11 @@ public class MetadataDocService {
      */
     public ArrayList<MetadataDoc> getAll() throws SQLException {
         ArrayList<MetadataDoc> result = new ArrayList<MetadataDoc>();
+        String query = "SELECT *, UNIX_TIMESTAMP(timeEdited) as 'timeEditedUnix', UNIX_TIMESTAMP(timeDeployed) as 'timeDeployedUnix' FROM MetadataDoc";
+        PreparedStatement sqlQuery;
+        sqlQuery = _connection.prepareStatement(query);
+        
         try {
-            String query = "SELECT *, UNIX_TIMESTAMP(timeEdited) as 'timeEditedUnix', UNIX_TIMESTAMP(timeDeployed) as 'timeDeployedUnix' FROM MetadataDoc";
-            PreparedStatement sqlQuery;
-            sqlQuery = _connection.prepareStatement(query);
             _logger.info(String.format(_logPrefix, "Executing GET ALL query " + query));
             ResultSet queryResult = sqlQuery.executeQuery();
             while(queryResult.next()) {
@@ -88,6 +89,7 @@ public class MetadataDocService {
             }
             sqlQuery.close();
         } catch (SQLException e) {
+            sqlQuery.close();
             _logger.printStackTrace(e);
         }
         
@@ -100,9 +102,10 @@ public class MetadataDocService {
      * @return founded metadata doc
      */
     public MetadataDoc getByComponentId(String queryId) throws SQLException {
+        PreparedStatement sqlQuery;
+        sqlQuery = _connection.prepareStatement("SELECT *, UNIX_TIMESTAMP(timeEdited) as 'timeEditedUnix', UNIX_TIMESTAMP(timeDeployed) as 'timeDeployedUnix' FROM MetadataDoc WHERE componentId = ? ORDER BY timeEdited DESC LIMIT 1;");
+            
         try {
-            PreparedStatement sqlQuery;
-            sqlQuery = _connection.prepareStatement("SELECT *, UNIX_TIMESTAMP(timeEdited) as 'timeEditedUnix', UNIX_TIMESTAMP(timeDeployed) as 'timeDeployedUnix' FROM MetadataDoc WHERE componentId = ? ORDER BY timeEdited DESC LIMIT 1;");
             sqlQuery.setString(1, queryId);
             _logger.info(String.format(_logPrefix, "Executing GET BY ID query with componentId " + queryId));
             ResultSet queryResult = sqlQuery.executeQuery();
@@ -111,10 +114,12 @@ public class MetadataDocService {
                 sqlQuery.close();
                 return model;
             } else {
+                sqlQuery.close();
             	throw new SQLException("Could not find metadata doc!");
             }
             
         } catch (SQLException e) {
+            sqlQuery.close();
             _logger.printStackTrace(e);
         }
         
@@ -127,9 +132,10 @@ public class MetadataDocService {
      * @return founded metadata doc
      */
     public MetadataDoc getByComponentIdVersion(String queryId, int version) throws SQLException {
+        PreparedStatement sqlQuery;
+        sqlQuery = _connection.prepareStatement("SELECT *, UNIX_TIMESTAMP(timeEdited) as 'timeEditedUnix', UNIX_TIMESTAMP(timeDeployed) as 'timeDeployedUnix' FROM MetadataDoc WHERE componentId = ? AND version = ? ORDER BY timeEdited DESC LIMIT 1;");
+            
         try {
-            PreparedStatement sqlQuery;
-            sqlQuery = _connection.prepareStatement("SELECT *, UNIX_TIMESTAMP(timeEdited) as 'timeEditedUnix', UNIX_TIMESTAMP(timeDeployed) as 'timeDeployedUnix' FROM MetadataDoc WHERE componentId = ? AND version = ? ORDER BY timeEdited DESC LIMIT 1;");
             sqlQuery.setString(1, queryId);
             sqlQuery.setInt(2, version);
             _logger.info(String.format(_logPrefix, "Executing GET BY ID & VERSION query with componentId " + queryId + " and version " + version));
@@ -139,10 +145,12 @@ public class MetadataDocService {
                 sqlQuery.close();
                 return model;
             } else {
+                sqlQuery.close();
             	throw new SQLException("Could not find metadata doc!");
             }
             
         } catch (SQLException e) {
+            sqlQuery.close();
             _logger.printStackTrace(e);
         }
         
@@ -177,10 +185,10 @@ public class MetadataDocService {
 
     /****** CREATE UPDATE MODEL GENERATED METADATA DOC */
     public void createUpdateModelGeneratedMetadata(String componentId, String modelGenerateMetadata, String docType, int version) throws SQLException {
-        try {
-            PreparedStatement sqlQuery = _connection.prepareStatement(
+        PreparedStatement sqlQuery = _connection.prepareStatement(
                     " INSERT INTO MetadataDoc(componentId, docString, docType, version) VALUES (?,?,?,?) " + 
                     " ON DUPLICATE KEY UPDATE docString=?, docType=?");
+        try {
             sqlQuery.setString(1, componentId);
             sqlQuery.setString(2, modelGenerateMetadata);
             sqlQuery.setString(3, docType);
@@ -191,6 +199,7 @@ public class MetadataDocService {
             sqlQuery.executeUpdate();
             sqlQuery.close();
         } catch (SQLException e) {
+            sqlQuery.close();
             _logger.printStackTrace(e);
             throw e;
         }
@@ -198,11 +207,11 @@ public class MetadataDocService {
 
     /****** CREATE UPDATE MODEL GENERATED METADATA DOC */
     public void createUpdateUserGeneratedMetadata(String componentId, String inputJson, int version) throws SQLException {
+        String docType = "json";
+        PreparedStatement sqlQuery = _connection.prepareStatement(
+                " INSERT INTO MetadataDoc(componentId, docInput, docType, version) VALUES (?,?,?,?) " + 
+                " ON DUPLICATE KEY UPDATE docInput=?, docType=?");
         try {
-            String docType = "json";
-            PreparedStatement sqlQuery = _connection.prepareStatement(
-                    " INSERT INTO MetadataDoc(componentId, docInput, docType, version) VALUES (?,?,?,?) " + 
-                    " ON DUPLICATE KEY UPDATE docInput=?, docType=?");
             sqlQuery.setString(1, componentId);
             sqlQuery.setString(2, inputJson);
             sqlQuery.setString(3, docType);
@@ -213,6 +222,7 @@ public class MetadataDocService {
             sqlQuery.executeUpdate();
             sqlQuery.close();
         } catch (SQLException e) {
+            sqlQuery.close();
             _logger.printStackTrace(e);
             throw e;
         }
@@ -269,9 +279,9 @@ public class MetadataDocService {
 	 * @param insertModel model to insert
 	 */
     public void create(MetadataDoc insertModel) throws SQLException {
-        try {
-            PreparedStatement sqlQuery = _connection.prepareStatement(
+        PreparedStatement sqlQuery = _connection.prepareStatement(
 				"INSERT INTO MetadataDoc(componentId, docString, docType) VALUES (?,?,?);");
+        try {
             sqlQuery.setString(1, insertModel.getComponentId());
             sqlQuery.setString(2, insertModel.getDocString());
             sqlQuery.setString(3, insertModel.getDocType());
@@ -279,6 +289,7 @@ public class MetadataDocService {
             sqlQuery.executeUpdate();
             sqlQuery.close();
         } catch (SQLException e) {
+            sqlQuery.close();
             _logger.printStackTrace(e);
         }
 	}
@@ -288,9 +299,9 @@ public class MetadataDocService {
 	 * @param updateModel model to update
 	 */
     public void update(MetadataDoc updateModel) throws SQLException {
-        try {
-            PreparedStatement sqlQuery = _connection.prepareStatement(
+        PreparedStatement sqlQuery = _connection.prepareStatement(
 				"UPDATE MetadataDoc SET docString=?, docType=? WHERE componentId=?;");
+        try {
             sqlQuery.setString(3, updateModel.getComponentId());
             sqlQuery.setString(1, updateModel.getDocString());
             sqlQuery.setString(2, updateModel.getDocType());
@@ -298,6 +309,7 @@ public class MetadataDocService {
             sqlQuery.executeUpdate();
             sqlQuery.close();
         } catch (SQLException e) {
+            sqlQuery.close();
             _logger.printStackTrace(e);
         }
 	}
@@ -307,14 +319,15 @@ public class MetadataDocService {
 	 * @param queryId id to delete
 	 */
 	public void delete(String queryId) throws SQLException {
-        try {
-            PreparedStatement sqlQuery = _connection.prepareStatement("DELETE FROM MetadataDoc WHERE id = ?;");
+        PreparedStatement sqlQuery = _connection.prepareStatement("DELETE FROM MetadataDoc WHERE id = ?;");
             sqlQuery.setString(1, queryId);
+        try {
             _logger.info(String.format(_logPrefix, "Executing DELETE query with id " + queryId));
             _logger.info(String.format(_logPrefix, "Executing DELETE query with id " + queryId));
             sqlQuery.executeUpdate();
             sqlQuery.close();
         } catch (SQLException e) {
+            sqlQuery.close();
             _logger.printStackTrace(e);
         }
 	}
