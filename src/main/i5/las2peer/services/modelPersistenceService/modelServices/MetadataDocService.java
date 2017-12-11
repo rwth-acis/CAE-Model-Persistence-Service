@@ -29,8 +29,10 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Strings;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
 
 public class MetadataDocService {
+    private DatabaseManager _dbm;
     private Connection _connection;
     private L2pLogger _logger;
     private String _logPrefix = "[MetadataDoc Service] - %s";
@@ -40,8 +42,8 @@ public class MetadataDocService {
      * @param connection database connection
      * @param logger logger
      */
-    public MetadataDocService(Connection connection, L2pLogger logger) {
-        _connection = connection;
+    public MetadataDocService(DatabaseManager dbm, L2pLogger logger) {
+        _dbm = dbm;
         _logger = logger;
         _logger.info(String.format(_logPrefix, "Construct new element service"));
     }
@@ -79,6 +81,9 @@ public class MetadataDocService {
         ArrayList<MetadataDoc> result = new ArrayList<MetadataDoc>();
         String query = "SELECT *, UNIX_TIMESTAMP(timeEdited) as 'timeEditedUnix', UNIX_TIMESTAMP(timeDeployed) as 'timeDeployedUnix' FROM MetadataDoc";
         PreparedStatement sqlQuery;
+
+        // refresh connection
+        _connection = _dbm.getConnection();
         sqlQuery = _connection.prepareStatement(query);
         
         try {
@@ -103,6 +108,9 @@ public class MetadataDocService {
      */
     public MetadataDoc getByComponentId(String queryId) throws SQLException {
         PreparedStatement sqlQuery;
+
+        // refresh connection
+        _connection = _dbm.getConnection();
         sqlQuery = _connection.prepareStatement("SELECT *, UNIX_TIMESTAMP(timeEdited) as 'timeEditedUnix', UNIX_TIMESTAMP(timeDeployed) as 'timeDeployedUnix' FROM MetadataDoc WHERE componentId = ? ORDER BY timeEdited DESC LIMIT 1;");
             
         try {
@@ -133,6 +141,9 @@ public class MetadataDocService {
      */
     public MetadataDoc getByComponentIdVersion(String queryId, int version) throws SQLException {
         PreparedStatement sqlQuery;
+
+        // refresh connection
+        _connection = _dbm.getConnection();
         sqlQuery = _connection.prepareStatement("SELECT *, UNIX_TIMESTAMP(timeEdited) as 'timeEditedUnix', UNIX_TIMESTAMP(timeDeployed) as 'timeDeployedUnix' FROM MetadataDoc WHERE componentId = ? AND version = ? ORDER BY timeEdited DESC LIMIT 1;");
             
         try {
@@ -185,6 +196,9 @@ public class MetadataDocService {
 
     /****** CREATE UPDATE MODEL GENERATED METADATA DOC */
     public void createUpdateModelGeneratedMetadata(String componentId, String modelGenerateMetadata, String docType, int version) throws SQLException {
+        
+        // refresh connection
+        _connection = _dbm.getConnection();
         PreparedStatement sqlQuery = _connection.prepareStatement(
                     " INSERT INTO MetadataDoc(componentId, docString, docType, version) VALUES (?,?,?,?) " + 
                     " ON DUPLICATE KEY UPDATE docString=?, docType=?");
@@ -208,6 +222,8 @@ public class MetadataDocService {
     /****** CREATE UPDATE MODEL GENERATED METADATA DOC */
     public void createUpdateUserGeneratedMetadata(String componentId, String inputJson, int version) throws SQLException {
         String docType = "json";
+        // refresh connection
+        _connection = _dbm.getConnection();
         PreparedStatement sqlQuery = _connection.prepareStatement(
                 " INSERT INTO MetadataDoc(componentId, docInput, docType, version) VALUES (?,?,?,?) " + 
                 " ON DUPLICATE KEY UPDATE docInput=?, docType=?");
@@ -253,6 +269,8 @@ public class MetadataDocService {
                     }
 
                     if (componentId != null) {
+                        // refresh connection
+                        _connection = _dbm.getConnection();
                         PreparedStatement sqlQuery = _connection.prepareStatement(
                             " UPDATE MetadataDoc SET urlDeployed=?, timeDeployed=NOW() " + 
                             " WHERE componentId=? ");
@@ -279,6 +297,8 @@ public class MetadataDocService {
 	 * @param insertModel model to insert
 	 */
     public void create(MetadataDoc insertModel) throws SQLException {
+        // refresh connection
+        _connection = _dbm.getConnection();
         PreparedStatement sqlQuery = _connection.prepareStatement(
 				"INSERT INTO MetadataDoc(componentId, docString, docType) VALUES (?,?,?);");
         try {
@@ -299,6 +319,8 @@ public class MetadataDocService {
 	 * @param updateModel model to update
 	 */
     public void update(MetadataDoc updateModel) throws SQLException {
+        // refresh connection
+        _connection = _dbm.getConnection();
         PreparedStatement sqlQuery = _connection.prepareStatement(
 				"UPDATE MetadataDoc SET docString=?, docType=? WHERE componentId=?;");
         try {
@@ -319,6 +341,8 @@ public class MetadataDocService {
 	 * @param queryId id to delete
 	 */
 	public void delete(String queryId) throws SQLException {
+        // refresh connection
+        _connection = _dbm.getConnection();
         PreparedStatement sqlQuery = _connection.prepareStatement("DELETE FROM MetadataDoc WHERE id = ?;");
             sqlQuery.setString(1, queryId);
         try {

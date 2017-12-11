@@ -99,9 +99,7 @@ public class ModelPersistenceService extends RESTService {
 		dbm = new DatabaseManager(jdbcDriverClassName, jdbcLogin, jdbcPass, jdbcUrl, jdbcSchema);
 
 		try {
-			componentService = new ComponentService(this.dbm.getConnection(), this.logger);
-			elementService = new ElementService(this.dbm.getConnection(), this.logger);
-			metadataDocService = new MetadataDocService(this.dbm.getConnection(), this.logger);
+			metadataDocService = new MetadataDocService(this.dbm, this.logger);
 		} catch (SQLException e) {
 			logger.printStackTrace(e);
 		}
