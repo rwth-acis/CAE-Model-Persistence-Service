@@ -36,6 +36,7 @@ public class Model {
 	private ArrayList<Node> nodes;
 	private ArrayList<Edge> edges;
 	private ModelAttributes attributes;
+	private String metadataDoc;
 	private String wireframeModel;
 	private final L2pLogger logger = L2pLogger.getInstance(Model.class.getName());
 
@@ -83,6 +84,11 @@ public class Model {
 			String key = entry.getKey();
 			JSONObject value = (JSONObject) entry.getValue();
 			edges.add(new Edge(key, value));
+		}
+
+		// metadataDoc
+		if (completeJsonModel.get("metadataDoc") != null) {
+			this.metadataDoc = completeJsonModel.get("metadataDoc").toString();
 		}
 	}
 
@@ -212,6 +218,10 @@ public class Model {
 
 	public ModelAttributes getAttributes() {
 		return attributes;
+	}
+
+	public String getMetadataDoc() {
+		return metadataDoc;
 	}
 
 	public String getWireframeModelAsString() {return wireframeModel; }
