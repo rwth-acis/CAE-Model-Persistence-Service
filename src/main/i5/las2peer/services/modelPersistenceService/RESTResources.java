@@ -1,5 +1,7 @@
 package i5.las2peer.services.modelPersistenceService;
 
+import java.io.IOError;
+import java.io.IOException;
 import java.io.Serializable;
 import java.net.HttpURLConnection;
 import java.sql.Connection;
@@ -27,6 +29,8 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.ParseException;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import i5.cae.semanticCheck.SemanticCheckResponse;
 import i5.cae.simpleModel.SimpleEntityAttribute;
@@ -47,6 +51,10 @@ import io.swagger.annotations.ApiResponses;
 import io.swagger.jaxrs.Reader;
 import io.swagger.models.Swagger;
 import io.swagger.util.Json;
+import jdk.nashorn.internal.runtime.regexp.joni.ast.Node;
+import i5.las2peer.services.modelPersistenceService.model.metadata.MetadataDoc;
+
+import i5.las2peer.services.modelPersistenceService.modelServices.*;
 
 @Path("/")
 public class RESTResources {
@@ -55,13 +63,17 @@ public class RESTResources {
 	private L2pLogger logger;
 	private String semanticCheckService;
 	private String codeGenerationService;
+	private String deploymentUrl;
 	private DatabaseManager dbm;
+	private MetadataDocService metadataDocService;
 
 	public RESTResources() throws ServiceException {
 		this.logger = (L2pLogger) service.getLogger();
 		this.semanticCheckService = service.getSemanticCheckService();
 		this.codeGenerationService = service.getCodeGenerationService();
+		this.deploymentUrl = service.getDeploymentUrl();
 		this.dbm = service.getDbm();
+		this.metadataDocService = service.getMetadataService();
 	}
 
 	/**
@@ -115,12 +127,21 @@ public class RESTResources {
 		// call code generation service
 		if (!codeGenerationService.isEmpty()) {
 			try {
+				// get user input metadata doc if available
+				String metadataDocString = model.getMetadataDoc();
+				
+				if (metadataDocString == null)
+					metadataDocString = "";
+
 				Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postModel: invoking code generation service..");
-				model = callCodeGenerationService("createFromModel", model);
+				model = callCodeGenerationService("createFromModel", model, metadataDocString);
 			} catch (CGSInvocationException e) {
 				return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
 			}
 		}
+
+		// generate metadata swagger doc after model valid in code generation
+		metadataDocService.modelToSwagger(model);
 
 		// save the model to the database
 		Connection connection = null;
@@ -341,8 +362,7 @@ public class RESTResources {
 			// call code generation service
 			if (!codeGenerationService.isEmpty()) {
 				try {
-					Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deleteModel: invoking code generation service..");
-					model = callCodeGenerationService("deleteRepositoryOfModel", model);
+					model = callCodeGenerationService("deleteRepositoryOfModel", model, "");
 				} catch (CGSInvocationException e) {
 					return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
 				}
@@ -418,14 +438,23 @@ public class RESTResources {
 		// call code generation service
 		if (!codeGenerationService.isEmpty()) {
 			try {
+
+				String metadataDocString = model.getMetadataDoc();
+				
+				if (metadataDocString == null)
+					metadataDocString = "";
+
 				Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "updateModel: invoking code generation service..");
-				model = callCodeGenerationService("updateRepositoryOfModel", model);
+				model = callCodeGenerationService("updateRepositoryOfModel", model, metadataDocString);
 			} catch (CGSInvocationException e) {
 				return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
 			}
 		} else {
 			return Response.serverError().entity("CodeGeneration Service not specified").build();
 		}
+
+		// generate metadata swagger doc after model valid in code generation
+		metadataDocService.modelToSwagger(model);
 
 		// if this has thrown no exception, we can delete the "old" model
 		// and persist the new one
@@ -460,6 +489,7 @@ public class RESTResources {
 			int modelId = model.getId();
 			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "updateModel: model with new id " + modelId + " and name "
 					+ model.getAttributes().getName() + " stored!");
+
 			return Response.ok("Model updated!").build();
 		} catch (SQLException e) {
 			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "updateModel: exception persisting model: " + e);
@@ -470,6 +500,7 @@ public class RESTResources {
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Internal server error...").build();
 		}
+
 		// always close connections
 		finally {
 			try {
@@ -556,13 +587,17 @@ public class RESTResources {
 				// job is started in Jenkins
 				if (jobAlias.equals("Build")) {
 					Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deployModel: invoking code generation service..");
-					callCodeGenerationService("prepareDeploymentApplicationModel", model);
+					callCodeGenerationService("prepareDeploymentApplicationModel", model, "");
 				}
 
 				// start the jenkins job by the code generation service
 				String answer = (String) Context.getCurrent().invoke(
 						"i5.las2peer.services.codeGenerationService.CodeGenerationService@0.1", "startJenkinsJob",
 						jobAlias);
+
+				// safe deployment time and url
+				if(!deploymentUrl.isEmpty())
+					metadataDocService.updateDeploymentDetails(model, deploymentUrl);
 
 				return Response.ok(answer).build();
 			} catch (CGSInvocationException e) {
@@ -710,7 +745,11 @@ public class RESTResources {
 	 *             if something went wrong invoking the service
 	 * 
 	 */
-	private Model callCodeGenerationService(String methodName, Model model) throws CGSInvocationException {
+	private Model callCodeGenerationService(String methodName, Model model, String metadataDoc) throws CGSInvocationException {
+		
+		if (metadataDoc == null)
+			metadataDoc = "";
+		
 		Connection connection = null;
 		Serializable[] modelsToSend = null;
 		SimpleModel simpleModel = (SimpleModel) model.getMinifiedRepresentation();
@@ -792,8 +831,15 @@ public class RESTResources {
 
 		// actual invocation
 		try {
-			Serializable[] payload = { modelsToSend};
-			String answer = (String) Context.getCurrent().invoke(codeGenerationService, methodName, payload);
+			String answer = "";
+			if (!methodName.equals("updateRepositoryOfModel") && !methodName.equals("createFromModel")) {
+				Serializable[] payload = { modelsToSend };
+				answer = (String) Context.getCurrent().invoke(codeGenerationService, methodName, payload);
+			} else {
+				Serializable[] payload = { metadataDoc, modelsToSend };
+				answer = (String) Context.getCurrent().invoke(codeGenerationService, methodName, payload);
+			}
+
 			if (!answer.equals("done")) {
 				throw new CGSInvocationException(answer);
 			}
@@ -934,5 +980,145 @@ public class RESTResources {
 			logger.printStackTrace(e);
 			return Response.serverError().entity(e.getMessage()).build();
 		}
+	}
+
+	/***********METADATA DOCS*************** */
+
+	/**
+	 * Get all element to element connections in the database
+	 * 
+	 * @return JSON data of the list of all element to element connections
+	 */
+	@GET
+	@Path("/docs/")
+	@Produces(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Searches for all metadata docs in the database. Takes no parameter.", notes = "Searches for all metadata docs in the database.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, Metadata doc found"),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "No metadata doc could be found."),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response getDocs() {
+		ArrayList<MetadataDoc> docs = null;
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+			docs = this.metadataDocService.getAll();
+			String jsonString = mapper.writeValueAsString(docs);
+			return Response.ok(jsonString, MediaType.APPLICATION_JSON).build();
+		} catch (Exception e) {
+			this.logger.printStackTrace(e);
+			return Response.serverError().entity("Server error!").build();
+		}
+	}
+
+	/**
+	 * Get metadata docs in the database by component id
+	 * 
+	 * @return JSON data of the list of all metadata docs
+	 */
+	@GET
+	@Path("/docs/component/{id}")
+	@Produces(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Searches for all metadata doc in the database by component id.", notes = "Searches for all metadata doc in the database by component id.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, metadata doc found"),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "No metadata doc could be found."),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response getDocByComponentId(@PathParam("id") String id) {
+		MetadataDoc doc = null;
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+			doc = this.metadataDocService.getByComponentId(id);
+			String jsonString = mapper.writeValueAsString(doc);
+			return Response.ok(jsonString, MediaType.APPLICATION_JSON).build();
+		} catch (SQLException e) {
+			this.logger.printStackTrace(e);
+			return Response.ok("{}", MediaType.APPLICATION_JSON).build();
+		} catch (Exception e) {
+			this.logger.printStackTrace(e);
+			return Response.serverError().entity("Server error!").build();
+		}
+	}
+
+	/**
+	 * Get metadata docs in the database by component id
+	 * 
+	 * @return JSON data of the list of all metadata docs
+	 */
+	@GET
+	@Path("/docs/component/{id}/{version}")
+	@Produces(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Searches for all metadata doc in the database by component id.", notes = "Searches for all metadata doc in the database by component id.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, metadata doc found"),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "No metadata doc could be found."),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response getDocByComponentIdVersion(@PathParam("id") String id, @PathParam("version") int version) {
+		MetadataDoc doc = null;
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+			doc = this.metadataDocService.getByComponentIdVersion(id, version);
+			String jsonString = mapper.writeValueAsString(doc);
+			return Response.ok(jsonString, MediaType.APPLICATION_JSON).build();
+		} catch (SQLException e) {
+			this.logger.printStackTrace(e);
+			return Response.ok("{}", MediaType.APPLICATION_JSON).build();
+		} catch (Exception e) {
+			this.logger.printStackTrace(e);
+			return Response.serverError().entity("Server error!").build();
+		}
+	}
+
+	/**
+	 * Creates or update user input metadata doc.
+	 * 
+	 * @param inputJsonString json of the new model.
+	 * @return HttpResponse with the status
+	 */
+	@POST
+	@Path("/docs/{id}/{version}")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Create or update metadata doc.", notes = "Create or update metadata doc.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_CREATED, message = "OK, model stored"),
+			@ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST, message = "Input model was not valid"),
+			@ApiResponse(code = HttpURLConnection.HTTP_CONFLICT, message = "Tried to save a model that already had a name and thus was not new"),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response postDoc(String inputJsonString, @PathParam("version") int version, @PathParam("id") String id) {
+
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			this.metadataDocService.createUpdateUserGeneratedMetadata(id, inputJsonString, version);
+			return Response.ok().entity("Doc updated or created").build();
+		} catch (SQLException e) {
+			this.logger.printStackTrace(e);
+			return Response.serverError().entity("Could not create new metadata doc, SQL exception").build();
+		}
+	}
+
+	/**
+	 * 
+	 * Deletes a model.
+	 * 
+	 * @param modelName
+	 *            a string containing the model name
+	 * 
+	 * @return HttpResponse containing the status code of the request
+	 * 
+	 */
+	@DELETE
+	@Path("/docs/{id}")
+	@Consumes(MediaType.TEXT_PLAIN)
+	@ApiOperation(value = "Deletes a metadata doc by id.", notes = "Deletes a metadata doc by id.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model is deleted"),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response deleteDoc(@PathParam("id") String id) {
+		try {
+			this.metadataDocService.delete(id);
+			return Response.ok().entity("element to element deleted").build();
+		} catch (SQLException e) {
+			this.logger.printStackTrace(e);
+			return Response.serverError().entity("Could not delete metadata doc, SQL exception").build();
+		}
+
 	}
 }
