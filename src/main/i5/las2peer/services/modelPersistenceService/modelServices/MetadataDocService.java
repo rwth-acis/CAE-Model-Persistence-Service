@@ -378,7 +378,6 @@ public class MetadataDocService {
      * @param model CAE model, assumed valid
      */
     public String modelToSwagger(Model model) {
-        System.out.println("[ModelToSwagger] Generating swagger from model");
         // check for model type
         String modelType = null;
         int componentVersion = 1;

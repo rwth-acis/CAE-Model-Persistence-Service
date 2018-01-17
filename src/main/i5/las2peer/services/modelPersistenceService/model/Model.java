@@ -88,9 +88,7 @@ public class Model {
 
 		// metadataDoc
 		if (completeJsonModel.get("metadataDoc") != null) {
-			System.out.println("SET METADATA DOC");
 			this.metadataDoc = completeJsonModel.get("metadataDoc").toString();
-			System.out.println(this.metadataDoc);
 		}
 	}
 
@@ -499,7 +497,6 @@ public class Model {
 			SimpleModel extended = wireframe.extendSimpleModel(simpleModel);
 			return extended;
 		} catch(Exception e){
-			System.out.println("No wireframe, return simple model");
 			return simpleModel;
 		}
 

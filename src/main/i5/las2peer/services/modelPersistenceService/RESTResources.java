@@ -132,9 +132,6 @@ public class RESTResources {
 				
 				if (metadataDocString == null)
 					metadataDocString = "";
-				
-				System.out.println("====CREATE FROM MODEL");
-				System.out.println(metadataDocString);
 
 				Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postModel: invoking code generation service..");
 				model = callCodeGenerationService("createFromModel", model, metadataDocString);
@@ -144,7 +141,6 @@ public class RESTResources {
 		}
 
 		// generate metadata swagger doc after model valid in code generation
-		System.out.println("[MODEL PUT] Generate model to swagger string json");
 		metadataDocService.modelToSwagger(model);
 
 		// save the model to the database
@@ -458,7 +454,6 @@ public class RESTResources {
 		}
 
 		// generate metadata swagger doc after model valid in code generation
-		System.out.println("[MODEL PUT] Generate model to swagger string json");
 		metadataDocService.modelToSwagger(model);
 
 		// if this has thrown no exception, we can delete the "old" model
@@ -601,7 +596,6 @@ public class RESTResources {
 						jobAlias);
 
 				// safe deployment time and url
-				System.out.println("DEPLOYMENT URL: " + deploymentUrl);
 				if(!deploymentUrl.isEmpty())
 					metadataDocService.updateDeploymentDetails(model, deploymentUrl);
 
@@ -752,15 +746,10 @@ public class RESTResources {
 	 * 
 	 */
 	private Model callCodeGenerationService(String methodName, Model model, String metadataDoc) throws CGSInvocationException {
-		System.out.println("======CALL CODE GENERATION SERVICE " + methodName);
-		System.out.println(model);
-
+		
 		if (metadataDoc == null)
 			metadataDoc = "";
 		
-		System.out.println("====METADATA DOC CHECK CALL CODE GENERATION SERVICE");
-		System.out.println(metadataDoc);
-
 		Connection connection = null;
 		Serializable[] modelsToSend = null;
 		SimpleModel simpleModel = (SimpleModel) model.getMinifiedRepresentation();
