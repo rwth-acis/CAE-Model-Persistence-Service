@@ -499,6 +499,7 @@ public class Model {
 			SimpleModel extended = wireframe.extendSimpleModel(simpleModel);
 			return extended;
 		} catch(Exception e){
+			System.out.println("No wireframe, return simple model");
 			return simpleModel;
 		}
 

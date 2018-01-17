@@ -52,8 +52,6 @@ import io.swagger.jaxrs.Reader;
 import io.swagger.models.Swagger;
 import io.swagger.util.Json;
 import jdk.nashorn.internal.runtime.regexp.joni.ast.Node;
-import i5.las2peer.services.modelPersistenceService.model.metadata.ComponentToComponent;
-import i5.las2peer.services.modelPersistenceService.model.metadata.ElementToElement;
 import i5.las2peer.services.modelPersistenceService.model.metadata.MetadataDoc;
 
 import i5.las2peer.services.modelPersistenceService.modelServices.*;
@@ -67,8 +65,6 @@ public class RESTResources {
 	private String codeGenerationService;
 	private String deploymentUrl;
 	private DatabaseManager dbm;
-	private ComponentService componentService;
-	private ElementService elementService;
 	private MetadataDocService metadataDocService;
 
 	public RESTResources() throws ServiceException {
@@ -77,8 +73,6 @@ public class RESTResources {
 		this.codeGenerationService = service.getCodeGenerationService();
 		this.deploymentUrl = service.getDeploymentUrl();
 		this.dbm = service.getDbm();
-		this.componentService = service.getComponentService();
-		this.elementService = service.getElementService();
 		this.metadataDocService = service.getMetadataService();
 	}
 

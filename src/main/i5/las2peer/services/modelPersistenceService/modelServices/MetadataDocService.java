@@ -93,8 +93,10 @@ public class MetadataDocService {
                 result.add(mapResultSetToObject(queryResult));
             }
             sqlQuery.close();
+            _connection.close();
         } catch (SQLException e) {
             sqlQuery.close();
+            _connection.close();
             _logger.printStackTrace(e);
         }
         
@@ -120,9 +122,11 @@ public class MetadataDocService {
             if(queryResult.next()) {
                 MetadataDoc model = mapResultSetToObject(queryResult);
                 sqlQuery.close();
+                _connection.close();
                 return model;
             } else {
                 sqlQuery.close();
+                _connection.close();
             	throw new SQLException("Could not find metadata doc!");
             }
             
@@ -154,9 +158,11 @@ public class MetadataDocService {
             if(queryResult.next()) {
                 MetadataDoc model = mapResultSetToObject(queryResult);
                 sqlQuery.close();
+                _connection.close();
                 return model;
             } else {
                 sqlQuery.close();
+                _connection.close();
             	throw new SQLException("Could not find metadata doc!");
             }
             
@@ -201,7 +207,7 @@ public class MetadataDocService {
         _connection = _dbm.getConnection();
         PreparedStatement sqlQuery = _connection.prepareStatement(
                     " INSERT INTO MetadataDoc(componentId, docString, docType, version) VALUES (?,?,?,?) " + 
-                    " ON DUPLICATE KEY UPDATE docString=?, docType=?");
+                    " ON DUPLICATE KEY UPDATE docString=?, docType=?, urlDeployed=NULL");
         try {
             sqlQuery.setString(1, componentId);
             sqlQuery.setString(2, modelGenerateMetadata);
@@ -212,8 +218,10 @@ public class MetadataDocService {
             _logger.info(String.format(_logPrefix, "Executing model generated metadata CREATE UPDATE query"));
             sqlQuery.executeUpdate();
             sqlQuery.close();
+            _connection.close();
         } catch (SQLException e) {
             sqlQuery.close();
+            _connection.close();
             _logger.printStackTrace(e);
             throw e;
         }
@@ -226,7 +234,7 @@ public class MetadataDocService {
         _connection = _dbm.getConnection();
         PreparedStatement sqlQuery = _connection.prepareStatement(
                 " INSERT INTO MetadataDoc(componentId, docInput, docType, version) VALUES (?,?,?,?) " + 
-                " ON DUPLICATE KEY UPDATE docInput=?, docType=?");
+                " ON DUPLICATE KEY UPDATE docInput=?, docType=?, urlDeployed=NULL");
         try {
             sqlQuery.setString(1, componentId);
             sqlQuery.setString(2, inputJson);
@@ -237,8 +245,10 @@ public class MetadataDocService {
             _logger.info(String.format(_logPrefix, "Executing user generated metadata CREATE UPDATE query"));
             sqlQuery.executeUpdate();
             sqlQuery.close();
+            _connection.close();
         } catch (SQLException e) {
             sqlQuery.close();
+            _connection.close();
             _logger.printStackTrace(e);
             throw e;
         }
@@ -280,6 +290,7 @@ public class MetadataDocService {
                         _logger.info(String.format(_logPrefix, "Executing update deployment query"));
                         sqlQuery.executeUpdate();
                         sqlQuery.close();
+                        _connection.close();
                     }
                 }
             }
@@ -308,8 +319,10 @@ public class MetadataDocService {
             _logger.info(String.format(_logPrefix, "Executing generic CREATE query"));
             sqlQuery.executeUpdate();
             sqlQuery.close();
+            _connection.close();
         } catch (SQLException e) {
             sqlQuery.close();
+            _connection.close();
             _logger.printStackTrace(e);
         }
 	}
@@ -330,8 +343,10 @@ public class MetadataDocService {
             _logger.info(String.format(_logPrefix, "Executing UPDATE query for component id " + updateModel.getComponentId()));
             sqlQuery.executeUpdate();
             sqlQuery.close();
+            _connection.close();
         } catch (SQLException e) {
             sqlQuery.close();
+            _connection.close();
             _logger.printStackTrace(e);
         }
 	}
@@ -350,8 +365,10 @@ public class MetadataDocService {
             _logger.info(String.format(_logPrefix, "Executing DELETE query with id " + queryId));
             sqlQuery.executeUpdate();
             sqlQuery.close();
+            _connection.close();
         } catch (SQLException e) {
             sqlQuery.close();
+            _connection.close();
             _logger.printStackTrace(e);
         }
 	}
@@ -361,6 +378,7 @@ public class MetadataDocService {
      * @param model CAE model, assumed valid
      */
     public String modelToSwagger(Model model) {
+        System.out.println("[ModelToSwagger] Generating swagger from model");
         // check for model type
         String modelType = null;
         int componentVersion = 1;
@@ -711,6 +729,7 @@ public class MetadataDocService {
         // add path node to root
         rootObject.put("paths", pathsObject);
 
+        _logger.info("[SAVING SWAGGER INFO]");
         // save result to database
         try {
             createUpdateModelGeneratedMetadata(modelName, rootObject.toString(), "json", componentVersion);

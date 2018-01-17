@@ -82,8 +82,6 @@ public class ModelPersistenceService extends RESTService {
 	private String deploymentUrl = "";
 	private DatabaseManager dbm;
 
-	private ComponentService componentService;
-	private ElementService elementService;
 	private MetadataDocService metadataDocService;
 
 	/*
@@ -97,12 +95,7 @@ public class ModelPersistenceService extends RESTService {
 		// instantiate a database manager to handle database connection pooling
 		// and credentials
 		dbm = new DatabaseManager(jdbcDriverClassName, jdbcLogin, jdbcPass, jdbcUrl, jdbcSchema);
-
-		try {
-			metadataDocService = new MetadataDocService(this.dbm, this.logger);
-		} catch (SQLException e) {
-			logger.printStackTrace(e);
-		}
+		metadataDocService = new MetadataDocService(this.dbm, this.logger);
 	}
 
 	@Override
@@ -124,14 +117,6 @@ public class ModelPersistenceService extends RESTService {
 	
 	public DatabaseManager getDbm(){
 		return dbm;
-	}
-
-	public ComponentService getComponentService(){
-		return componentService;
-	}
-
-	public ElementService getElementService(){
-		return elementService;
 	}
 
 	public MetadataDocService getMetadataService(){
