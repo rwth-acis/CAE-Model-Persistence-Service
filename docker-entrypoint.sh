@@ -68,7 +68,7 @@ set_in_web_config startHttp ${START_HTTP}
 set_in_web_config startHttps ${START_HTTPS}
 set_in_web_config sslKeystore ${SSL_KEYSTORE}
 set_in_web_config sslKeyPassword ${SSL_KEY_PASSWORD}
-set_in_web_config crossOriginResourceDomain ${CROSS_ORIGIN_RESOURCE_DOMAIN}
+set_in_web_config crossOriginResourceDomain "${CROSS_ORIGIN_RESOURCE_DOMAIN}"
 set_in_web_config crossOriginResourceMaxAge ${CROSS_ORIGIN_RESOURCE_MAX_AGE}
 set_in_web_config enableCrossOriginResourceSharing ${ENABLE_CROSS_ORIGIN_RESOURCE_SHARING}
 set_in_web_config oidcProviders ${OIDC_PROVIDERS}
