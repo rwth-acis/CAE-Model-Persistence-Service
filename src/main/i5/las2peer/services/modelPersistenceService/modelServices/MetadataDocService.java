@@ -388,7 +388,10 @@ public class MetadataDocService {
             }
 
             if (modelAttribute.getName().equals("version")) {
-                componentVersion = Integer.parseInt(modelAttribute.getValue());
+                String[] versionParts = modelAttribute.getValue().split(".");
+                if (versionParts.length > 0) {
+                    componentVersion = Integer.parseInt(versionParts[0]);
+                }
             }
         }
         
