@@ -6,7 +6,7 @@
 --
 -- Table structure for table Model.
 --
-CREATE TABLE commedit.Model (
+CREATE TABLE IF NOT EXISTS commedit.Model (
   modelId INT NOT NULL AUTO_INCREMENT,
   CONSTRAINT modelPK PRIMARY KEY (modelId)
 );
@@ -14,7 +14,7 @@ CREATE TABLE commedit.Model (
 --
 -- Table structure for table ModelAttributes.
 --
-CREATE TABLE commedit.ModelAttributes (
+CREATE TABLE IF NOT EXISTS commedit.ModelAttributes (
   modelName VARCHAR(255) NOT NULL,
   CONSTRAINT modelAttributesPK PRIMARY KEY (modelName)
 );
@@ -22,7 +22,7 @@ CREATE TABLE commedit.ModelAttributes (
 --
 -- Table structure for table Node.
 --
-CREATE TABLE commedit.Node (
+CREATE TABLE IF NOT EXISTS commedit.Node (
   nodeId VARCHAR(255) NOT NULL,
   type VARCHAR(255) NOT NULL,
   pLeft INT NOT NULL,
@@ -38,7 +38,7 @@ CREATE TABLE commedit.Node (
 -- Note that there exist not FK references to the source and target
 -- node because we stay independent of semantics.
 --
-CREATE TABLE commedit.Edge (
+CREATE TABLE IF NOT EXISTS commedit.Edge (
   edgeId VARCHAR(255) NOT NULL,
   sourceNode VARCHAR(255) NOT NULL,
   targetNode VARCHAR(255) NOT NULL,
@@ -52,7 +52,7 @@ CREATE TABLE commedit.Edge (
 -- The id is given by the database, while the SyncMetaId
 -- is not unique but shared for all attributes of the same type.
 --
-CREATE TABLE commedit.Attribute (
+CREATE TABLE IF NOT EXISTS commedit.Attribute (
   attributeId INT NOT NULL AUTO_INCREMENT,
   syncMetaId VARCHAR(255) NOT NULL,
   name VARCHAR(255) NOT NULL,
@@ -63,7 +63,7 @@ CREATE TABLE commedit.Attribute (
 --
 -- Table structure for table EdgeToModel.
 --
-CREATE TABLE commedit.EdgeToModel (
+CREATE TABLE IF NOT EXISTS commedit.EdgeToModel (
   id INT NOT NULL AUTO_INCREMENT,
   edgeId VARCHAR(255) NOT NULL,
   modelId INT NOT NULL,
@@ -75,7 +75,7 @@ CREATE TABLE commedit.EdgeToModel (
 --
 -- Table structure for table NodeToModel.
 --
-CREATE TABLE commedit.NodeToModel (
+CREATE TABLE IF NOT EXISTS commedit.NodeToModel (
   id INT NOT NULL AUTO_INCREMENT,
   nodeId VARCHAR(255) NOT NULL,
   modelId INT NOT NULL,
@@ -87,7 +87,7 @@ CREATE TABLE commedit.NodeToModel (
 --
 -- Table structure for table ModelToModelAttributes.
 --
-CREATE TABLE commedit.ModelToModelAttributes (
+CREATE TABLE IF NOT EXISTS commedit.ModelToModelAttributes (
   id INT NOT NULL AUTO_INCREMENT,
   modelId INT NOT NULL,
   modelAttributesName VARCHAR(255) NOT NULL,
@@ -99,7 +99,7 @@ CREATE TABLE commedit.ModelToModelAttributes (
 --
 -- Table structure for table AttributeToNode.
 --
-CREATE TABLE commedit.AttributeToNode (
+CREATE TABLE IF NOT EXISTS commedit.AttributeToNode (
   id INT NOT NULL AUTO_INCREMENT,
   attributeId INT NOT NULL,
   nodeId VARCHAR(255) NOT NULL,
@@ -111,7 +111,7 @@ CREATE TABLE commedit.AttributeToNode (
 --
 -- Table structure for table AttributeToEdge.
 --
-CREATE TABLE commedit.AttributeToEdge (
+CREATE TABLE IF NOT EXISTS commedit.AttributeToEdge (
   id INT NOT NULL AUTO_INCREMENT,
   attributeId INT NOT NULL,
   edgeId VARCHAR(255) NOT NULL,
@@ -123,7 +123,7 @@ CREATE TABLE commedit.AttributeToEdge (
 --
 -- Table structure for table AttributeToModelAttributes.
 --
-CREATE TABLE commedit.AttributeToModelAttributes (
+CREATE TABLE IF NOT EXISTS commedit.AttributeToModelAttributes (
   id INT NOT NULL AUTO_INCREMENT,
   attributeId INT NOT NULL,
   modelAttributesName VARCHAR(255) NOT NULL,
