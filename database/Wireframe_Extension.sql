@@ -1,10 +1,10 @@
-CREATE TABLE commedit.Wireframe (
+CREATE TABLE IF NOT EXISTS commedit.Wireframe (
   wireframeId INT NOT NULL AUTO_INCREMENT,
   wireframeXML LONGTEXT NOT NULL,
   CONSTRAINT wireframePK PRIMARY KEY (wireframeId)
 );
 
-CREATE TABLE commedit.ModelToWireframe (
+CREATE TABLE IF NOT EXISTS commedit.ModelToWireframe (
   id INT NOT NULL AUTO_INCREMENT,
   modelId INT NOT NULL,
   wireframeId INT NOT NULL,
