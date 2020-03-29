@@ -3,9 +3,9 @@ This [las2peer](https://github.com/rwth-acis/las2peer) service handles all outgo
 
 ## Are you looking for the official CAE instance?
 If you just want to try out the Community Application Editor you don't need to set up your own environment. For building applications there are the following spaces:
-* [Microservice Editor](http://cloud10.dbis.rwth-aachen.de:8081/spaces/CAEMicroservice)
-* [Frontend Widget Editor](http://cloud10.dbis.rwth-aachen.de:8081/spaces/CAEFrontend)
-* [Application Editor](http://cloud10.dbis.rwth-aachen.de:8081/spaces/CAEApplication)
+* [Microservice Editor](https://cae.tech4comp.dbis.rwth-aachen.de/microservice-modeling)
+* [Frontend Widget Editor](https://cae.tech4comp.dbis.rwth-aachen.de/frontend-modeling)
+* [Application Editor](https://cae.tech4comp.dbis.rwth-aachen.de/application-modeling)
 
 Otherwise feel free to continue down there.
 
