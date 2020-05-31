@@ -7,6 +7,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -14,16 +15,13 @@ import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 import org.json.simple.parser.ParseException;
 
-import i5.cae.simpleModel.SimpleEntityAttribute;
 import i5.cae.simpleModel.SimpleModel;
 import i5.cae.simpleModel.edge.SimpleEdge;
 import i5.cae.simpleModel.node.SimpleNode;
 import i5.las2peer.logging.L2pLogger;
 import i5.las2peer.services.modelPersistenceService.model.edge.Edge;
-import i5.las2peer.services.modelPersistenceService.model.modelAttributes.ModelAttributes;
 import i5.las2peer.services.modelPersistenceService.model.node.Node;
 import i5.las2peer.services.modelPersistenceService.model.node.NodePosition;
-import i5.las2peer.services.modelPersistenceService.model.wireframe.WireframeModel;
 /**
  * 
  * (Data-)Class for Models. Provides means to convert JSON to Object and Object
@@ -35,7 +33,7 @@ public class Model {
 	private int wireframeId = -1;
 	private ArrayList<Node> nodes;
 	private ArrayList<Edge> edges;
-	private ModelAttributes attributes;
+	private ArrayList<EntityAttribute> attributes;
 	private String metadataDoc;
 	private String wireframeModel;
 	private final L2pLogger logger = L2pLogger.getInstance(Model.class.getName());
@@ -56,8 +54,16 @@ public class Model {
 		JSONObject completeJsonModel = (JSONObject) JSONValue.parseWithException(jsonModel);
 
 		// attributes
-		JSONObject jsonAttribute = (JSONObject) completeJsonModel.get("attributes");
-		this.attributes = new ModelAttributes(jsonAttribute);
+		JSONObject jsonAttributes = (JSONObject)((JSONObject) completeJsonModel.get("attributes")).get("attributes");
+		this.attributes = new ArrayList<EntityAttribute>(jsonAttributes.size());
+		@SuppressWarnings("unchecked")
+		Iterator<Map.Entry<String, Object>> jsonAttribute = jsonAttributes.entrySet().iterator();
+		while (jsonAttribute.hasNext()) {
+			Map.Entry<String, Object> entry = jsonAttribute.next();
+			String attributeId = entry.getKey();
+			JSONObject attribute = (JSONObject) entry.getValue();
+			this.attributes.add(new EntityAttribute(attributeId, attribute));
+		}
 
 		//wireframe model
 		this.wireframeModel = (String)completeJsonModel.get("wireframe");
@@ -96,8 +102,8 @@ public class Model {
 	 * 
 	 * Creates a new model by loading it from the database.
 	 * 
-	 * @param modelName
-	 *            the name of the model that resides in the database
+	 * @param modelId
+	 *            the id of the model that resides in the database
 	 * @param connection
 	 *            a Connection Object
 	 * 
@@ -105,22 +111,25 @@ public class Model {
 	 *             if the model is not found or something else went wrong
 	 * 
 	 */
-	public Model(String modelName, Connection connection) throws SQLException {
+	public Model(int modelId, Connection connection) throws SQLException {
+		this.id = modelId;
+		
 		PreparedStatement statement;
 		// create empty node and edge lists
 		this.nodes = new ArrayList<Node>();
 		this.edges = new ArrayList<Edge>();
 
 		// load attributes
-		this.attributes = new ModelAttributes(modelName, connection);
+		// first create empty attribute list
+		this.attributes = new ArrayList<EntityAttribute>();
 
-		// now we know the model name, set own id
+		// attribute entries
 		statement = connection
-				.prepareStatement("SELECT modelId FROM ModelToModelAttributes WHERE modelAttributesName = ?;");
-		statement.setString(1, this.attributes.getName());
+				.prepareStatement("SELECT attributeId FROM AttributeToModel WHERE modelId = ?;");
+		statement.setInt(1, this.id);
 		ResultSet queryResult = statement.executeQuery();
 		while (queryResult.next()) {
-			this.id = queryResult.getInt(1);
+			this.attributes.add(new EntityAttribute(queryResult.getInt(1), connection));
 		}
 		statement.close();
 
@@ -142,17 +151,10 @@ public class Model {
 		}
 		statement.close();
 
-		StringBuilder sb = new StringBuilder();
-		sb.append("select wireframeXML ")
-                .append("from `Wireframe`, `Model`, `ModelToModelAttributes`, `ModelAttributes`, `ModelToWireframe` ")
-		        .append("where `Wireframe`.`wireframeId` = `ModelToWireframe`.`wireframeId` ")
-		.append("and `ModelToWireframe`.modelId = Model.modelId ")
-		.append("and Model.modelId = ModelToModelAttributes.modelId ")
-		.append("and ModelToModelAttributes.modelAttributesName = ModelAttributes.modelName ")
-		.append("and ModelAttributes.modelName = ?;");
-
-        statement = connection.prepareStatement(sb.toString());
-        statement.setString(1, this.attributes.getName());
+        statement = connection
+        		.prepareStatement("SELECT wireframeXML FROM Wireframe, ModelToWireframe " + 
+                                  "WHERE Wireframe.wireframeId = ModelToWireframe.wireframeId AND modelId = ?;");
+        statement.setInt(1, this.id);
         queryResult = statement.executeQuery();
         while (queryResult.next()) {
             this.wireframeModel = queryResult.getString(1);
@@ -177,7 +179,8 @@ public class Model {
 		this.nodes = new ArrayList<Node>();
 		this.edges = new ArrayList<Edge>();
 		// create attributes
-		this.attributes = new ModelAttributes(simpleModel.getName(), simpleModel.getAttributes());
+		// TODO: this is currently removed but needs to be uncommented later
+		//this.attributes = new ModelAttributes(simpleModel.getName(), simpleModel.getAttributes());
 
 		// create nodes: "initialize" the first node position (starting values
 		// are derived from
@@ -216,7 +219,7 @@ public class Model {
 		return edges;
 	}
 
-	public ModelAttributes getAttributes() {
+	public ArrayList<EntityAttribute> getAttributes() {
 		return attributes;
 	}
 
@@ -242,7 +245,48 @@ public class Model {
 		JSONObject jsonModel = new JSONObject();
 
 		// add attributes
-		jsonModel.put("attributes", this.attributes.toJSONObject());
+		// main object
+		JSONObject modelAttribute = new JSONObject();
+		// start with the (empty) position elements and type
+		modelAttribute.put("left", "0");
+		modelAttribute.put("top", "0");
+		modelAttribute.put("width", "0");
+		modelAttribute.put("height", "0");
+		modelAttribute.put("zIndex", "0");
+		modelAttribute.put("type", "ModelAttributesNode");
+
+		// label element of modelAttributeContent
+		Map<String, Object> label = new HashMap<String, Object>();
+		label.put("id", "modelAttributes[label]");
+		label.put("name", "Label");
+		Map<String, Object> labelValue = new HashMap<String, Object>();
+		labelValue.put("id", "modelAttributes[label]");
+		labelValue.put("name", "Label");
+		// TODO: remove name from model
+		labelValue.put("value", "NAME DOES NOT EXIST ANYMORE");
+		label.put("value", labelValue);
+		modelAttribute.put("label", label);
+
+		// attribute element of modelAttributeContent (currently empty)
+		JSONObject attributes = new JSONObject();
+		for (int attributeIndex = 0; attributeIndex < this.attributes.size(); attributeIndex++) {
+			EntityAttribute currentAttribute = this.attributes.get(attributeIndex);
+			JSONObject attributeContent = new JSONObject();
+			attributeContent.put("id", "modelAttributes[" + currentAttribute.getName() + "]");
+			attributeContent.put("name", currentAttribute.getName());
+
+			// value of attribute
+			JSONObject attributeValue = new JSONObject();
+			attributeValue.put("id", "modelAttributes[" + currentAttribute.getName() + "]");
+			attributeValue.put("name", currentAttribute.getName());
+			attributeValue.put("value", currentAttribute.getValue());
+			attributeContent.put("value", attributeValue);
+
+			// add attribute to attribute list with the attribute's id as key
+			attributes.put(currentAttribute.getSyncMetaId(), attributeContent);
+		}
+		modelAttribute.put("attributes", attributes);
+		jsonModel.put("attributes", modelAttribute);
 
 		// add nodes
 		JSONObject jsonNodes = new JSONObject();
@@ -292,15 +336,16 @@ public class Model {
 			statement.close();
 
 			// store the model attributes
-			this.attributes.persist(connection);
-			// modelToModelAttributes entry ("connect" them)
-			statement = connection.prepareStatement(
-					"INSERT INTO ModelToModelAttributes (modelId, modelAttributesName) VALUES (?, ?);");
-			statement.setInt(1, this.id);
-			statement.setString(2, this.attributes.getName());
-			// execute query
-			statement.executeUpdate();
-			statement.close();
+			for (int i = 0; i < this.attributes.size(); i++) {
+				this.attributes.get(i).persist(connection);
+				// AttributeToModelAttributes entry ("connect" them)
+				statement = connection.prepareStatement(
+						"INSERT INTO AttributeToModel (attributeId, modelId) VALUES (?, ?);");
+				statement.setInt(1, this.attributes.get(i).getId());
+				statement.setInt(2, this.id);
+				statement.executeUpdate();
+				statement.close();
+			}
 
 			// now to the nodes
 			for (int i = 0; i < this.nodes.size(); i++) {
@@ -379,7 +424,7 @@ public class Model {
 			// model not loaded, try loading it and call delete again
 			Model model;
 			try {
-				model = new Model(this.getAttributes().getName(), connection);
+				model = new Model(this.id, connection);
 			} catch (SQLException e) {
 				return false;
 			}
@@ -395,17 +440,6 @@ public class Model {
 				statement.setInt(1, this.id);
 				statement.executeUpdate();
 				statement.close();
-
-				// delete model attributes
-				this.attributes.deleteFromDatabase(connection);
-				// now to the nodes
-				for (int i = 0; i < this.nodes.size(); i++) {
-					nodes.get(i).deleteFromDatabase(connection);
-				}
-				// and edges
-				for (int i = 0; i < this.edges.size(); i++) {
-					edges.get(i).deleteFromDatabase(connection);
-				}
 
 				if(this.getWireframeModelAsString() != null){
 					//delete the wireframe in the wireframe xml
@@ -445,7 +479,8 @@ public class Model {
 	public Serializable getMinifiedRepresentation() {
 		ArrayList<SimpleNode> simpleNodes = new ArrayList<SimpleNode>(this.nodes.size());
 		ArrayList<SimpleEdge> simpleEdges = new ArrayList<SimpleEdge>(this.edges.size());
-		ArrayList<SimpleEntityAttribute> simpleModelAttributes = new ArrayList<SimpleEntityAttribute>(
+		// TODO: this needs to be fixed
+		/*ArrayList<SimpleEntityAttribute> simpleModelAttributes = new ArrayList<SimpleEntityAttribute>(
 				this.attributes.getAttributes().size());
 
 		// "simplify" nodes
@@ -498,7 +533,8 @@ public class Model {
 			return extended;
 		} catch(Exception e){
 			return simpleModel;
-		}
+		}*/
+		return null;
 
 	}
 

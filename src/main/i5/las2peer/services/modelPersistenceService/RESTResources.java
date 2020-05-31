@@ -111,14 +111,6 @@ public class RESTResources {
 			return Response.serverError().entity("Internal server error!").build();
 		}
 
-		// check if model name is already taken
-		if (this.getModel(model.getAttributes().getName()).getStatus() != HttpURLConnection.HTTP_NOT_FOUND) {
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
-					"postModel: model name " + model.getAttributes().getName() + " is already taken");
-			return Response.serverError()
-					.entity("Model with name " + model.getAttributes().getName() + " already exists!").build();
-		}
-
 		// do the semantic check
 		if (!semanticCheckService.isEmpty()) {
 			this.checkModel(model);
@@ -149,8 +141,7 @@ public class RESTResources {
 			connection = dbm.getConnection();
 			model.persist(connection);
 			int modelId = model.getId();
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postModel: model with id " + modelId + " and name "
-					+ model.getAttributes().getName() + " stored!");
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postModel: model with id " + modelId + " stored!");
 			return Response.status(201).entity("Model stored!").build();
 		} catch (SQLException e) {
 			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "postModel: exception persisting model: " + e);
@@ -175,29 +166,29 @@ public class RESTResources {
 	 * 
 	 * Searches for a model in the database by name.
 	 * 
-	 * @param modelName
-	 *            the model as a JSON string
+	 * @param modelId
+	 *            the id of the model
 	 * 
 	 * @return HttpResponse containing the status code of the request and (if
 	 *         successful) the model as a JSON string
 	 * 
 	 */
 	@GET
-	@Path("/models/{modelName}")
+	@Path("/models/{modelId}")
 	@Produces(MediaType.APPLICATION_JSON)
 	@ApiOperation(value = "Searches for a model in the database. Takes the modelName as search parameter.", notes = "Searches for a model in the database.")
 	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model found"),
 			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model could not be found."),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
-	public Response getModel(@PathParam("modelName") String modelName) {
-		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "getModel: searching for model with name " + modelName);
+	public Response getModel(@PathParam("modelId") int modelId) {
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "getModel: searching for model with id " + modelId);
 		Model model = null;
 		Connection connection = null;
 		try {
 			connection = dbm.getConnection();
-			model = new Model(modelName, connection);
+			model = new Model(modelId, connection);
 		} catch (ModelNotFoundException e) {
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "getModel: did not find model with name " + modelName);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "getModel: did not find model with id " + modelId);
 			return Response.status(404).entity("Model not found!").build();
 		} catch (SQLException e) {
 			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "getModel: exception fetching model: " + e);
@@ -215,7 +206,7 @@ public class RESTResources {
 			}
 		}
 		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
-				"getModel: found model " + modelName + ", now converting to JSONObject and returning");
+				"getModel: found model " + modelId + ", now converting to JSONObject and returning");
 		JSONObject jsonModel = model.toJSONObject();
 
 		return Response.ok(jsonModel.toJSONString(), MediaType.APPLICATION_JSON).build();
@@ -339,25 +330,25 @@ public class RESTResources {
 	 * 
 	 * Deletes a model.
 	 *
-	 * @param modelName
-	 *            a string containing the model name
+	 * @param modelId
+	 *            id of the model
 	 * 
 	 * @return HttpResponse containing the status code of the request
 	 * 
 	 */
 	@DELETE
-	@Path("/models/{modelName}")
+	@Path("/models/{modelId}")
 	@Consumes(MediaType.TEXT_PLAIN)
 	@ApiOperation(value = "Deletes a model given by its name.", notes = "Deletes a model given by its name.")
 	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model is deleted"),
 			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
-	public Response deleteModel(@PathParam("modelName") String modelName) {
+	public Response deleteModel(@PathParam("modelId") int modelId) {
 		Connection connection = null;
-		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deleteModel: trying to delete model with name: " + modelName);
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deleteModel: trying to delete model with id: " + modelId);
 		try {
 			connection = dbm.getConnection();
-			Model model = new Model(modelName, connection);
+			Model model = new Model(modelId, connection);
 
 			// call code generation service
 			if (!codeGenerationService.isEmpty()) {
@@ -369,140 +360,16 @@ public class RESTResources {
 			}
 
 			model.deleteFromDatabase(connection);
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deleteModel: deleted model " + modelName);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deleteModel: deleted model " + modelId);
 			return Response.ok("Model deleted!").build();
 		} catch (ModelNotFoundException e) {
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deleteModel: did not find model with name " + modelName);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deleteModel: did not find model with id " + modelId);
 			return Response.status(404).entity("Model not found!").build();
 		} catch (SQLException e) {
 			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "deleteModel: exception deleting model: " + e);
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Internal server error...").build();
 		} finally {
-			try {
-				connection.close();
-			} catch (SQLException e) {
-				logger.printStackTrace(e);
-			}
-		}
-	}
-
-	/**
-	 * 
-	 * Updates a model. Basically only deletes the old one and creates a new
-	 * one, but if the CAE Code Generation Service is used, it validates the
-	 * model and prevents updating if it would break the semantics.
-	 * 
-	 * @param modelName
-	 *            a string containing the model name
-	 * @param inputModel
-	 *            the model as a JSON string
-	 * 
-	 * @return HttpResponse containing the status code of the request
-	 * 
-	 */
-	@PUT
-	@Path("/models/{modelName}")
-	@Consumes(MediaType.APPLICATION_JSON)
-	@ApiOperation(value = "Updates a model.", notes = "Updates a model.")
-	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model is updated"),
-			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
-			@ApiResponse(code = HttpURLConnection.HTTP_CONFLICT, message = "Model name may not be changed"),
-			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
-	public Response updateModel(@PathParam("modelName") String modelName, String inputModel) {
-		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "updateModel: trying to update model with name: " + modelName);
-		Model model;
-		// first parse the updated model and check for correctness of format
-		try {
-			model = new Model(inputModel);
-			// the model name is its "id", it may not be changed
-			if (!model.getAttributes().getName().equals(modelName)) {
-				Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "updateModel: posted model name " + modelName
-						+ " is different from posted model name attribute " + model.getAttributes().getName());
-				return Response.status(409).entity("Model name is different!").build();
-			}
-		} catch (ParseException e) {
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "updateModel: exception parsing JSON input: " + e);
-			return Response.serverError().entity("JSON parsing exception, file not valid!").build();
-		} catch (Exception e) {
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "updateModel: something went seriously wrong: " + e);
-			logger.printStackTrace(e);
-			return Response.serverError().entity("Internal server error!").build();
-		}
-
-		// do the semantic story check
-		if (!semanticCheckService.isEmpty()) {
-			this.checkModel(model);
-		}
-
-		// call code generation service
-		if (!codeGenerationService.isEmpty()) {
-			try {
-
-				String metadataDocString = model.getMetadataDoc();
-				
-				if (metadataDocString == null)
-					metadataDocString = "";
-
-				Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "updateModel: invoking code generation service..");
-				model = callCodeGenerationService("updateRepositoryOfModel", model, metadataDocString);
-			} catch (CGSInvocationException e) {
-				return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
-			}
-		} else {
-			return Response.serverError().entity("CodeGeneration Service not specified").build();
-		}
-
-		// generate metadata swagger doc after model valid in code generation
-		metadataDocService.modelToSwagger(model);
-
-		// if this has thrown no exception, we can delete the "old" model
-		// and persist the new one
-		Connection connection = null;
-		try {
-			connection = dbm.getConnection();
-			// load and delete the old model from the database
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
-					"updateModel: loading and deleting old model with name " + modelName);
-			new Model(modelName, connection).deleteFromDatabase(connection);
-			// check if the "old" model did exist
-		} catch (ModelNotFoundException e) {
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "updateModel: there exists no model with name: " + modelName);
-			return Response.status(404).entity("Model not found!").build();
-		} catch (SQLException e) {
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "updateModel: error deleting old model: " + e);
-			logger.printStackTrace(e);
-			return Response.serverError().entity("Internal server error...").build();
-		}
-		// always close connections
-		finally {
-			try {
-				connection.close();
-			} catch (SQLException e) {
-				logger.printStackTrace(e);
-			}
-		}
-		try {
-			connection = dbm.getConnection();
-			// save the model to the database
-			model.persist(connection);
-			int modelId = model.getId();
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "updateModel: model with new id " + modelId + " and name "
-					+ model.getAttributes().getName() + " stored!");
-
-			return Response.ok("Model updated!").build();
-		} catch (SQLException e) {
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "updateModel: exception persisting model: " + e);
-			logger.printStackTrace(e);
-			return Response.serverError().entity("Could not persist, database rejected model!").build();
-		} catch (Exception e) {
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "updateModel: something went seriously wrong: " + e);
-			logger.printStackTrace(e);
-			return Response.serverError().entity("Internal server error...").build();
-		}
-
-		// always close connections
-		finally {
 			try {
 				connection.close();
 			} catch (SQLException e) {
@@ -549,8 +416,8 @@ public class RESTResources {
 	 * Requests the code generation service to start a Jenkins job for an
 	 * application model.
 	 * 
-	 * @param modelName
-	 *            a string containing the model name
+	 * @param modelId
+	 *            id of the model
 	 * @param jobAlias
 	 *            the name/alias of the job to run, i.e. either "Build" or
 	 *            "Docker"
@@ -559,28 +426,22 @@ public class RESTResources {
 	 * 
 	 */
 	@GET
-	@Path("/deploy/{modelName}/{jobAlias}")
+	@Path("/deploy/{modelId}/{jobAlias}")
 	@Consumes(MediaType.TEXT_PLAIN)
 	@ApiOperation(value = "Deploys an application model.", notes = "Deploys an application model.")
 	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model will be deployed"),
 			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
-	public Response deployModel(@PathParam("modelName") String modelName, @PathParam("jobAlias") String jobAlias) {
-		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deployModel: trying to deploy model with name: " + modelName);
+	public Response deployModel(@PathParam("modelId") int modelId, @PathParam("jobAlias") String jobAlias) {
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deployModel: trying to deploy model with id: " + modelId);
 		Model model;
 		Connection connection = null;
 
 		// first parse the updated model and check for correctness of format
 		try {
 			connection = dbm.getConnection();
-			model = new Model(modelName, connection);
+			model = new Model(modelId, connection);
 
-			// the model name is its "id", it may not be changed
-			if (!model.getAttributes().getName().equals(modelName)) {
-				Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deployModel: posted model name " + modelName
-						+ " is different from posted model name attribute " + model.getAttributes().getName());
-				return Response.status(409).entity("Model name is different!").build();
-			}
 			try {
 
 				// only create temp repository once, i.e. before the "Build"
@@ -629,33 +490,33 @@ public class RESTResources {
 	 * 
 	 * TODO: Not tested..
 	 * 
-	 * @param modelName
-	 *            the name of the model to be loaded.
+	 * @param modelId
+	 *            the id of the model to be loaded.
 	 * 
 	 * @return HttpResponse containing the status code of the request and the
 	 *         communication view model as a JSON string
 	 */
 	@GET
-	@Path("/models/commView/{modelName}")
+	@Path("/models/commView/{modelId}")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@ApiOperation(value = "Gets a CAE communication view model.", notes = "Gets a CAE communication view model.")
 	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model found"),
 			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
-	public Response getCAECommunicationModel(@PathParam("modelName") String modelName) {
+	public Response getCAECommunicationModel(@PathParam("modelId") int modelId) {
 		// load the application model from the database
 		SimpleModel appModel;
 		Connection connection = null;
 		try {
 			connection = dbm.getConnection();
 			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
-					"getCAECommunicationModel: Loading model " + modelName + " from the database");
-			appModel = (SimpleModel) new Model(modelName, connection).getMinifiedRepresentation();
+					"getCAECommunicationModel: Loading model " + modelId + " from the database");
+			appModel = (SimpleModel) new Model(modelId, connection).getMinifiedRepresentation();
 		} catch (SQLException e) {
 			// model might not exist
 			logger.printStackTrace(e);
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "getCAECommunicationModel: model " + modelName + " not found");
-			return Response.status(404).entity("Model " + modelName + " does not exist!").build();
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "getCAECommunicationModel: model " + modelId + " not found");
+			return Response.status(404).entity("Model " + modelId + " does not exist!").build();
 		} finally {
 			try {
 				connection.close();
@@ -676,16 +537,17 @@ public class RESTResources {
 				for (SimpleNode node : appModel.getNodes()) {
 					// send application models only have one attribute with
 					// its label
-					String subModelName = node.getAttributes().get(0).getValue();
+					// TODO: here subModelName got changed to subModelId -> check if it works
+					int subModelId = Integer.valueOf(node.getAttributes().get(0).getValue());
 					try {
 						connection = dbm.getConnection();
-						modelsToSend[modelsToSendIndex] = new Model(subModelName, connection)
+						modelsToSend[modelsToSendIndex] = new Model(subModelId, connection)
 								.getMinifiedRepresentation();
 					} catch (SQLException e) {
 						// model might not exist
 						logger.printStackTrace(e);
 						Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR,
-								"getCAECommunicationModel: Error loading application component: " + subModelName);
+								"getCAECommunicationModel: Error loading application component: " + subModelId);
 						return Response.serverError().entity("Internal server error...").build();
 					} finally {
 						try {
@@ -709,7 +571,7 @@ public class RESTResources {
 							"getCAECommunicationModel: Got communication model from code generation service..");
 
 					Model returnModel = new Model(communicationModel);
-					Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "getCAECommunicationModel: Created model " + modelName
+					Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "getCAECommunicationModel: Created model " + modelId
 							+ "from simple model, now converting to JSONObject and returning");
 
 					JSONObject jsonModel = returnModel.toJSONObject();
@@ -723,7 +585,7 @@ public class RESTResources {
 			}
 		}
 		Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR,
-				"getCAECommunicationModel: model " + modelName + " is not an application");
+				"getCAECommunicationModel: model " + modelId + " is not an application");
 		return Response.serverError().entity("Internal server error...").build();
 	}
 
@@ -775,17 +637,18 @@ public class RESTResources {
 			for (SimpleNode node : simpleModel.getNodes()) {
 				// since application models only have one attribute with its
 				// label
-				String modelName = node.getAttributes().get(0).getValue();
+				// TODO: changed from string to int, check if it works
+				int modelId = Integer.valueOf(node.getAttributes().get(0).getValue());
 				logger.info("Attributes: " + node.getAttributes().toString());
 
 				try {
 					connection = dbm.getConnection();
-					logger.info("Modelname: " + modelName);
-					modelsToSend[modelsToSendIndex] = new Model(modelName, connection).getMinifiedRepresentation();
+					logger.info("Modelname: " + modelId);
+					modelsToSend[modelsToSendIndex] = new Model(modelId, connection).getMinifiedRepresentation();
 				} catch (SQLException e) {
 					// model might not exist
 					logger.printStackTrace(e);
-					throw new CGSInvocationException("Error loading application component: " + modelName);
+					throw new CGSInvocationException("Error loading application component: " + modelId);
 				} finally {
 					try {
 						connection.close();
@@ -797,10 +660,10 @@ public class RESTResources {
 			}
 		} else {
 			SimpleModel oldModel = null;
-			String modelName = model.getAttributes().getName();
+			int modelId = model.getId();
 			try {
 				connection = dbm.getConnection();
-				oldModel = (SimpleModel) new Model(modelName, connection).getMinifiedRepresentation();
+				oldModel = (SimpleModel) new Model(modelId, connection).getMinifiedRepresentation();
 			} catch (SQLException e) {
 				// we can ignore sql exception for the loading of the old
 				// model. If such an exception is
@@ -940,7 +803,7 @@ public class RESTResources {
 
 	private EntityAttribute findSemcheckAttribute(Model model) {
 		EntityAttribute res = null;
-		for (EntityAttribute a : model.getAttributes().getAttributes()) {
+		for (EntityAttribute a : model.getAttributes()) {
 			if (a.getName().equals("_semcheck")) {
 				return a;
 			}
@@ -1022,7 +885,7 @@ public class RESTResources {
 	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, metadata doc found"),
 			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "No metadata doc could be found."),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
-	public Response getDocByComponentId(@PathParam("id") String id) {
+	public Response getDocByComponentId(@PathParam("id") int id) {
 		MetadataDoc doc = null;
 		ObjectMapper mapper = new ObjectMapper();
 

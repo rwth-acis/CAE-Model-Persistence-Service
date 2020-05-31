@@ -20,7 +20,6 @@ import i5.las2peer.services.modelPersistenceService.model.Model;
 import i5.las2peer.services.modelPersistenceService.model.node.Node;
 import i5.las2peer.services.modelPersistenceService.model.edge.Edge;
 import i5.las2peer.services.modelPersistenceService.model.metadata.MetadataDoc;
-import i5.las2peer.services.modelPersistenceService.model.modelAttributes.ModelAttributes;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -108,7 +107,7 @@ public class MetadataDocService {
      * @param queryId id of metadata doc
      * @return founded metadata doc
      */
-    public MetadataDoc getByComponentId(String queryId) throws SQLException {
+    public MetadataDoc getByComponentId(int queryId) throws SQLException {
         PreparedStatement sqlQuery;
 
         // refresh connection
@@ -116,7 +115,7 @@ public class MetadataDocService {
         sqlQuery = _connection.prepareStatement("SELECT *, UNIX_TIMESTAMP(timeEdited) as 'timeEditedUnix', UNIX_TIMESTAMP(timeDeployed) as 'timeDeployedUnix' FROM MetadataDoc WHERE componentId = ? ORDER BY timeEdited DESC LIMIT 1;");
             
         try {
-            sqlQuery.setString(1, queryId);
+            sqlQuery.setInt(1, queryId);
             _logger.info(String.format(_logPrefix, "Executing GET BY ID query with componentId " + queryId));
             ResultSet queryResult = sqlQuery.executeQuery();
             if(queryResult.next()) {
@@ -179,7 +178,7 @@ public class MetadataDocService {
      * @param queryId id of metadata doc
      * @return founded metadata doc string
      */
-    public String getMetadataDocStringByComponentId(String queryId) {
+    public String getMetadataDocStringByComponentId(int queryId) {
         try {
             return getByComponentId(queryId).getDocString();
         } catch (SQLException e) {
@@ -192,7 +191,7 @@ public class MetadataDocService {
      * @param queryId id of metadata doc
      * @return founded metadata doc string
      */
-    public String getUserInputMetadataDocStringByComponentId(String queryId) {
+    public String getUserInputMetadataDocStringByComponentId(int queryId) {
         try {
             return getByComponentId(queryId).getDocInput();
         } catch (SQLException e) {
@@ -201,7 +200,7 @@ public class MetadataDocService {
     }
 
     /****** CREATE UPDATE MODEL GENERATED METADATA DOC */
-    public void createUpdateModelGeneratedMetadata(String componentId, String modelGenerateMetadata, String docType, int version) throws SQLException {
+    public void createUpdateModelGeneratedMetadata(int componentId, String modelGenerateMetadata, String docType, int version) throws SQLException {
         
         // refresh connection
         _connection = _dbm.getConnection();
@@ -209,7 +208,7 @@ public class MetadataDocService {
                     " INSERT INTO MetadataDoc(componentId, docString, docType, version) VALUES (?,?,?,?) " + 
                     " ON DUPLICATE KEY UPDATE docString=?, docType=?, urlDeployed=NULL");
         try {
-            sqlQuery.setString(1, componentId);
+            sqlQuery.setInt(1, componentId);
             sqlQuery.setString(2, modelGenerateMetadata);
             sqlQuery.setString(3, docType);
             sqlQuery.setInt(4, version);
@@ -258,7 +257,7 @@ public class MetadataDocService {
         try {
             // check for model type
             String modelType = null;
-            ArrayList<EntityAttribute> modelAttributes = model.getAttributes().getAttributes();
+            ArrayList<EntityAttribute> modelAttributes = model.getAttributes();
             for (EntityAttribute modelAttribute: modelAttributes) {
                 if (modelAttribute.getName().equals("type")) {
                     modelType = modelAttribute.getValue();
@@ -381,7 +380,7 @@ public class MetadataDocService {
         // check for model type
         String modelType = null;
         int componentVersion = 1;
-        ArrayList<EntityAttribute> modelAttributes = model.getAttributes().getAttributes();
+        ArrayList<EntityAttribute> modelAttributes = model.getAttributes();
         for (EntityAttribute modelAttribute: modelAttributes) {
             if (modelAttribute.getName().equals("type")) {
                 modelType = modelAttribute.getValue();
@@ -432,8 +431,9 @@ public class MetadataDocService {
         ObjectNode rootObject = mapper.createObjectNode();
 
         // get user input metadata doc if exists
-        String modelName = model.getAttributes().getName();
-        String userInputMetadataDoc = getUserInputMetadataDocStringByComponentId(modelName);
+        // TODO: changed from name to id here, check if works
+        int modelId = model.getId();
+        String userInputMetadataDoc = getUserInputMetadataDocStringByComponentId(modelId);
         
         String description = "No description";
         String version = "1.0";
@@ -479,9 +479,9 @@ public class MetadataDocService {
         rootObject.put("swagger", "2.0");
 
         // info object
-        ModelAttributes attributes = model.getAttributes();
+        //ModelAttributes attributes = model.getAttributes();
         ObjectNode infoObject = mapper.createObjectNode();
-        infoObject.put("title", attributes.getName());
+        //infoObject.put("title", attributes.getName());
 
         // generated from widget
         infoObject.put("description", description);
@@ -734,7 +734,7 @@ public class MetadataDocService {
         _logger.info("[SAVING SWAGGER INFO]");
         // save result to database
         try {
-            createUpdateModelGeneratedMetadata(modelName, rootObject.toString(), "json", componentVersion);
+            createUpdateModelGeneratedMetadata(modelId, rootObject.toString(), "json", componentVersion);
         } catch (SQLException e) {
             _logger.printStackTrace(e);
         }

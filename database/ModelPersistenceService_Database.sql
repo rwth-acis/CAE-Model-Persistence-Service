@@ -12,14 +12,6 @@ CREATE TABLE IF NOT EXISTS commedit.Model (
 );
 
 --
--- Table structure for table ModelAttributes.
---
-CREATE TABLE IF NOT EXISTS commedit.ModelAttributes (
-  modelName VARCHAR(255) NOT NULL,
-  CONSTRAINT modelAttributesPK PRIMARY KEY (modelName)
-);
-
---
 -- Table structure for table Node.
 --
 CREATE TABLE IF NOT EXISTS commedit.Node (
@@ -87,18 +79,6 @@ CREATE TABLE IF NOT EXISTS commedit.NodeToModel (
 );
 
 --
--- Table structure for table ModelToModelAttributes.
---
-CREATE TABLE IF NOT EXISTS commedit.ModelToModelAttributes (
-  id INT NOT NULL AUTO_INCREMENT,
-  modelId INT NOT NULL,
-  modelAttributesName VARCHAR(255) NOT NULL,
-  CONSTRAINT ModelToModelAttributesPK PRIMARY KEY (id),
-  CONSTRAINT ModelToModelAttributesModelFK FOREIGN KEY (modelId) REFERENCES commedit.Model(modelId) ON DELETE CASCADE,
-  CONSTRAINT ModelToModelAttributesModelAttributesFK FOREIGN KEY (modelAttributesName) REFERENCES commedit.ModelAttributes(modelName) ON DELETE CASCADE
-);
-
---
 -- Table structure for table AttributeToNode.
 --
 CREATE TABLE IF NOT EXISTS commedit.AttributeToNode (
@@ -123,13 +103,13 @@ CREATE TABLE IF NOT EXISTS commedit.AttributeToEdge (
 );
 
 --
--- Table structure for table AttributeToModelAttributes.
+-- Table structure for table AttributeToModel.
 --
-CREATE TABLE IF NOT EXISTS commedit.AttributeToModelAttributes (
+CREATE TABLE IF NOT EXISTS commedit.AttributeToModel (
   id INT NOT NULL AUTO_INCREMENT,
   attributeId INT NOT NULL,
-  modelAttributesName VARCHAR(255) NOT NULL,
+  modelId INT NOT NULL,
   CONSTRAINT attributeToModelPK PRIMARY KEY (id),
   CONSTRAINT attributeToModelAttributeFK FOREIGN KEY (attributeId) REFERENCES commedit.Attribute(attributeId) ON DELETE CASCADE,
-  CONSTRAINT attributeToModelModelFK FOREIGN KEY (modelAttributesName) REFERENCES commedit.ModelAttributes(modelName) ON DELETE CASCADE
+  CONSTRAINT attributeToModelModelFK FOREIGN KEY (modelId) REFERENCES commedit.Model(modelId) ON DELETE CASCADE
 );

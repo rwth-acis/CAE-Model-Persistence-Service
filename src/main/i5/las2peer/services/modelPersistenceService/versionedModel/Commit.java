@@ -84,6 +84,11 @@ public class Commit {
 		}
 	}
 	
+	@SuppressWarnings("unchecked")
+	public JSONObject toJSONObject() {
+		return new JSONObject(); // only to let docker build for now
+	}
+	
 
 	public int getId() {
 		return this.id;
