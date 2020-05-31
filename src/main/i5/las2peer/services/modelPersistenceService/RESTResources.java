@@ -118,7 +118,7 @@ public class RESTResources {
 
 		// call code generation service
 		if (!codeGenerationService.isEmpty()) {
-			try {
+			//try {
 				// get user input metadata doc if available
 				String metadataDocString = model.getMetadataDoc();
 				
@@ -126,10 +126,11 @@ public class RESTResources {
 					metadataDocString = "";
 
 				Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postModel: invoking code generation service..");
-				model = callCodeGenerationService("createFromModel", model, metadataDocString);
-			} catch (CGSInvocationException e) {
-				return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
-			}
+				// TODO: reactivate usage of code generation service
+				//model = callCodeGenerationService("createFromModel", model, metadataDocString);
+			//} catch (CGSInvocationException e) {
+				//return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
+			//}
 		}
 
 		// generate metadata swagger doc after model valid in code generation
@@ -232,18 +233,18 @@ public class RESTResources {
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
 	public Response getModels() {
 
-		ArrayList<String> modelNames = new ArrayList<String>();
+		ArrayList<Integer> modelIds = new ArrayList<>();
 		Connection connection = null;
 		try {
 			connection = dbm.getConnection();
 			// search for all models
-			PreparedStatement statement = connection.prepareStatement("SELECT modelName FROM ModelAttributes;");
+			PreparedStatement statement = connection.prepareStatement("SELECT modelId FROM Model;");
 			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "getModels: retrieving all models..");
 			ResultSet queryResult = statement.executeQuery();
 			while (queryResult.next()) {
-				modelNames.add(queryResult.getString(1));
+				modelIds.add(queryResult.getInt(1));
 			}
-			if (modelNames.isEmpty()) {
+			if (modelIds.isEmpty()) {
 				Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "getModels: database is empty!");
 				return Response.status(404).entity("Database is empty!").build();
 			}
@@ -266,7 +267,7 @@ public class RESTResources {
 		Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "getModels: created list of models, now converting to JSONObject and returning");
 
 		JSONArray jsonModelList = new JSONArray();
-		jsonModelList.addAll(modelNames);
+		jsonModelList.addAll(modelIds);
 
 		return Response.ok(jsonModelList.toJSONString(), MediaType.APPLICATION_JSON).build();
 	}
@@ -352,11 +353,12 @@ public class RESTResources {
 
 			// call code generation service
 			if (!codeGenerationService.isEmpty()) {
-				try {
-					model = callCodeGenerationService("deleteRepositoryOfModel", model, "");
-				} catch (CGSInvocationException e) {
-					return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
-				}
+				//try {
+					// TODO: reactivate usage of code generation service
+					//model = callCodeGenerationService("deleteRepositoryOfModel", model, "");
+				//} catch (CGSInvocationException e) {
+					//return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
+				//}
 			}
 
 			model.deleteFromDatabase(connection);
@@ -442,13 +444,14 @@ public class RESTResources {
 			connection = dbm.getConnection();
 			model = new Model(modelId, connection);
 
-			try {
+			//try {
 
 				// only create temp repository once, i.e. before the "Build"
 				// job is started in Jenkins
 				if (jobAlias.equals("Build")) {
 					Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deployModel: invoking code generation service..");
-					callCodeGenerationService("prepareDeploymentApplicationModel", model, "");
+					// TODO: reactivate usage of code generation service
+					//callCodeGenerationService("prepareDeploymentApplicationModel", model, "");
 				}
 
 				// start the jenkins job by the code generation service
@@ -461,9 +464,9 @@ public class RESTResources {
 					metadataDocService.updateDeploymentDetails(model, deploymentUrl);
 
 				return Response.ok(answer).build();
-			} catch (CGSInvocationException e) {
+			/*} catch (CGSInvocationException e) {
 				return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
-			}
+			}*/
 		} catch (Exception e) {
 			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "updateModel: something went seriously wrong: " + e);
 			logger.printStackTrace(e);

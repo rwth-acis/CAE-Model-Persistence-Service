@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
@@ -73,12 +74,11 @@ public class Commit {
 		statement.close();
 		
 		// load model
-		statement = connection.prepareStatement("SELECT modelId, FROM CommitToModel WHERE commitId = ?;");
+		statement = connection.prepareStatement("SELECT modelId FROM CommitToModel WHERE commitId = ?;");
 		statement.setInt(1, commitId);
 		queryResult = statement.executeQuery();
 		if(queryResult.next()) {
-			//this.model = new Model(queryResult.getInt(1), connection);
-			// TODO: heres the problem that models are identified by their name now
+			this.model = new Model(queryResult.getInt(1), connection);
 		} else {
 			throw new CommitNotFoundException();
 		}
@@ -86,7 +86,49 @@ public class Commit {
 	
 	@SuppressWarnings("unchecked")
 	public JSONObject toJSONObject() {
-		return new JSONObject(); // only to let docker build for now
+		JSONObject jsonCommit = new JSONObject();
+		
+		jsonCommit.put("id", this.id);
+		jsonCommit.put("model", this.model.toJSONObject());
+		jsonCommit.put("message", this.message);
+		jsonCommit.put("timestamp", this.timestamp);
+		
+		return jsonCommit;
+	}
+	
+	public void persist(Connection connection) throws SQLException {
+		PreparedStatement statement;
+		boolean autoCommitBefore = connection.getAutoCommit();
+		try {
+			connection.setAutoCommit(false);
+			
+			statement = connection.prepareStatement("INSERT INTO Commit (message) VALUES (?);", Statement.RETURN_GENERATED_KEYS);
+			statement.setString(1, this.message);
+			// execute query
+			statement.executeUpdate();
+		    // get the generated id and close statement
+			ResultSet genKeys = statement.getGeneratedKeys();
+			genKeys.next();
+			this.id = genKeys.getInt(1);
+		    statement.close();
+		    
+		    // store model
+		    this.model.persist(connection);
+		    
+		    // add CommitToModel entry
+		    statement = connection.prepareStatement("INSERT INTO CommitToModel (commitId, modelId) VALUES (?, ?);");
+		    statement.setInt(1, this.id);
+		    statement.setInt(2, this.model.getId());
+		    statement.executeUpdate();
+		    statement.close();
+		} catch (SQLException e) {
+			// roll back the whole stuff
+			connection.rollback();
+			throw e;
+		} finally {
+			// reset auto commit
+			connection.setAutoCommit(autoCommitBefore);
+		}
 	}
 	
 

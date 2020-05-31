@@ -113,3 +113,45 @@ CREATE TABLE IF NOT EXISTS commedit.AttributeToModel (
   CONSTRAINT attributeToModelAttributeFK FOREIGN KEY (attributeId) REFERENCES commedit.Attribute(attributeId) ON DELETE CASCADE,
   CONSTRAINT attributeToModelModelFK FOREIGN KEY (modelId) REFERENCES commedit.Model(modelId) ON DELETE CASCADE
 );
+
+--
+-- Table structure for table VersionedModel.
+--
+CREATE TABLE IF NOT EXISTS commedit.VersionedModel (
+  id INT NOT NULL AUTO_INCREMENT,
+  CONSTRAINT versionedModelPK PRIMARY KEY (id)
+);
+
+--
+-- Table structure for table Commit.
+--
+CREATE TABLE IF NOT EXISTS commedit.Commit (
+  id INT NOT NULL AUTO_INCREMENT,
+  message VARCHAR(255) NOT NULL,
+  timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT commitPK PRIMARY KEY (id)
+);
+
+--
+-- Table structure for table CommitToVersionedModel.
+--
+CREATE TABLE IF NOT EXISTS commedit.CommitToVersionedModel (
+  id INT NOT NULL AUTO_INCREMENT,
+  versionedModelId INT NOT NULL,
+  commitId INT NOT NULL,
+  CONSTRAINT commitToVersionedModelPK PRIMARY KEY (id),
+  CONSTRAINT commitToVersionedModelVersionedModelFK FOREIGN KEY (versionedModelId) REFERENCES commedit.VersionedModel(id) ON DELETE CASCADE,
+  CONSTRAINT commitToVersionedModelCommitFK FOREIGN KEY (commitId) REFERENCES commedit.Commit(id) ON DELETE CASCADE
+);
+
+--
+-- Table structure for table CommitToModel.
+--
+CREATE TABLE IF NOT EXISTS commedit.CommitToModel (
+  id INT NOT NULL AUTO_INCREMENT,
+  commitId INT NOT NULL,
+  modelId INT NOT NULL,
+  CONSTRAINT commitToModelPK PRIMARY KEY (id),
+  CONSTRAINT commitToModelCommitFK FOREIGN KEY (commitId) REFERENCES commedit.Commit(id) ON DELETE CASCADE,
+  CONSTRAINT commitToModelModelFK FOREIGN KEY (modelId) REFERENCES commedit.Model(modelId) ON DELETE CASCADE
+);
