@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
@@ -21,7 +22,8 @@ import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
  *
  */
 public class Edge {
-	private String id;
+	private int id = -1;
+	private String syncMetaId;
 	private String sourceNode;
 	private String targetNode;
 	private String type;
@@ -33,15 +35,15 @@ public class Edge {
 	/**
 	 * Creates a new edge entity.
 	 * 
-	 * @param edgeId
+	 * @param syncMetaId
 	 *            the edge id
 	 * 
 	 * @param jsonEdge
 	 *            the content of the edge entry in the (JSON-represented) model
 	 * 
 	 */
-	public Edge(String edgeId, JSONObject jsonEdge) {
-		this.id = edgeId;
+	public Edge(String syncMetaId, JSONObject jsonEdge) {
+		this.syncMetaId = syncMetaId;
 		this.type = (String) jsonEdge.get("type");
 		this.sourceNode = (String) jsonEdge.get("source");
 		this.targetNode = (String) jsonEdge.get("target");
@@ -79,19 +81,20 @@ public class Edge {
 	 *             if something went wrong fetching the edge from the database
 	 * 
 	 */
-	public Edge(String edgeId, Connection connection) throws SQLException {
+	public Edge(int edgeId, Connection connection) throws SQLException {
 		// first create empty attribute list
 		this.attributes = new ArrayList<EntityAttribute>();
 
 		// fetch edge
 		PreparedStatement statement = connection.prepareStatement("SELECT * FROM Edge WHERE edgeId = ?;");
-		statement.setString(1, edgeId);
+		statement.setInt(1, edgeId);
 		ResultSet queryResult = statement.executeQuery();
 		if (queryResult.next()) {
-			this.id = queryResult.getString(1);
-			this.sourceNode = queryResult.getString(2);
-			this.targetNode = queryResult.getString(3);
-			this.labelValue = queryResult.getString(4);
+			this.id = queryResult.getInt(1);
+			this.syncMetaId = queryResult.getString(2);
+			this.sourceNode = queryResult.getString(3);
+			this.targetNode = queryResult.getString(4);
+			this.labelValue = queryResult.getString(5);
 			this.type = queryResult.getString(5);
 			statement.close();
 		} else {
@@ -100,7 +103,7 @@ public class Edge {
 
 		// attribute entries
 		statement = connection.prepareStatement("SELECT attributeId FROM AttributeToEdge WHERE edgeId = ?;");
-		statement.setString(1, this.id);
+		statement.setInt(1, this.id);
 		queryResult = statement.executeQuery();
 		while (queryResult.next()) {
 			this.attributes.add(new EntityAttribute(queryResult.getInt(1), connection));
@@ -118,7 +121,7 @@ public class Edge {
 	 * 
 	 */
 	public Edge(SimpleEdge edge) {
-		this.id = edge.getId();
+		this.syncMetaId = edge.getId();
 		this.sourceNode = edge.getSourceNode();
 		this.targetNode = edge.getTargetNode();
 		this.labelValue = edge.getLabelValue();
@@ -129,8 +132,12 @@ public class Edge {
 		}
 	}
 
-	public String getId() {
+	public int getId() {
 		return this.id;
+	}
+	
+	public String getSyncMetaId() {
+		return this.syncMetaId;
 	}
 
 	public String getSourceNode() {
@@ -175,11 +182,11 @@ public class Edge {
 
 		// label element of edgeContent
 		JSONObject label = new JSONObject();
-		label.put("id", this.id + "[label]");
+		label.put("id", this.syncMetaId + "[label]");
 		// currently, SyncMeta supports only "Label" as label for edges.
 		label.put("name", "Label");
 		JSONObject labelValue = new JSONObject();
-		labelValue.put("id", this.id + "[label]");
+		labelValue.put("id", this.syncMetaId + "[label]");
 		labelValue.put("name", "Label");
 		labelValue.put("value", this.getLabelValue());
 		label.put("value", labelValue);
@@ -190,11 +197,11 @@ public class Edge {
 		for (int attributeIndex = 0; attributeIndex < this.attributes.size(); attributeIndex++) {
 			EntityAttribute currentAttribute = this.attributes.get(attributeIndex);
 			JSONObject attributeContent = new JSONObject();
-			attributeContent.put("id", this.id + "[" + currentAttribute.getName() + "]");
+			attributeContent.put("id", this.syncMetaId + "[" + currentAttribute.getName() + "]");
 			attributeContent.put("name", currentAttribute.getName());
 			// value of attribute
 			JSONObject attributeValue = new JSONObject();
-			attributeValue.put("id", this.id + "[" + currentAttribute.getName() + "]");
+			attributeValue.put("id", this.syncMetaId + "[" + currentAttribute.getName() + "]");
 			attributeValue.put("name", currentAttribute.getName());
 			attributeValue.put("value", currentAttribute.getValue());
 			attributeContent.put("value", attributeValue);
@@ -218,13 +225,16 @@ public class Edge {
 	 */
 	public void persist(Connection connection) throws SQLException {
 		PreparedStatement statement = connection.prepareStatement(
-				"INSERT INTO Edge (edgeId, sourceNode, targetNode, labelValue, type) VALUES (?,?,?,?,?);");
-		statement.setString(1, this.id);
+				"INSERT INTO Edge (syncMetaId, sourceNode, targetNode, labelValue, type) VALUES (?,?,?,?,?);", Statement.RETURN_GENERATED_KEYS);
+		statement.setString(1, this.syncMetaId);
 		statement.setString(2, this.sourceNode);
 		statement.setString(3, this.targetNode);
 		statement.setString(4, this.labelValue);
 		statement.setString(5, this.type);
 		statement.executeUpdate();
+		ResultSet genKeys = statement.getGeneratedKeys();
+		genKeys.next();
+		this.id = genKeys.getInt(1);
 		statement.close();
 		// attributes entries
 		for (int i = 0; i < this.attributes.size(); i++) {
@@ -232,7 +242,7 @@ public class Edge {
 			// AttributeToEdge entry ("connect" them)
 			statement = connection.prepareStatement("INSERT INTO AttributeToEdge (attributeId, edgeId) VALUES (?, ?);");
 			statement.setInt(1, this.attributes.get(i).getId());
-			statement.setString(2, this.getId());
+			statement.setInt(2, this.getId());
 			statement.executeUpdate();
 			statement.close();
 		}
@@ -250,7 +260,7 @@ public class Edge {
 	 */
 	public void deleteFromDatabase(Connection connection) throws SQLException {
 		PreparedStatement statement = connection.prepareStatement("DELETE FROM Edge WHERE edgeId = ?;");
-		statement.setString(1, this.id);
+		statement.setInt(1, this.id);
 		statement.executeUpdate();
 		statement.close();
 		for (int i = 0; i < this.attributes.size(); i++) {

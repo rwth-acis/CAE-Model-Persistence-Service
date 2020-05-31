@@ -522,15 +522,15 @@ public class MetadataDocService {
                         };
                         break;
                     case "HTTP Method":
-                        httpMethodNodes.put(node.getId(), nodeToHttpMethod(node));
+                        httpMethodNodes.put(node.getSyncMetaId(), nodeToHttpMethod(node));
                         break;
                     case "HTTP Payload":
                         // parameters
-                        httpPayloadNodes.put(node.getId(), nodeToHttpPayload(node, nodeInformations, nodeSchemas));
+                        httpPayloadNodes.put(node.getSyncMetaId(), nodeToHttpPayload(node, nodeInformations, nodeSchemas));
                         break;
                     case "HTTP Response":
                         // produces
-                        httpResponseNodes.put(node.getId(), nodeToHttpResponse(node, nodeInformations, nodeSchemas));
+                        httpResponseNodes.put(node.getSyncMetaId(), nodeToHttpResponse(node, nodeInformations, nodeSchemas));
                         break;
                     default:
                         break;

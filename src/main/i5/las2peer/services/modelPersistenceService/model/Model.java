@@ -129,7 +129,7 @@ public class Model {
 		statement.setInt(1, this.id);
 		queryResult = statement.executeQuery();
 		while (queryResult.next()) {
-			this.nodes.add(new Node(queryResult.getString(1), connection));
+			this.nodes.add(new Node(queryResult.getInt(1), connection));
 		}
 		statement.close();
 
@@ -138,7 +138,7 @@ public class Model {
 		statement.setInt(1, this.id);
 		queryResult = statement.executeQuery();
 		while (queryResult.next()) {
-			this.edges.add(new Edge(queryResult.getString(1), connection));
+			this.edges.add(new Edge(queryResult.getInt(1), connection));
 		}
 		statement.close();
 
@@ -247,14 +247,14 @@ public class Model {
 		// add nodes
 		JSONObject jsonNodes = new JSONObject();
 		for (int nodeIndex = 0; nodeIndex < this.nodes.size(); nodeIndex++) {
-			jsonNodes.put(this.nodes.get(nodeIndex).getId(), this.nodes.get(nodeIndex).toJSONObject());
+			jsonNodes.put(this.nodes.get(nodeIndex).getSyncMetaId(), this.nodes.get(nodeIndex).toJSONObject());
 		}
 		jsonModel.put("nodes", jsonNodes);
 
 		// add edges
 		JSONObject jsonEdges = new JSONObject();
 		for (int edgeIndex = 0; edgeIndex < this.edges.size(); edgeIndex++) {
-			jsonEdges.put(this.edges.get(edgeIndex).getId(), this.edges.get(edgeIndex).toJSONObject());
+			jsonEdges.put(this.edges.get(edgeIndex).getSyncMetaId(), this.edges.get(edgeIndex).toJSONObject());
 		}
 		jsonModel.put("edges", jsonEdges);
         jsonModel.put("wireframe", this.getWireframeModelAsString());
@@ -307,7 +307,7 @@ public class Model {
 				nodes.get(i).persist(connection);
 				// nodeToModel entry ("connect" them)
 				statement = connection.prepareStatement("INSERT INTO NodeToModel (nodeId, modelId) VALUES (?, ?);");
-				statement.setString(1, nodes.get(i).getId());
+				statement.setInt(1, nodes.get(i).getId());
 				statement.setInt(2, this.id);
 				statement.executeUpdate();
 				statement.close();
@@ -318,7 +318,7 @@ public class Model {
 				edges.get(i).persist(connection);
 				// EdgeToModel entry ("connect" them)
 				statement = connection.prepareStatement("INSERT INTO EdgeToModel (edgeId, modelId) VALUES (?, ?);");
-				statement.setString(1, edges.get(i).getId());
+				statement.setInt(1, edges.get(i).getId());
 				statement.setInt(2, this.id);
 				statement.executeUpdate();
 				statement.close();
@@ -459,7 +459,7 @@ public class Model {
 						attribute.getName(), attribute.getValue());
 				simpleAttributesOfNode.add(simpleAttribute);
 			}
-			SimpleNode simpleNode = new SimpleNode(node.getId(), node.getType(), simpleAttributesOfNode);
+			SimpleNode simpleNode = new SimpleNode(node.getSyncMetaId(), node.getType(), simpleAttributesOfNode);
 			simpleNodes.add(simpleNode);
 		}
 
@@ -475,7 +475,7 @@ public class Model {
 						attribute.getName(), attribute.getValue());
 				simpleAttributesOfEdge.add(simpleAttribute);
 			}
-			SimpleEdge simpleEdge = new SimpleEdge(edge.getId(), edge.getSourceNode(), edge.getTargetNode(),
+			SimpleEdge simpleEdge = new SimpleEdge(edge.getSyncMetaId(), edge.getSourceNode(), edge.getTargetNode(),
 					edge.getType(), edge.getLabelValue(), simpleAttributesOfEdge);
 			simpleEdges.add(simpleEdge);
 		}

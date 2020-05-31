@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS commedit.ModelAttributes (
 -- Table structure for table Node.
 --
 CREATE TABLE IF NOT EXISTS commedit.Node (
-  nodeId VARCHAR(255) NOT NULL,
+  nodeId INT NOT NULL AUTO_INCREMENT,
+  syncMetaId VARCHAR(255) NOT NULL,
   type VARCHAR(255) NOT NULL,
   pLeft INT NOT NULL,
   pTop INT NOT NULL,
@@ -39,7 +40,8 @@ CREATE TABLE IF NOT EXISTS commedit.Node (
 -- node because we stay independent of semantics.
 --
 CREATE TABLE IF NOT EXISTS commedit.Edge (
-  edgeId VARCHAR(255) NOT NULL,
+  edgeId INT NOT NULL AUTO_INCREMENT,
+  syncMetaId VARCHAR(255) NOT NULL,
   sourceNode VARCHAR(255) NOT NULL,
   targetNode VARCHAR(255) NOT NULL,
   labelValue VARCHAR(255) NOT NULL,
@@ -65,7 +67,7 @@ CREATE TABLE IF NOT EXISTS commedit.Attribute (
 --
 CREATE TABLE IF NOT EXISTS commedit.EdgeToModel (
   id INT NOT NULL AUTO_INCREMENT,
-  edgeId VARCHAR(255) NOT NULL,
+  edgeId INT NOT NULL,
   modelId INT NOT NULL,
   CONSTRAINT edgeToModelPK PRIMARY KEY (id),
   CONSTRAINT edgeToModelEdgeFK FOREIGN KEY (edgeId) REFERENCES commedit.Edge(edgeId) ON DELETE CASCADE,
@@ -77,7 +79,7 @@ CREATE TABLE IF NOT EXISTS commedit.EdgeToModel (
 --
 CREATE TABLE IF NOT EXISTS commedit.NodeToModel (
   id INT NOT NULL AUTO_INCREMENT,
-  nodeId VARCHAR(255) NOT NULL,
+  nodeId INT NOT NULL,
   modelId INT NOT NULL,
   CONSTRAINT nodeToModelPK PRIMARY KEY (id),
   CONSTRAINT nodeToModelNodeFK FOREIGN KEY (nodeId) REFERENCES commedit.Node(nodeId) ON DELETE CASCADE,
@@ -102,7 +104,7 @@ CREATE TABLE IF NOT EXISTS commedit.ModelToModelAttributes (
 CREATE TABLE IF NOT EXISTS commedit.AttributeToNode (
   id INT NOT NULL AUTO_INCREMENT,
   attributeId INT NOT NULL,
-  nodeId VARCHAR(255) NOT NULL,
+  nodeId INT NOT NULL,
   CONSTRAINT attributeToNodePK PRIMARY KEY (id),
   CONSTRAINT attributeToNodeAttributeFK FOREIGN KEY (attributeId) REFERENCES commedit.Attribute(attributeId) ON DELETE CASCADE,
   CONSTRAINT attributeToNodeNodeFK FOREIGN KEY (nodeId) REFERENCES commedit.Node(nodeId) ON DELETE CASCADE
@@ -114,7 +116,7 @@ CREATE TABLE IF NOT EXISTS commedit.AttributeToNode (
 CREATE TABLE IF NOT EXISTS commedit.AttributeToEdge (
   id INT NOT NULL AUTO_INCREMENT,
   attributeId INT NOT NULL,
-  edgeId VARCHAR(255) NOT NULL,
+  edgeId INT NOT NULL,
   CONSTRAINT attributeToEdgePK PRIMARY KEY (id),
   CONSTRAINT attributetoEdgeAttributeFK FOREIGN KEY (attributeId) REFERENCES commedit.Attribute(attributeId) ON DELETE CASCADE,
   CONSTRAINT attributeToEdgeEdgeFK FOREIGN KEY (edgeId) REFERENCES commedit.Edge(edgeId) ON DELETE CASCADE
