@@ -124,11 +124,13 @@ CREATE TABLE IF NOT EXISTS commedit.VersionedModel (
 
 --
 -- Table structure for table Commit.
+-- Both message and timestamp can be null. A commit where
+-- these both are null represents the current state of the model (changes that not commited yet).
 --
 CREATE TABLE IF NOT EXISTS commedit.Commit (
   id INT NOT NULL AUTO_INCREMENT,
-  message VARCHAR(255) NOT NULL,
-  timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  message VARCHAR(255),
+  timestamp TIMESTAMP,
   CONSTRAINT commitPK PRIMARY KEY (id)
 );
 
