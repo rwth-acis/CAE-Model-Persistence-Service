@@ -1,7 +1,5 @@
 package i5.las2peer.services.modelPersistenceService;
 
-import java.io.IOError;
-import java.io.IOException;
 import java.io.Serializable;
 import java.net.HttpURLConnection;
 import java.sql.Connection;
@@ -29,7 +27,6 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.ParseException;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import i5.cae.semanticCheck.SemanticCheckResponse;
@@ -51,7 +48,6 @@ import io.swagger.annotations.ApiResponses;
 import io.swagger.jaxrs.Reader;
 import io.swagger.models.Swagger;
 import io.swagger.util.Json;
-import jdk.nashorn.internal.runtime.regexp.joni.ast.Node;
 import i5.las2peer.services.modelPersistenceService.model.metadata.MetadataDoc;
 
 import i5.las2peer.services.modelPersistenceService.modelServices.*;
