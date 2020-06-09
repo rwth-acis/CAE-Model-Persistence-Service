@@ -40,6 +40,7 @@ import i5.las2peer.logging.L2pLogger;
 import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
 import i5.las2peer.services.modelPersistenceService.exception.CGSInvocationException;
 import i5.las2peer.services.modelPersistenceService.exception.ModelNotFoundException;
+import i5.las2peer.services.modelPersistenceService.exception.VersionedModelNotFoundException;
 import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
 import i5.las2peer.services.modelPersistenceService.model.Model;
 import io.swagger.annotations.ApiOperation;
@@ -51,6 +52,7 @@ import io.swagger.util.Json;
 import i5.las2peer.services.modelPersistenceService.model.metadata.MetadataDoc;
 
 import i5.las2peer.services.modelPersistenceService.modelServices.*;
+import i5.las2peer.services.modelPersistenceService.versionedModel.VersionedModel;
 
 @Path("/")
 public class RESTResources {
@@ -375,7 +377,51 @@ public class RESTResources {
 			}
 		}
 	}
-
+	
+	/**
+	 * Searches for a versioned model with the given id.
+	 * @param versionedModelId Id of the versioned model to search for.
+	 * @return Response with status code (and possibly error message).
+	 */
+	@GET
+	@Path("/versionedModels/{id}")
+	@ApiOperation(value = "Searches for a versioned model in the database.")
+	@ApiResponses(value = {
+			@ApiResponse(code = HttpURLConnection.HTTP_OK, message="OK, found versioned model with the given it. Return it."),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message="Versioned model with the given id could not be found."),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error.")
+	})
+    public Response getVersionedModelById(@PathParam("id") int versionedModelId) {
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
+				"getVersionedModelById: searching for versionedModel with id " + versionedModelId);
+		
+		Connection connection = null;
+		try {
+			connection = dbm.getConnection();
+			
+			// load versioned model by id
+			VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
+			
+			// if no VersionedModelNotFoundException was thrown, then the model exists
+			// return it
+			return Response.ok(versionedModel.toJSONObject().toJSONString()).build();
+		} catch (VersionedModelNotFoundException e) {
+			logger.printStackTrace(e);
+			return Response.status(HttpURLConnection.HTTP_NOT_FOUND)
+					.entity("Versioned model with the given id could not be found.").build();
+		} catch (SQLException e) {
+			logger.printStackTrace(e);
+			return Response.serverError().entity("Internal server error.").build();
+		} finally {
+			try {
+			    connection.close();
+			} catch (SQLException e) {
+				logger.printStackTrace(e);
+			}
+		}
+			
+	}
+	
 	/**
 	 * Get the status / console text of a build. The build is identified by
 	 * using the queue item that is returned when a job is created.

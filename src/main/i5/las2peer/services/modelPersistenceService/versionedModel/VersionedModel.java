@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
+import i5.las2peer.services.modelPersistenceService.exception.VersionedModelNotFoundException;
+
 public class VersionedModel {
 
 	/**
@@ -34,22 +36,32 @@ public class VersionedModel {
 	
 	/**
 	 * Creates a new versioned model by loading it from the database.
-	 * @param modelId Id of the model to search for.
+	 * @param versionedModelId Id of the versioned model to search for.
 	 * @param connection Connection object
-	 * @throws SQLException If something with the database went wrong.
+	 * @throws SQLException If something with the database went wrong (VersionedModelNotFoundException if model not found).
 	 */
-	public VersionedModel(int modelId, Connection connection) throws SQLException {
-		this.id = modelId;
+	public VersionedModel(int versionedModelId, Connection connection) throws SQLException {
+		this.id = versionedModelId;
+		
+		// check if a versioned model with the given id exists
+		PreparedStatement statement = connection.prepareStatement("SELECT * FROM VersionedModel WHERE id = ?;");
+		statement.setInt(1, versionedModelId);
+		
+		ResultSet queryResult = statement.executeQuery();
+		if(!queryResult.next()) {
+			// there does not exist a versioned model with the given id
+			throw new VersionedModelNotFoundException();
+		}
+		statement.close();
 		
 		// create empty list for commits
 		this.commits = new ArrayList<>();
 		
 		// load commits
-		PreparedStatement statement = connection
-				.prepareStatement("SELECT commitId FROM CommitToVersionedModel WHERE versionedModelId = ?;");
-		statement.setInt(1, modelId);
+		statement = connection.prepareStatement("SELECT commitId FROM CommitToVersionedModel WHERE versionedModelId = ?;");
+		statement.setInt(1, versionedModelId);
 		
-		ResultSet queryResult = statement.executeQuery();
+		queryResult = statement.executeQuery();
 		while (queryResult.next()) {
 			this.commits.add(new Commit(queryResult.getInt(1), connection));
 		}
