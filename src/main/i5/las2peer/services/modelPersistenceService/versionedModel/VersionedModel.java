@@ -57,8 +57,8 @@ public class VersionedModel {
 		// create empty list for commits
 		this.commits = new ArrayList<>();
 		
-		// load commits
-		statement = connection.prepareStatement("SELECT commitId FROM CommitToVersionedModel WHERE versionedModelId = ?;");
+		// load commits (order by id descending, then the latest commit is the first in the list)
+		statement = connection.prepareStatement("SELECT commitId FROM CommitToVersionedModel WHERE versionedModelId = ? ORDER BY commitId DESC;");
 		statement.setInt(1, versionedModelId);
 		
 		queryResult = statement.executeQuery();
