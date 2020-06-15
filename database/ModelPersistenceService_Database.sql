@@ -157,3 +157,14 @@ CREATE TABLE IF NOT EXISTS commedit.CommitToModel (
   CONSTRAINT commitToModelCommitFK FOREIGN KEY (commitId) REFERENCES commedit.Commit(id) ON DELETE CASCADE,
   CONSTRAINT commitToModelModelFK FOREIGN KEY (modelId) REFERENCES commedit.Model(modelId) ON DELETE CASCADE
 );
+
+--
+-- Table structure for table VersionTag.
+--
+CREATE TABLE IF NOT EXISTS commedit.VersionTag (
+  id INT NOT NULL AUTO_INCREMENT,
+  tag VARCHAR(255) NOT NULL,
+  commitId INT NOT NULL,
+  CONSTRAINT versionTagPK PRIMARY KEY (id),
+  CONSTRAINT versionTagCommitFK FOREIGN KEY (commitId) REFERENCES commedit.Commit(id) ON DELETE CASCADE
+);

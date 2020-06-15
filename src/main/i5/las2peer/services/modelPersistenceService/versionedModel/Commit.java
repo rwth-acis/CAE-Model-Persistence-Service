@@ -35,6 +35,12 @@ public class Commit {
 	 */
 	private String timestamp;
 	
+	/**
+	 * Tags thats connected to the commit.
+	 * Might be null, if no tag is connected to the commit.
+	 */
+	private String versionTag;
+	
 	public Commit(String jsonCommit, boolean commitForUncommitedChanges) throws ParseException {
 		JSONObject completeJsonCommit = (JSONObject) JSONValue.parseWithException(jsonCommit);
 		
@@ -50,6 +56,12 @@ public class Commit {
     	if(!completeJsonCommit.containsKey("model")) {
     		throw new ParseException(0, "Attribute 'model' of commit is missing.");
     	}
+    	
+    	// check if a version tag is included
+    	if(completeJsonCommit.containsKey("versionTag")) {
+    		this.versionTag = (String) completeJsonCommit.get("versionTag");
+    	}
+    	
     	this.model = new Model(((JSONObject) completeJsonCommit.get("model")).toJSONString());
 	}
 	
@@ -84,6 +96,15 @@ public class Commit {
 		} else {
 			throw new CommitNotFoundException();
 		}
+		statement.close();
+		
+		// load version tag if one exists
+		statement = connection.prepareStatement("SELECT * FROM VersionTag WHERE commitId = ?;");
+		statement.setInt(1, commitId);
+		queryResult = statement.executeQuery();
+		if(queryResult.next()) {
+			this.versionTag = queryResult.getString("tag");
+		}
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -94,6 +115,9 @@ public class Commit {
 		jsonCommit.put("model", this.model.toJSONObject());
 		jsonCommit.put("message", this.message);
 		jsonCommit.put("timestamp", this.timestamp);
+		if(this.versionTag != null) {
+			jsonCommit.put("versionTag", this.versionTag);
+		}
 		
 		return jsonCommit;
 	}
@@ -113,6 +137,15 @@ public class Commit {
 			genKeys.next();
 			this.id = genKeys.getInt(1);
 		    statement.close();
+		    
+		    // store version tag if there exists one
+		    if(this.versionTag != null) {
+		    	statement = connection.prepareStatement("INSERT INTO VersionTag (tag, commitId) VALUE (?, ?);");
+		    	statement.setString(1, this.versionTag);
+		    	statement.setInt(2, this.id);
+		    	statement.executeUpdate();
+		    	statement.close();
+		    }
 		    
 		    // store model
 		    this.model.persist(connection);
