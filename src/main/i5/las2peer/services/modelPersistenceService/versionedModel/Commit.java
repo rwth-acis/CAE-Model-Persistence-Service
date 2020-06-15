@@ -35,20 +35,22 @@ public class Commit {
 	 */
 	private String timestamp;
 	
-	public Commit(String jsonCommit) throws ParseException {
+	public Commit(String jsonCommit, boolean commitForUncommitedChanges) throws ParseException {
 		JSONObject completeJsonCommit = (JSONObject) JSONValue.parseWithException(jsonCommit);
 		
 		// commit message
-		if(!completeJsonCommit.containsKey("message")) {
-			throw new ParseException(0, "Attribute 'message' of commit is missing.");
+		if(!commitForUncommitedChanges) {
+		    if(!completeJsonCommit.containsKey("message")) {
+			    throw new ParseException(0, "Attribute 'message' of commit is missing.");
+		    }
+    	    this.message = (String) completeJsonCommit.get("message");
 		}
-    	this.message = (String) completeJsonCommit.get("message");
     	
     	// model of the commit
     	if(!completeJsonCommit.containsKey("model")) {
     		throw new ParseException(0, "Attribute 'model' of commit is missing.");
     	}
-    	this.model = new Model((String) completeJsonCommit.get("model"));
+    	this.model = new Model(((JSONObject) completeJsonCommit.get("model")).toJSONString());
 	}
 	
 	/**
@@ -96,7 +98,7 @@ public class Commit {
 		return jsonCommit;
 	}
 	
-	public void persist(Connection connection) throws SQLException {
+	public void persist(int versionedModelId, Connection connection) throws SQLException {
 		PreparedStatement statement;
 		boolean autoCommitBefore = connection.getAutoCommit();
 		try {
@@ -121,6 +123,16 @@ public class Commit {
 		    statement.setInt(2, this.model.getId());
 		    statement.executeUpdate();
 		    statement.close();
+		    
+		    // add CommitToVersionedModel entry
+		    statement = connection.prepareStatement("INSERT INTO CommitToVersionedModel (versionedModelId, commitId) VALUES (?,?);");
+		    statement.setInt(1, versionedModelId);
+		    statement.setInt(2, this.id);
+		    statement.executeUpdate();
+		    statement.close();
+		    
+		    // no errors occurred
+		    connection.commit();
 		} catch (SQLException e) {
 			// roll back the whole stuff
 			connection.rollback();
@@ -129,6 +141,13 @@ public class Commit {
 			// reset auto commit
 			connection.setAutoCommit(autoCommitBefore);
 		}
+	}
+	
+	public void delete(Connection connection) throws SQLException {
+		PreparedStatement statement = connection.prepareStatement("DELETE FROM Commit WHERE id = ?;");
+		statement.setInt(1, this.id);
+		statement.executeUpdate();
+		statement.close();
 	}
 	
 

@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
+import i5.las2peer.services.modelPersistenceService.exception.CommitNotFoundException;
 import i5.las2peer.services.modelPersistenceService.exception.VersionedModelNotFoundException;
 
 public class VersionedModel {
@@ -105,6 +106,20 @@ public class VersionedModel {
 		genKeys.next();
 		this.id = genKeys.getInt(1);
 		statement.close();
+	}
+	
+	/**
+	 * Searches for a commit without a message.
+	 * That one is the commit for "uncommited changes".
+	 * @return Commit that gets used to store uncommited changes.
+	 * @throws CommitNotFoundException If there does not exist a commit without a commit message.
+	 */
+	public Commit getCommitForUncommitedChanges() throws CommitNotFoundException {
+		for(Commit commit : this.commits) {
+			if(commit.getMessage() == null) return commit;
+		}
+		throw new CommitNotFoundException();
+		
 	}
 	
 	public int getId() {

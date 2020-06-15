@@ -35,6 +35,13 @@ import i5.cae.simpleModel.SimpleModel;
 import i5.cae.simpleModel.node.SimpleNode;
 import i5.las2peer.api.Context;
 import i5.las2peer.api.ServiceException;
+import i5.las2peer.api.execution.InternalServiceException;
+import i5.las2peer.api.execution.ServiceAccessDeniedException;
+import i5.las2peer.api.execution.ServiceInvocationFailedException;
+import i5.las2peer.api.execution.ServiceMethodNotFoundException;
+import i5.las2peer.api.execution.ServiceNotAuthorizedException;
+import i5.las2peer.api.execution.ServiceNotAvailableException;
+import i5.las2peer.api.execution.ServiceNotFoundException;
 import i5.las2peer.api.logging.MonitoringEvent;
 import i5.las2peer.logging.L2pLogger;
 import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
@@ -49,14 +56,18 @@ import io.swagger.annotations.ApiResponses;
 import io.swagger.jaxrs.Reader;
 import io.swagger.models.Swagger;
 import io.swagger.util.Json;
+import net.minidev.json.JSONValue;
 import i5.las2peer.services.modelPersistenceService.model.metadata.MetadataDoc;
 
 import i5.las2peer.services.modelPersistenceService.modelServices.*;
+import i5.las2peer.services.modelPersistenceService.versionedModel.Commit;
 import i5.las2peer.services.modelPersistenceService.versionedModel.VersionedModel;
 
 @Path("/")
 public class RESTResources {
 
+	private static final String PROJECT_MANAGEMENT_SERVICE = "i5.las2peer.services.projectManagementService.ProjectManagementService@0.1.0";
+	
 	private final ModelPersistenceService service = (ModelPersistenceService) Context.getCurrent().getService();
 	private L2pLogger logger;
 	private String semanticCheckService;
@@ -418,8 +429,80 @@ public class RESTResources {
 			} catch (SQLException e) {
 				logger.printStackTrace(e);
 			}
-		}
+		}		
+	}
+	
+	/**
+	 * Posts a commit to the versioned model.
+	 * @param versionedModelId Id of the versioned model, where the commit should be added to.
+	 * @param inputCommit Input commit as JSON, also containing the model that should be connected to the commit.
+	 * @return Response with status code (and possibly error message).
+	 */
+	@POST
+	@Path("/versionedModels/{id}/commits")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Posts a commit to the versioned model.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, added commit to versioned model."),
+			@ApiResponse(code = HttpURLConnection.HTTP_UNAUTHORIZED, message = "User is not authorized."),
+			@ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST, message = "Parse error."),
+			@ApiResponse(code = HttpURLConnection.HTTP_FORBIDDEN, message = "USer is not allowed to commit to the versioned model."),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error.")
+	})
+	public Response postCommitToVersionedModel(@PathParam("id") int versionedModelId, String inputCommit) {
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
+				"postCommitToVersionedModel: posting commit to versioned model with id " + versionedModelId);
+		
+		Connection connection = null;
+		try {
+			connection = dbm.getConnection();
 			
+			boolean isAnonymous = (boolean) Context.getCurrent().invoke(PROJECT_MANAGEMENT_SERVICE, "isAnonymous");
+			
+			if(isAnonymous) {
+				return Response.status(HttpURLConnection.HTTP_UNAUTHORIZED).entity("User not authorized.").build();
+			} else {
+				boolean hasCommitPermission = (boolean) Context.getCurrent()
+						.invoke(PROJECT_MANAGEMENT_SERVICE, "hasCommitPermission", versionedModelId);
+				
+				if(hasCommitPermission) {
+				    // user has the permission to commit to the versioned model
+					// there always exists a commit for "uncommited changes"
+					// that one needs to be removed first
+					VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
+					Commit uncommitedChanges = versionedModel.getCommitForUncommitedChanges();
+					uncommitedChanges.delete(connection);
+					
+					// now create a new commit
+					Commit commit = new Commit(inputCommit, false);
+					commit.persist(versionedModelId, connection);
+					
+					// now create new commit for uncommited changes
+					Commit uncommitedChangesNew = new Commit(inputCommit, true);
+					uncommitedChangesNew.persist(versionedModelId, connection);
+					
+					return Response.ok().build();
+				} else {
+					// user does not have the permission to commit to the versioned model, or an error occurred
+					return Response.status(HttpURLConnection.HTTP_FORBIDDEN)
+							.entity("User is not allowed to commit to the versioned model (or an error occurred).").build();
+				}
+			}
+		} catch (SQLException e) {
+	        logger.printStackTrace(e);
+		    return Response.serverError().entity("Internal server error.").build();
+		} catch (ParseException e) {
+			logger.printStackTrace(e);
+			return Response.status(HttpURLConnection.HTTP_BAD_REQUEST).entity("Parse error.").build();
+		} catch (Exception e) {
+			logger.printStackTrace(e);
+		    return Response.serverError().entity("Internal server error.").build();
+		} finally {
+			try {
+			    connection.close();
+			} catch (SQLException e) {
+				logger.printStackTrace(e);
+			}
+		}
 	}
 	
 	/**
