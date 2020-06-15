@@ -104,7 +104,7 @@ public class Commit {
 		try {
 			connection.setAutoCommit(false);
 			
-			statement = connection.prepareStatement("INSERT INTO Commit (message) VALUES (?);", Statement.RETURN_GENERATED_KEYS);
+			statement = connection.prepareStatement("INSERT INTO Commit (message, timestamp) VALUES (?, CURRENT_TIMESTAMP);", Statement.RETURN_GENERATED_KEYS);
 			statement.setString(1, this.message);
 			// execute query
 			statement.executeUpdate();
