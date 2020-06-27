@@ -15,6 +15,7 @@ import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 import org.json.simple.parser.ParseException;
 
+import i5.cae.simpleModel.SimpleEntityAttribute;
 import i5.cae.simpleModel.SimpleModel;
 import i5.cae.simpleModel.edge.SimpleEdge;
 import i5.cae.simpleModel.node.SimpleNode;
@@ -22,6 +23,7 @@ import i5.las2peer.logging.L2pLogger;
 import i5.las2peer.services.modelPersistenceService.model.edge.Edge;
 import i5.las2peer.services.modelPersistenceService.model.node.Node;
 import i5.las2peer.services.modelPersistenceService.model.node.NodePosition;
+import i5.las2peer.services.modelPersistenceService.model.wireframe.WireframeModel;
 /**
  * 
  * (Data-)Class for Models. Provides means to convert JSON to Object and Object
@@ -479,9 +481,9 @@ public class Model {
 	public Serializable getMinifiedRepresentation() {
 		ArrayList<SimpleNode> simpleNodes = new ArrayList<SimpleNode>(this.nodes.size());
 		ArrayList<SimpleEdge> simpleEdges = new ArrayList<SimpleEdge>(this.edges.size());
-		// TODO: this needs to be fixed
-		/*ArrayList<SimpleEntityAttribute> simpleModelAttributes = new ArrayList<SimpleEntityAttribute>(
-				this.attributes.getAttributes().size());
+		
+		ArrayList<SimpleEntityAttribute> simpleModelAttributes = new ArrayList<SimpleEntityAttribute>(
+				this.attributes.size());
 
 		// "simplify" nodes
 		for (int i = 0; i < this.nodes.size(); i++) {
@@ -516,16 +518,17 @@ public class Model {
 		}
 
 		// "simplify" modelAttributes
-		for (int i = 0; i < this.attributes.getAttributes().size(); i++) {
-			EntityAttribute attribute = this.attributes.getAttributes().get(i);
+		for (int i = 0; i < this.attributes.size(); i++) {
+			EntityAttribute attribute = this.attributes.get(i);
 			SimpleEntityAttribute simpleAttribute = new SimpleEntityAttribute(attribute.getSyncMetaId(),
 					attribute.getName(), attribute.getValue());
 			simpleModelAttributes.add(simpleAttribute);
 		}
 
 
-
-		SimpleModel simpleModel = new SimpleModel(this.attributes.getName(), simpleNodes, simpleEdges,
+        // TODO: The Simplified Model representation still needs to be adapted and use an id instead of the model name,
+		// since the model name does not exist anymore.
+		SimpleModel simpleModel = new SimpleModel(String.valueOf(this.id), simpleNodes, simpleEdges,
 				simpleModelAttributes);
 		try {
 			WireframeModel wireframe = new WireframeModel(this.getWireframeModelAsString());
@@ -533,9 +536,7 @@ public class Model {
 			return extended;
 		} catch(Exception e){
 			return simpleModel;
-		}*/
-		return null;
-
+		}
 	}
 
 }

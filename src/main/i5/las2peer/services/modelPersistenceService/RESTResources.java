@@ -24,6 +24,7 @@ import javax.ws.rs.core.Response;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
+import org.json.simple.JSONValue;
 import org.json.simple.parser.ParseException;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -56,7 +57,6 @@ import io.swagger.annotations.ApiResponses;
 import io.swagger.jaxrs.Reader;
 import io.swagger.models.Swagger;
 import io.swagger.util.Json;
-import net.minidev.json.JSONValue;
 import i5.las2peer.services.modelPersistenceService.model.metadata.MetadataDoc;
 
 import i5.las2peer.services.modelPersistenceService.modelServices.*;
@@ -124,10 +124,15 @@ public class RESTResources {
 		if (!semanticCheckService.isEmpty()) {
 			this.checkModel(model);
 		}
+		
+	    // PROBLEM: The codegen service and metadatadocservice already require the model to have a "type" attribute
+		// for first testing we just always set it to fronend-component
+		// TODO: this should not always just set the type to frontend-component
+		model.getAttributes().add(new EntityAttribute(new SimpleEntityAttribute("syncmetaid", "type", "frontend-component")));
 
 		// call code generation service
 		if (!codeGenerationService.isEmpty()) {
-			//try {
+			try {
 				// get user input metadata doc if available
 				String metadataDocString = model.getMetadataDoc();
 				
@@ -136,12 +141,13 @@ public class RESTResources {
 
 				Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postModel: invoking code generation service..");
 				// TODO: reactivate usage of code generation service
-				//model = callCodeGenerationService("createFromModel", model, metadataDocString);
-			//} catch (CGSInvocationException e) {
-				//return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
-			//}
+				// TODO: EDIT: is reactivated now, check if everything works, then this TODO can be removed
+				model = callCodeGenerationService("createFromModel", model, metadataDocString);
+			} catch (CGSInvocationException e) {
+				return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
+			}
 		}
-
+		
 		// generate metadata swagger doc after model valid in code generation
 		metadataDocService.modelToSwagger(model);
 
@@ -362,12 +368,13 @@ public class RESTResources {
 
 			// call code generation service
 			if (!codeGenerationService.isEmpty()) {
-				//try {
+				try {
 					// TODO: reactivate usage of code generation service
-					//model = callCodeGenerationService("deleteRepositoryOfModel", model, "");
-				//} catch (CGSInvocationException e) {
-					//return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
-				//}
+					// TODO: EDIT: is reactivated now, check if everything works, then the TODO can be removed
+					model = callCodeGenerationService("deleteRepositoryOfModel", model, "");
+				} catch (CGSInvocationException e) {
+					return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
+				}
 			}
 
 			model.deleteFromDatabase(connection);
@@ -468,17 +475,23 @@ public class RESTResources {
 				    // user has the permission to commit to the versioned model
 					// there always exists a commit for "uncommited changes"
 					// that one needs to be removed first
-					VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
+					// TODO: uncomment the following lines again
+					/*VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
 					Commit uncommitedChanges = versionedModel.getCommitForUncommitedChanges();
-					uncommitedChanges.delete(connection);
+					uncommitedChanges.delete(connection);*/
 					
+					JSONObject commit = (JSONObject) JSONValue.parse(inputCommit);
+					JSONObject model = (JSONObject) commit.get("model");
+					this.postModel(model.toJSONString());
+					
+					// TODO: reactivate the following lines
 					// now create a new commit
-					Commit commit = new Commit(inputCommit, false);
-					commit.persist(versionedModelId, connection);
+					// Commit commit = new Commit(inputCommit, false);
+					//commit.persist(versionedModelId, connection);
 					
 					// now create new commit for uncommited changes
-					Commit uncommitedChangesNew = new Commit(inputCommit, true);
-					uncommitedChangesNew.persist(versionedModelId, connection);
+					//Commit uncommitedChangesNew = new Commit(inputCommit, true);
+					//uncommitedChangesNew.persist(versionedModelId, connection);
 					
 					return Response.ok().build();
 				} else {
@@ -490,10 +503,10 @@ public class RESTResources {
 		} catch (SQLException e) {
 	        logger.printStackTrace(e);
 		    return Response.serverError().entity("Internal server error.").build();
-		} catch (ParseException e) {
+		}/* catch (ParseException e) {
 			logger.printStackTrace(e);
 			return Response.status(HttpURLConnection.HTTP_BAD_REQUEST).entity("Parse error.").build();
-		} catch (Exception e) {
+		}*/ catch (Exception e) {
 			logger.printStackTrace(e);
 		    return Response.serverError().entity("Internal server error.").build();
 		} finally {
@@ -569,14 +582,15 @@ public class RESTResources {
 			connection = dbm.getConnection();
 			model = new Model(modelId, connection);
 
-			//try {
+			try {
 
 				// only create temp repository once, i.e. before the "Build"
 				// job is started in Jenkins
 				if (jobAlias.equals("Build")) {
 					Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deployModel: invoking code generation service..");
 					// TODO: reactivate usage of code generation service
-					//callCodeGenerationService("prepareDeploymentApplicationModel", model, "");
+					// TODO: EDIT: is reactivated now, check if everything works, then TODO can be removed
+					callCodeGenerationService("prepareDeploymentApplicationModel", model, "");
 				}
 
 				// start the jenkins job by the code generation service
@@ -589,9 +603,9 @@ public class RESTResources {
 					metadataDocService.updateDeploymentDetails(model, deploymentUrl);
 
 				return Response.ok(answer).build();
-			/*} catch (CGSInvocationException e) {
+			} catch (CGSInvocationException e) {
 				return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
-			}*/
+			}
 		} catch (Exception e) {
 			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "updateModel: something went seriously wrong: " + e);
 			logger.printStackTrace(e);
@@ -744,15 +758,17 @@ public class RESTResources {
 		Serializable[] modelsToSend = null;
 		SimpleModel simpleModel = (SimpleModel) model.getMinifiedRepresentation();
 		boolean isApplication = false;
-
-		for (SimpleEntityAttribute attribute : simpleModel.getAttributes()) {
-			if (attribute.getName().equals("type")) {
-				// handle special case of application model
-				if (attribute.getValue().equals("application")) {
-					isApplication = true;
-					break;
-				}
+		
+	    String modelType = null;
+		for(EntityAttribute a : model.getAttributes()) {
+			if(a.getName().equals("type")) {
+				modelType = a.getValue();
+				break;
 			}
+		}
+		
+		if (modelType.equals("application")) {
+			isApplication = true;
 		}
 
 		if (isApplication) {
