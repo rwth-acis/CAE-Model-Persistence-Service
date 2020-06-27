@@ -476,22 +476,52 @@ public class RESTResources {
 					// there always exists a commit for "uncommited changes"
 					// that one needs to be removed first
 					// TODO: uncomment the following lines again
-					/*VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
+					VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
 					Commit uncommitedChanges = versionedModel.getCommitForUncommitedChanges();
-					uncommitedChanges.delete(connection);*/
+					uncommitedChanges.delete(connection);
 					
-					JSONObject commit = (JSONObject) JSONValue.parse(inputCommit);
-					JSONObject model = (JSONObject) commit.get("model");
-					this.postModel(model.toJSONString());
-					
-					// TODO: reactivate the following lines
 					// now create a new commit
-					// Commit commit = new Commit(inputCommit, false);
-					//commit.persist(versionedModelId, connection);
+					Commit commit = new Commit(inputCommit, false);
+					commit.persist(versionedModelId, connection);
 					
 					// now create new commit for uncommited changes
-					//Commit uncommitedChangesNew = new Commit(inputCommit, true);
-					//uncommitedChangesNew.persist(versionedModelId, connection);
+					Commit uncommitedChangesNew = new Commit(inputCommit, true);
+					uncommitedChangesNew.persist(versionedModelId, connection);
+					
+					// get model
+					Model model = commit.getModel();
+					
+					// do the semantic check
+					if (!semanticCheckService.isEmpty()) {
+						this.checkModel(model);
+					}
+					
+					// PROBLEM: The codegen service and metadatadocservice already require the model to have a "type" attribute
+					// for first testing we just always set it to frontend-component
+					// TODO: this should not always just set the type to frontend-component
+					// these model attributes are not persisted to the database, since model.persist already got called
+					// when the commit got persisted
+					model.getAttributes().add(new EntityAttribute(new SimpleEntityAttribute("syncmetaid", "type", "frontend-component")));
+
+					model.getAttributes().add(new EntityAttribute("syncmetaid", "versionedModelId", String.valueOf(versionedModelId)));
+					
+					// call code generation service
+					if (!codeGenerationService.isEmpty()) {
+						try {
+							// get user input metadata doc if available
+							String metadataDocString = model.getMetadataDoc();
+							
+							if (metadataDocString == null)
+								metadataDocString = "";
+
+							Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postModel: invoking code generation service..");
+							// TODO: reactivate usage of code generation service
+							// TODO: EDIT: is reactivated now, check if everything works, then this TODO can be removed
+							model = callCodeGenerationService("createFromModel", model, metadataDocString);
+						} catch (CGSInvocationException e) {
+							return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
+						}
+					}
 					
 					return Response.ok().build();
 				} else {
@@ -805,7 +835,7 @@ public class RESTResources {
 		} else {
 			SimpleModel oldModel = null;
 			int modelId = model.getId();
-			try {
+			/*try {
 				connection = dbm.getConnection();
 				oldModel = (SimpleModel) new Model(modelId, connection).getMinifiedRepresentation();
 			} catch (SQLException e) {
@@ -832,7 +862,9 @@ public class RESTResources {
 			} else {
 				modelsToSend = new SimpleModel[1];
 				modelsToSend[0] = simpleModel;
-			}
+			}*/
+			modelsToSend = new SimpleModel[1];
+			modelsToSend[0] = simpleModel;
 		}
 
 
