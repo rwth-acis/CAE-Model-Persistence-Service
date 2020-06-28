@@ -142,7 +142,7 @@ public class RESTResources {
 				Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postModel: invoking code generation service..");
 				// TODO: reactivate usage of code generation service
 				// TODO: EDIT: is reactivated now, check if everything works, then this TODO can be removed
-				model = callCodeGenerationService("createFromModel", model, metadataDocString);
+				model = callCodeGenerationService("createFromModel", model, metadataDocString, null);
 			} catch (CGSInvocationException e) {
 				return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
 			}
@@ -371,7 +371,7 @@ public class RESTResources {
 				try {
 					// TODO: reactivate usage of code generation service
 					// TODO: EDIT: is reactivated now, check if everything works, then the TODO can be removed
-					model = callCodeGenerationService("deleteRepositoryOfModel", model, "");
+					model = callCodeGenerationService("deleteRepositoryOfModel", model, "", null);
 				} catch (CGSInvocationException e) {
 					return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
 				}
@@ -488,6 +488,9 @@ public class RESTResources {
 					Commit uncommitedChangesNew = new Commit(inputCommit, true);
 					uncommitedChangesNew.persist(versionedModelId, connection);
 					
+					// reload versionedModel from database
+					versionedModel = new VersionedModel(versionedModelId, connection);
+					
 					// get model
 					Model model = commit.getModel();
 					
@@ -517,7 +520,14 @@ public class RESTResources {
 							Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postModel: invoking code generation service..");
 							// TODO: reactivate usage of code generation service
 							// TODO: EDIT: is reactivated now, check if everything works, then this TODO can be removed
-							model = callCodeGenerationService("createFromModel", model, metadataDocString);
+							// check if it is the first commit or not
+							if(versionedModel.getCommits().size() == 2) {
+								// this is the first commit (there are 2 in total, because of the "uncommited changes" commit)
+								model = callCodeGenerationService("createFromModel", model, metadataDocString, versionedModel);
+							} else {
+							    // not the first commit
+								model = callCodeGenerationService("updateRepositoryOfModel", model, metadataDocString, versionedModel);
+							}
 						} catch (CGSInvocationException e) {
 							return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
 						}
@@ -620,7 +630,7 @@ public class RESTResources {
 					Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deployModel: invoking code generation service..");
 					// TODO: reactivate usage of code generation service
 					// TODO: EDIT: is reactivated now, check if everything works, then TODO can be removed
-					callCodeGenerationService("prepareDeploymentApplicationModel", model, "");
+					callCodeGenerationService("prepareDeploymentApplicationModel", model, "", null);
 				}
 
 				// start the jenkins job by the code generation service
@@ -779,7 +789,7 @@ public class RESTResources {
 	 *             if something went wrong invoking the service
 	 * 
 	 */
-	private Model callCodeGenerationService(String methodName, Model model, String metadataDoc) throws CGSInvocationException {
+	private Model callCodeGenerationService(String methodName, Model model, String metadataDoc, VersionedModel versionedModel) throws CGSInvocationException {
 		
 		if (metadataDoc == null)
 			metadataDoc = "";
@@ -834,7 +844,6 @@ public class RESTResources {
 			}
 		} else {
 			SimpleModel oldModel = null;
-			int modelId = model.getId();
 			/*try {
 				connection = dbm.getConnection();
 				oldModel = (SimpleModel) new Model(modelId, connection).getMinifiedRepresentation();
@@ -863,8 +872,22 @@ public class RESTResources {
 				modelsToSend = new SimpleModel[1];
 				modelsToSend[0] = simpleModel;
 			}*/
-			modelsToSend = new SimpleModel[1];
-			modelsToSend[0] = simpleModel;
+			
+			// check if there exists an old model
+			int commitCount = versionedModel.getCommits().size();
+			if(commitCount == 2) {
+				// there only exists one commit and the "uncommited changes" commit
+				modelsToSend = new SimpleModel[1];
+				modelsToSend[0] = simpleModel;
+			} else {
+				// there exists an old commit
+				modelsToSend = new SimpleModel[2];
+				modelsToSend[0] = simpleModel;
+				
+				oldModel = (SimpleModel) versionedModel.getCommits().get(2).getModel().getMinifiedRepresentation();
+				
+				modelsToSend[1] = oldModel;
+			}
 		}
 
 
