@@ -95,7 +95,7 @@ public class Edge {
 			this.sourceNode = queryResult.getString(3);
 			this.targetNode = queryResult.getString(4);
 			this.labelValue = queryResult.getString(5);
-			this.type = queryResult.getString(5);
+			this.type = queryResult.getString(6);
 			statement.close();
 		} else {
 			throw new SQLException("Could not find node!");
