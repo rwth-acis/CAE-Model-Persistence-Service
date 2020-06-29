@@ -475,7 +475,6 @@ public class RESTResources {
 				    // user has the permission to commit to the versioned model
 					// there always exists a commit for "uncommited changes"
 					// that one needs to be removed first
-					// TODO: uncomment the following lines again
 					VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
 					Commit uncommitedChanges = versionedModel.getCommitForUncommitedChanges();
 					uncommitedChanges.delete(connection);
@@ -499,12 +498,18 @@ public class RESTResources {
 						this.checkModel(model);
 					}
 					
-					// PROBLEM: The codegen service and metadatadocservice already require the model to have a "type" attribute
-					// for first testing we just always set it to frontend-component
-					// TODO: this should not always just set the type to frontend-component
+					// The codegen service and metadatadocservice already require the model to have a "type" attribute
+					// this "type" attribute is included in the request body
+					JSONObject commitJson = (JSONObject) JSONValue.parse(inputCommit);
+					String type = (String) commitJson.get("componentType");
+					
+					// given type "frontend" needs to be converted to "frontend-component"
+					if(type.equals("frontend")) type = "frontend-component";
+					// the other types "microservice" and "application" do not need to be converted
+					
 					// these model attributes are not persisted to the database, since model.persist already got called
 					// when the commit got persisted
-					model.getAttributes().add(new EntityAttribute(new SimpleEntityAttribute("syncmetaid", "type", "frontend-component")));
+					model.getAttributes().add(new EntityAttribute(new SimpleEntityAttribute("syncmetaid", "type", type)));
 
 					model.getAttributes().add(new EntityAttribute("syncmetaid", "versionedModelId", String.valueOf(versionedModelId)));
 					
