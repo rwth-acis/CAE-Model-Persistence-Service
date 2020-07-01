@@ -889,7 +889,11 @@ public class RESTResources {
 				modelsToSend = new SimpleModel[2];
 				modelsToSend[0] = simpleModel;
 				
-				oldModel = (SimpleModel) versionedModel.getCommits().get(2).getModel().getMinifiedRepresentation();
+				Model old = versionedModel.getCommits().get(2).getModel();
+				// the old model does not contain attributes for type and versionedModelId
+				old.getAttributes().add(new EntityAttribute("syncmetaid", "versionedModelId", String.valueOf(versionedModel.getId())));
+				
+				oldModel = (SimpleModel) old.getMinifiedRepresentation();
 				
 				modelsToSend[1] = oldModel;
 			}
