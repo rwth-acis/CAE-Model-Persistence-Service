@@ -827,17 +827,48 @@ public class RESTResources {
 				// since application models only have one attribute with its
 				// label
 				// TODO: changed from string to int, check if it works
-				int modelId = Integer.valueOf(node.getAttributes().get(0).getValue());
+				String versionedModelIdStr = node.getAttributes().get(0).getValue();
+				int versionedModelId = Integer.parseInt(versionedModelIdStr);
+				
+				// get latest commit
+				VersionedModel v;
+				try {
+					connection = dbm.getConnection();
+					v = new VersionedModel(versionedModelId, connection);
+				} catch (SQLException e1) {
+					throw new CGSInvocationException(e1.getMessage());
+				} finally {
+					try {
+						connection.close();
+					} catch (SQLException e) {
+						logger.printStackTrace(e);
+					}
+				}
+				ArrayList<Commit> commits = v.getCommits();
+				if(commits.size() < 2) throw new CGSInvocationException("Application contains versioned model without commit.");
+				
+				Model m = commits.get(1).getModel();
+				
+				String type = "";
+				if(node.getType().equals("Frontend Component")) type = "frontend-component";
+				else if(node.getType().equals("Microservice")) type = "microservice";
+				
+				m.getAttributes().add(new EntityAttribute("syncmetaid", "type", type));
+				
 				logger.info("Attributes: " + node.getAttributes().toString());
 
 				try {
 					connection = dbm.getConnection();
-					logger.info("Modelname: " + modelId);
-					modelsToSend[modelsToSendIndex] = new Model(modelId, connection).getMinifiedRepresentation();
+					logger.info("Modelname: " + m.getId());
+					SimpleModel s = (SimpleModel) m.getMinifiedRepresentation();
+					// s now has the id of the model as id, not the versioned model id
+					// thus we create a new SimpleModel and use the versioned model id as the model id
+					SimpleModel s2 = new SimpleModel(String.valueOf(versionedModelId), s.getNodes(), s.getEdges(), s.getAttributes());
+					modelsToSend[modelsToSendIndex] = (Serializable) s2;
 				} catch (SQLException e) {
 					// model might not exist
 					logger.printStackTrace(e);
-					throw new CGSInvocationException("Error loading application component: " + modelId);
+					throw new CGSInvocationException("Error loading application component: " + m.getId());
 				} finally {
 					try {
 						connection.close();

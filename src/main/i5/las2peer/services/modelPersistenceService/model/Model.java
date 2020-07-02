@@ -530,6 +530,7 @@ public class Model {
 		// since the model name does not exist anymore.
 		SimpleModel simpleModel = new SimpleModel(String.valueOf(this.id), simpleNodes, simpleEdges,
 				simpleModelAttributes);
+		if(this.getWireframeModelAsString() == null) return simpleModel;
 		try {
 			WireframeModel wireframe = new WireframeModel(this.getWireframeModelAsString());
 			SimpleModel extended = wireframe.extendSimpleModel(simpleModel);
