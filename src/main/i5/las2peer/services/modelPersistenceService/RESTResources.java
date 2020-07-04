@@ -601,8 +601,8 @@ public class RESTResources {
 	 * Requests the code generation service to start a Jenkins job for an
 	 * application model.
 	 * 
-	 * @param modelId
-	 *            id of the model
+	 * @param versionedModelId
+	 *            id of the versioned model
 	 * @param jobAlias
 	 *            the name/alias of the job to run, i.e. either "Build" or
 	 *            "Docker"
@@ -611,21 +611,38 @@ public class RESTResources {
 	 * 
 	 */
 	@GET
-	@Path("/deploy/{modelId}/{jobAlias}")
+	@Path("/deploy/{versionedModelId}/{jobAlias}")
 	@Consumes(MediaType.TEXT_PLAIN)
 	@ApiOperation(value = "Deploys an application model.", notes = "Deploys an application model.")
 	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model will be deployed"),
 			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
-	public Response deployModel(@PathParam("modelId") int modelId, @PathParam("jobAlias") String jobAlias) {
-		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deployModel: trying to deploy model with id: " + modelId);
+	public Response deployModel(@PathParam("versionedModelId") int versionedModelId, @PathParam("jobAlias") String jobAlias) {
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deployModel: trying to deploy versioned model with id: " + versionedModelId);
 		Model model;
 		Connection connection = null;
 
 		// first parse the updated model and check for correctness of format
 		try {
 			connection = dbm.getConnection();
-			model = new Model(modelId, connection);
+			
+			// get versioned model first
+			VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
+			ArrayList<Commit> commits = versionedModel.getCommits();
+			if(commits.size() < 2) {
+				return Response.serverError().entity("There does not exist a commit to the versioned model with the given id.").build();
+			}
+			
+			// get the commit at index 1, because the commit at index 0 is the one for uncommited changes
+			Commit latestCommit = commits.get(1);
+			// use the model of the latest commit for the deployment
+			model = latestCommit.getModel();
+			
+			// add type attribute "application"
+			model.getAttributes().add(new EntityAttribute(new SimpleEntityAttribute("syncmetaid", "type", "application")));
+			
+			// add attribute for versionedModelId
+			model.getAttributes().add(new EntityAttribute(new SimpleEntityAttribute("syncmetaid", "versionedModelId", String.valueOf(versionedModelId))));
 
 			try {
 
