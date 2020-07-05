@@ -132,7 +132,7 @@ public class RESTResources {
 
 		// call code generation service
 		if (!codeGenerationService.isEmpty()) {
-			try {
+			/*try {
 				// get user input metadata doc if available
 				String metadataDocString = model.getMetadataDoc();
 				
@@ -141,11 +141,10 @@ public class RESTResources {
 
 				Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postModel: invoking code generation service..");
 				// TODO: reactivate usage of code generation service
-				// TODO: EDIT: is reactivated now, check if everything works, then this TODO can be removed
 				model = callCodeGenerationService("createFromModel", model, metadataDocString, null);
 			} catch (CGSInvocationException e) {
 				return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
-			}
+			}*/
 		}
 		
 		// generate metadata swagger doc after model valid in code generation
@@ -368,13 +367,12 @@ public class RESTResources {
 
 			// call code generation service
 			if (!codeGenerationService.isEmpty()) {
-				try {
+				/*try {
 					// TODO: reactivate usage of code generation service
-					// TODO: EDIT: is reactivated now, check if everything works, then the TODO can be removed
-					model = callCodeGenerationService("deleteRepositoryOfModel", model, "", null);
+					//model = callCodeGenerationService("deleteRepositoryOfModel", model, "", null);
 				} catch (CGSInvocationException e) {
 					return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
-				}
+				}*/
 			}
 
 			model.deleteFromDatabase(connection);
@@ -528,10 +526,10 @@ public class RESTResources {
 							// check if it is the first commit or not
 							if(versionedModel.getCommits().size() == 2) {
 								// this is the first commit (there are 2 in total, because of the "uncommited changes" commit)
-								model = callCodeGenerationService("createFromModel", model, metadataDocString, versionedModel);
+								model = callCodeGenerationService("createFromModel", metadataDocString, versionedModel, commit);
 							} else {
 							    // not the first commit
-								model = callCodeGenerationService("updateRepositoryOfModel", model, metadataDocString, versionedModel);
+								model = callCodeGenerationService("updateRepositoryOfModel", metadataDocString, versionedModel, commit);
 							}
 						} catch (CGSInvocationException e) {
 							return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
@@ -652,7 +650,7 @@ public class RESTResources {
 					Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deployModel: invoking code generation service..");
 					// TODO: reactivate usage of code generation service
 					// TODO: EDIT: is reactivated now, check if everything works, then TODO can be removed
-					callCodeGenerationService("prepareDeploymentApplicationModel", model, "", null);
+					callCodeGenerationService("prepareDeploymentApplicationModel", "", null, latestCommit);
 				}
 
 				// start the jenkins job by the code generation service
@@ -803,15 +801,18 @@ public class RESTResources {
 	 * 
 	 * @param methodName
 	 *            the method name of the code generation service
-	 * @param model
-	 *            {@link Model}
+	 * @param metadataDoc
+	 * @param versionedModel The versioned model where the given model belongs to.
+	 * @param commit Commit where the code generation should be called with.
 	 * @return the model
 	 * 
 	 * @throws CGSInvocationException
 	 *             if something went wrong invoking the service
 	 * 
 	 */
-	private Model callCodeGenerationService(String methodName, Model model, String metadataDoc, VersionedModel versionedModel) throws CGSInvocationException {
+	private Model callCodeGenerationService(String methodName, String metadataDoc, VersionedModel versionedModel, Commit commit) throws CGSInvocationException {
+		Model model = commit.getModel();
+		
 		
 		if (metadataDoc == null)
 			metadataDoc = "";
@@ -897,34 +898,6 @@ public class RESTResources {
 			}
 		} else {
 			SimpleModel oldModel = null;
-			/*try {
-				connection = dbm.getConnection();
-				oldModel = (SimpleModel) new Model(modelId, connection).getMinifiedRepresentation();
-			} catch (SQLException e) {
-				// we can ignore sql exception for the loading of the old
-				// model. If such an exception is
-				// thrown, we assume that
-				// there is no old model
-			} catch (Exception e) {
-				// catch all other exceptions to ensure that the loading of
-				// the old model does not influence
-				// the call of the code generation service
-				logger.printStackTrace(e);
-			} finally {
-				try {
-					connection.close();
-				} catch (SQLException e) {
-					logger.printStackTrace(e);
-				}
-			}
-			if (oldModel != null) {
-				modelsToSend = new SimpleModel[2];
-				modelsToSend[0] = simpleModel;
-				modelsToSend[1] = oldModel;
-			} else {
-				modelsToSend = new SimpleModel[1];
-				modelsToSend[0] = simpleModel;
-			}*/
 			
 			// check if there exists an old model
 			int commitCount = versionedModel.getCommits().size();
@@ -955,7 +928,8 @@ public class RESTResources {
 				Serializable[] payload = { modelsToSend };
 				answer = (String) Context.getCurrent().invoke(codeGenerationService, methodName, payload);
 			} else {
-				Serializable[] payload = { metadataDoc, modelsToSend };
+				// method is either updateRepositoryOfModel or createFromModel
+				Serializable[] payload = { commit.getMessage(), metadataDoc, modelsToSend };
 				answer = (String) Context.getCurrent().invoke(codeGenerationService, methodName, payload);
 			}
 
