@@ -454,12 +454,12 @@ public class RESTResources {
 		} catch (SQLException e) {
 	        logger.printStackTrace(e);
 		    return Response.serverError().entity("Internal server error.").build();
-		}/* catch (ParseException e) {
+		} catch (ParseException e) {
 			logger.printStackTrace(e);
 			return Response.status(HttpURLConnection.HTTP_BAD_REQUEST).entity("Parse error.").build();
-		}*/ catch (Exception e) {
+		} catch (Exception e) {
 			logger.printStackTrace(e);
-		    return Response.serverError().entity("Internal server error.").build();
+			return Response.serverError().entity("Internal server error: " + e.getMessage()).build();
 		} finally {
 			try {
 			    connection.close();
@@ -750,10 +750,13 @@ public class RESTResources {
 			// iterate through the nodes and add corresponding models to
 			// array
 			for (SimpleNode node : simpleModel.getNodes()) {
-				// since application models only have one attribute with its
-				// label
-				// TODO: changed from string to int, check if it works
-				String versionedModelIdStr = node.getAttributes().get(0).getValue();
+				String versionedModelIdStr = "-1";
+				for(SimpleEntityAttribute a : node.getAttributes()) {
+					if(a.getName().equals("versionedModelId")) {
+						versionedModelIdStr = a.getValue();
+						break;
+					}
+				}
 				int versionedModelId = Integer.parseInt(versionedModelIdStr);
 				
 				// get latest commit
