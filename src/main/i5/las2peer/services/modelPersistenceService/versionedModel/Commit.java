@@ -36,6 +36,11 @@ public class Commit {
 	private String timestamp;
 	
 	/**
+	 * Commit sha identifier.
+	 */
+	private String sha;
+	
+	/**
 	 * Tags thats connected to the commit.
 	 * Might be null, if no tag is connected to the commit.
 	 */
@@ -75,13 +80,14 @@ public class Commit {
 		this.id = commitId;
 		
 		// load commit attributes
-		PreparedStatement statement = connection.prepareStatement("SELECT message, timestamp FROM Commit WHERE id = ?;");
+		PreparedStatement statement = connection.prepareStatement("SELECT * FROM Commit WHERE id = ?;");
 		statement.setInt(1, commitId);
 		
 		ResultSet queryResult = statement.executeQuery();
 		if(queryResult.next()) {
-			this.message = queryResult.getString(1);
-			this.timestamp = queryResult.getString(2);
+			this.message = queryResult.getString("message");
+			this.timestamp = queryResult.getString("timestamp");
+			this.sha = queryResult.getString("sha");
 		} else {
 			throw new CommitNotFoundException();
 		}
@@ -118,6 +124,7 @@ public class Commit {
 		if(this.versionTag != null) {
 			jsonCommit.put("versionTag", this.versionTag);
 		}
+		jsonCommit.put("sha", this.sha);
 		
 		return jsonCommit;
 	}
@@ -174,6 +181,20 @@ public class Commit {
 			// reset auto commit
 			connection.setAutoCommit(autoCommitBefore);
 		}
+	}
+	
+	/**
+	 * Updates the sha identifier of the commit in the database.
+	 * @param sha Commit sha identifier.
+	 * @param connection Connection object
+	 * @throws SQLException If something with the database went wrong.
+	 */
+	public void persistSha(String sha, Connection connection) throws SQLException {
+		PreparedStatement statement = connection.prepareStatement("UPDATE Commit SET sha = ? WHERE id = ?;");
+		statement.setString(1, sha);
+		statement.setInt(2, this.id);
+		statement.executeUpdate();
+		statement.close();
 	}
 	
 	public void delete(Connection connection) throws SQLException {

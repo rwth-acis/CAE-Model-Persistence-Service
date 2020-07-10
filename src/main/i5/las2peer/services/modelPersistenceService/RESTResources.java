@@ -420,6 +420,7 @@ public class RESTResources {
 					model.getAttributes().add(new EntityAttribute("syncmetaid", "versionedModelId", String.valueOf(versionedModelId)));
 					
 					// call code generation service
+					String commitSha = "";
 					if (!codeGenerationService.isEmpty()) {
 						try {
 							// get user input metadata doc if available
@@ -434,17 +435,20 @@ public class RESTResources {
 							// check if it is the first commit or not
 							if(versionedModel.getCommits().size() == 2) {
 								// this is the first commit (there are 2 in total, because of the "uncommited changes" commit)
-								model = callCodeGenerationService("createFromModel", metadataDocString, versionedModel, commit);
+								commitSha = callCodeGenerationService("createFromModel", metadataDocString, versionedModel, commit);
 							} else {
 							    // not the first commit
-								model = callCodeGenerationService("updateRepositoryOfModel", metadataDocString, versionedModel, commit);
+								commitSha = callCodeGenerationService("updateRepositoryOfModel", metadataDocString, versionedModel, commit);
 							}
 						} catch (CGSInvocationException e) {
 							return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
 						}
 					}
 					
-					return Response.ok().build();
+					// now persist the sha given by code generation service
+					commit.persistSha(commitSha, connection);
+					
+					return Response.ok(commitSha).build();
 				} else {
 					// user does not have the permission to commit to the versioned model, or an error occurred
 					return Response.status(HttpURLConnection.HTTP_FORBIDDEN)
@@ -712,13 +716,13 @@ public class RESTResources {
 	 * @param metadataDoc
 	 * @param versionedModel The versioned model where the given model belongs to.
 	 * @param commit Commit where the code generation should be called with.
-	 * @return the model
+	 * @return Commit sha identifier
 	 * 
 	 * @throws CGSInvocationException
 	 *             if something went wrong invoking the service
 	 * 
 	 */
-	private Model callCodeGenerationService(String methodName, String metadataDoc, VersionedModel versionedModel, Commit commit) throws CGSInvocationException {
+	private String callCodeGenerationService(String methodName, String metadataDoc, VersionedModel versionedModel, Commit commit) throws CGSInvocationException {
 		Model model = commit.getModel();
 		
 		
@@ -844,10 +848,11 @@ public class RESTResources {
 				answer = (String) Context.getCurrent().invoke(codeGenerationService, methodName, payload);
 			}
 
-			if (!answer.equals("done")) {
+			if (!answer.startsWith("done")) {
 				throw new CGSInvocationException(answer);
 			}
-			return model;
+			if(answer.startsWith("done:")) return answer.split("done:")[1];
+			return "";
 		} catch (Exception e) {
 			logger.printStackTrace(e);
 			throw new CGSInvocationException(e.getMessage());
