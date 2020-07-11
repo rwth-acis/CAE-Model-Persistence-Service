@@ -221,4 +221,8 @@ public class Commit {
 		return this.timestamp;
 	}
 	
+	public String getVersionTag() {
+		return this.versionTag;
+	}
+	
 }

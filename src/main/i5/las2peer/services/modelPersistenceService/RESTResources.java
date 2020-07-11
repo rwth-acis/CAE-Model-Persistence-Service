@@ -844,7 +844,9 @@ public class RESTResources {
 				answer = (String) Context.getCurrent().invoke(codeGenerationService, methodName, payload);
 			} else {
 				// method is either updateRepositoryOfModel or createFromModel
-				Serializable[] payload = { commit.getMessage(), metadataDoc, modelsToSend };
+				String versionTag = commit.getVersionTag();
+				if(versionTag == null) versionTag = "";
+				Serializable[] payload = { commit.getMessage(), versionTag, metadataDoc, modelsToSend };
 				answer = (String) Context.getCurrent().invoke(codeGenerationService, methodName, payload);
 			}
 
