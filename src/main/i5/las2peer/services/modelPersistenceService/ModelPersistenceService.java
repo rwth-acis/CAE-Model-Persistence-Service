@@ -54,6 +54,8 @@ import io.swagger.models.Swagger;
 import io.swagger.util.Json;
 
 import i5.las2peer.services.modelPersistenceService.modelServices.*;
+import i5.las2peer.services.modelPersistenceService.versionedModel.Commit;
+import i5.las2peer.services.modelPersistenceService.versionedModel.VersionedModel;
 
 /**
  * 
@@ -121,6 +123,46 @@ public class ModelPersistenceService extends RESTService {
 
 	public MetadataDocService getMetadataService(){
 		return metadataDocService;
+	}
+	
+	/**
+	 * Used by Code Generation Service. When the Live Code Editor widget changes a file and creates a new 
+	 * commit, then also this method gets called which stores the commit message and the sha identifier of
+	 * the commit to the database.
+	 * @param commitSha Sha identifier of the commit.
+	 * @param commitMessage Message of the commit.
+	 * @param versionedModelId Id of the versioned model where the commit should be added to.
+	 * @return
+	 */
+	public String addCodeCommitToVersionedModel(String commitSha, String commitMessage, int versionedModelId) {
+		Connection connection = null;
+		try {
+			connection = dbm.getConnection();
+			
+			// there always exists a commit for "uncommited changes"
+			// that one needs to be removed first
+			VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
+			Commit uncommitedChanges = versionedModel.getCommitForUncommitedChanges();
+			uncommitedChanges.delete(connection);
+			
+			// now create a new commit
+			Commit commit = new Commit(commitMessage);
+			commit.persist(versionedModelId, connection);
+			commit.persistSha(commitSha, connection);
+			
+			// readd uncommited changes commit
+			uncommitedChanges.persist(versionedModelId, connection);
+			
+			return "done";
+		} catch (SQLException e) {
+			return "error";
+		} finally {
+			try {
+			    connection.close();
+			} catch (SQLException e) {
+				return "error";
+			}
+		}
 	}
 	
 }

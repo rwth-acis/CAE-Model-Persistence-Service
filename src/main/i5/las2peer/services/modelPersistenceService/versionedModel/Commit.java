@@ -14,6 +14,24 @@ import i5.las2peer.services.modelPersistenceService.exception.CommitNotFoundExce
 import i5.las2peer.services.modelPersistenceService.model.Model;
 
 public class Commit {
+	
+	/**
+	 * Commits with commitType set to COMMIT_TYPE_MODEL belong to
+	 * changes that were done to the model, i.e. changes created in 
+	 * the modeling editor.
+	 * These commits are connected to a model (which already contains
+	 * the changes of the commit).
+	 */
+	public static final int COMMIT_TYPE_MODEL = 0;
+	
+	/**
+	 * Commits with commitType set to COMMIT_TYPE_CODE belong to 
+	 * changes that were done to the code, i.e. changes created in 
+	 * the live code editor.
+	 * These commits are NOT connected to a model. Only the commit
+	 * sha identifier is stored to link the commit to GitHub.
+	 */
+	public static final int COMMIT_TYPE_CODE = 1;
 
 	/**
 	 * Id of the commit is set to -1 before the commit gets persisted.
@@ -46,6 +64,18 @@ public class Commit {
 	 */
 	private String versionTag;
 	
+	/**
+	 * Type of the commit. Either COMMIT_TYPE_MODEL or
+	 * COMMIT_TYPE_CODE.
+	 */
+	private int commitType;
+	
+	/**
+	 * Constructor used to create commits of type COMMIT_TYPE_MODEL.
+	 * @param jsonCommit
+	 * @param commitForUncommitedChanges
+	 * @throws ParseException
+	 */
 	public Commit(String jsonCommit, boolean commitForUncommitedChanges) throws ParseException {
 		JSONObject completeJsonCommit = (JSONObject) JSONValue.parseWithException(jsonCommit);
 		
@@ -67,7 +97,19 @@ public class Commit {
     		this.versionTag = (String) completeJsonCommit.get("versionTag");
     	}
     	
+    	// set commit type for a commit that changes the model
+    	this.commitType = COMMIT_TYPE_MODEL;
+    	
     	this.model = new Model(((JSONObject) completeJsonCommit.get("model")).toJSONString());
+	}
+	
+	/**
+	 * Constructor used to create commits of type COMMIT_TYPE_CODE.
+	 * @param commitMessage
+	 */
+	public Commit(String commitMessage) {
+		this.message = commitMessage;
+		this.commitType = COMMIT_TYPE_CODE;
 	}
 	
 	/**
@@ -88,21 +130,24 @@ public class Commit {
 			this.message = queryResult.getString("message");
 			this.timestamp = queryResult.getString("timestamp");
 			this.sha = queryResult.getString("sha");
+			this.commitType = queryResult.getInt("commitType");
 		} else {
 			throw new CommitNotFoundException();
 		}
 		statement.close();
 		
 		// load model
-		statement = connection.prepareStatement("SELECT modelId FROM CommitToModel WHERE commitId = ?;");
-		statement.setInt(1, commitId);
-		queryResult = statement.executeQuery();
-		if(queryResult.next()) {
-			this.model = new Model(queryResult.getInt(1), connection);
-		} else {
-			throw new CommitNotFoundException();
+		if(this.commitType == COMMIT_TYPE_MODEL) {
+			statement = connection.prepareStatement("SELECT modelId FROM CommitToModel WHERE commitId = ?;");
+			statement.setInt(1, commitId);
+			queryResult = statement.executeQuery();
+			if(queryResult.next()) {
+				this.model = new Model(queryResult.getInt(1), connection);
+			} else {
+				throw new CommitNotFoundException();
+			}
+			statement.close();	
 		}
-		statement.close();
 		
 		// load version tag if one exists
 		statement = connection.prepareStatement("SELECT * FROM VersionTag WHERE commitId = ?;");
@@ -118,7 +163,10 @@ public class Commit {
 		JSONObject jsonCommit = new JSONObject();
 		
 		jsonCommit.put("id", this.id);
-		jsonCommit.put("model", this.model.toJSONObject());
+		jsonCommit.put("commitType", this.commitType);
+		if(this.commitType == COMMIT_TYPE_MODEL) {
+		  jsonCommit.put("model", this.model.toJSONObject());
+		}
 		jsonCommit.put("message", this.message);
 		jsonCommit.put("timestamp", this.timestamp);
 		if(this.versionTag != null) {
@@ -135,8 +183,10 @@ public class Commit {
 		try {
 			connection.setAutoCommit(false);
 			
-			statement = connection.prepareStatement("INSERT INTO Commit (message, timestamp) VALUES (?, CURRENT_TIMESTAMP);", Statement.RETURN_GENERATED_KEYS);
+			statement = connection.prepareStatement("INSERT INTO Commit (message, timestamp, commitType) " + 
+			    "VALUES (?, CURRENT_TIMESTAMP, ?);", Statement.RETURN_GENERATED_KEYS);
 			statement.setString(1, this.message);
+			statement.setInt(2, this.commitType);
 			// execute query
 			statement.executeUpdate();
 		    // get the generated id and close statement
@@ -155,14 +205,16 @@ public class Commit {
 		    }
 		    
 		    // store model
-		    this.model.persist(connection);
-		    
-		    // add CommitToModel entry
-		    statement = connection.prepareStatement("INSERT INTO CommitToModel (commitId, modelId) VALUES (?, ?);");
-		    statement.setInt(1, this.id);
-		    statement.setInt(2, this.model.getId());
-		    statement.executeUpdate();
-		    statement.close();
+		    if(this.commitType == COMMIT_TYPE_MODEL) {
+		        this.model.persist(connection);
+		        
+		        // add CommitToModel entry
+			    statement = connection.prepareStatement("INSERT INTO CommitToModel (commitId, modelId) VALUES (?, ?);");
+			    statement.setInt(1, this.id);
+			    statement.setInt(2, this.model.getId());
+			    statement.executeUpdate();
+			    statement.close();
+		    }
 		    
 		    // add CommitToVersionedModel entry
 		    statement = connection.prepareStatement("INSERT INTO CommitToVersionedModel (versionedModelId, commitId) VALUES (?,?);");
@@ -223,6 +275,10 @@ public class Commit {
 	
 	public String getVersionTag() {
 		return this.versionTag;
+	}
+	
+	public int getCommitType() {
+		return this.commitType;
 	}
 	
 }

@@ -132,6 +132,7 @@ CREATE TABLE IF NOT EXISTS commedit.Commit (
   message VARCHAR(255),
   timestamp TIMESTAMP,
   sha VARCHAR(255),
+  commitType INT NOT NULL,
   CONSTRAINT commitPK PRIMARY KEY (id)
 );
 
