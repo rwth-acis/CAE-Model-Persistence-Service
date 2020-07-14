@@ -797,7 +797,14 @@ public class RESTResources {
 				ArrayList<Commit> commits = v.getCommits();
 				if(commits.size() < 2) throw new CGSInvocationException("Application contains versioned model without commit.");
 				
-				Model m = commits.get(1).getModel();
+				
+				// get first "model-commit"
+				Model m = null;
+				for(int i = 1; i < commits.size(); i++) {
+					if(commits.get(i).getCommitType() == Commit.COMMIT_TYPE_MODEL) {
+					    m = commits.get(i).getModel();
+					}
+				}
 				
 				String type = "";
 				if(node.getType().equals("Frontend Component")) type = "frontend-component";
