@@ -317,12 +317,14 @@ public class Model {
 	 * 
 	 * @param connection
 	 *            a Connection Object
+	 *            
+	 * @param commit Whether the changes to the database should be commited.
 	 * 
 	 * @throws SQLException
 	 *             if something with the database has gone wrong
 	 * 
 	 */
-	public void persist(Connection connection) throws SQLException {
+	public void persist(Connection connection, boolean commit) throws SQLException {
 		PreparedStatement statement;
 		try {
 			connection.setAutoCommit(false);
@@ -395,7 +397,9 @@ public class Model {
 
 
 			// we got here without errors, so commit now
-			connection.commit();
+			if(commit) {
+			    connection.commit();
+			}
 
 		} catch (SQLException e) {
 			// roll back the whole stuff

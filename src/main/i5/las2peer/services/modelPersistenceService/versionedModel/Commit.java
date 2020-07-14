@@ -177,7 +177,14 @@ public class Commit {
 		return jsonCommit;
 	}
 	
-	public void persist(int versionedModelId, Connection connection) throws SQLException {
+	/**
+	 * 
+	 * @param versionedModelId
+	 * @param connection
+	 * @param commit Whether the changes to the database should be commited or not.
+	 * @throws SQLException
+	 */
+	public void persist(int versionedModelId, Connection connection, boolean commit) throws SQLException {
 		PreparedStatement statement;
 		boolean autoCommitBefore = connection.getAutoCommit();
 		try {
@@ -206,7 +213,7 @@ public class Commit {
 		    
 		    // store model
 		    if(this.commitType == COMMIT_TYPE_MODEL) {
-		        this.model.persist(connection);
+		        this.model.persist(connection, false);
 		        
 		        // add CommitToModel entry
 			    statement = connection.prepareStatement("INSERT INTO CommitToModel (commitId, modelId) VALUES (?, ?);");
@@ -224,7 +231,9 @@ public class Commit {
 		    statement.close();
 		    
 		    // no errors occurred
-		    connection.commit();
+		    if(commit) {
+		        connection.commit();
+		    }
 		} catch (SQLException e) {
 			// roll back the whole stuff
 			connection.rollback();

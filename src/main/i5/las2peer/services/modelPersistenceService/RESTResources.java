@@ -381,17 +381,19 @@ public class RESTResources {
 				    // user has the permission to commit to the versioned model
 					// there always exists a commit for "uncommited changes"
 					// that one needs to be removed first
+					connection.setAutoCommit(false);
+					
 					VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
 					Commit uncommitedChanges = versionedModel.getCommitForUncommitedChanges();
 					uncommitedChanges.delete(connection);
 					
 					// now create a new commit
 					Commit commit = new Commit(inputCommit, false);
-					commit.persist(versionedModelId, connection);
+					commit.persist(versionedModelId, connection, false);
 					
 					// now create new commit for uncommited changes
 					Commit uncommitedChangesNew = new Commit(inputCommit, true);
-					uncommitedChangesNew.persist(versionedModelId, connection);
+					uncommitedChangesNew.persist(versionedModelId, connection, false);
 					
 					// reload versionedModel from database
 					versionedModel = new VersionedModel(versionedModelId, connection);
@@ -441,12 +443,18 @@ public class RESTResources {
 								commitSha = callCodeGenerationService("updateRepositoryOfModel", metadataDocString, versionedModel, commit);
 							}
 						} catch (CGSInvocationException e) {
+							try {
+								connection.rollback();
+							} catch (SQLException e1) {}
 							return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
 						}
 					}
 					
 					// now persist the sha given by code generation service
 					commit.persistSha(commitSha, connection);
+					
+					// everything went well -> commit database changes
+					connection.commit();
 					
 					return Response.ok(commitSha).build();
 				} else {
@@ -456,12 +464,21 @@ public class RESTResources {
 				}
 			}
 		} catch (SQLException e) {
+			try {
+				connection.rollback();
+			} catch (SQLException e1) {}
 	        logger.printStackTrace(e);
 		    return Response.serverError().entity("Internal server error.").build();
 		} catch (ParseException e) {
+			try {
+				connection.rollback();
+			} catch (SQLException e1) {}
 			logger.printStackTrace(e);
 			return Response.status(HttpURLConnection.HTTP_BAD_REQUEST).entity("Parse error.").build();
 		} catch (Exception e) {
+			try {
+				connection.rollback();
+			} catch (SQLException e1) {}
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Internal server error: " + e.getMessage()).build();
 		} finally {

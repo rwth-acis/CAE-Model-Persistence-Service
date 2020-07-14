@@ -147,11 +147,11 @@ public class ModelPersistenceService extends RESTService {
 			
 			// now create a new commit
 			Commit commit = new Commit(commitMessage);
-			commit.persist(versionedModelId, connection);
+			commit.persist(versionedModelId, connection, true);
 			commit.persistSha(commitSha, connection);
 			
 			// readd uncommited changes commit
-			uncommitedChanges.persist(versionedModelId, connection);
+			uncommitedChanges.persist(versionedModelId, connection, true);
 			
 			return "done";
 		} catch (SQLException e) {
