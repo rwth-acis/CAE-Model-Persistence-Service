@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS commedit.MetadataDoc (
-  `componentId` varchar(45) NOT NULL,
+  `componentId` int(11) NOT NULL,
   `docType` varchar(45) NOT NULL,
   `docString` text,
   `docInput` text,

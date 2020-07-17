@@ -450,6 +450,9 @@ public class RESTResources {
 						}
 					}
 					
+					// generate metadata swagger doc after model valid in code generation
+					metadataDocService.modelToSwagger(versionedModel.getId(), model);
+					
 					// now persist the sha given by code generation service
 					commit.persistSha(commitSha, connection);
 					
@@ -1123,8 +1126,7 @@ public class RESTResources {
 			@ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST, message = "Input model was not valid"),
 			@ApiResponse(code = HttpURLConnection.HTTP_CONFLICT, message = "Tried to save a model that already had a name and thus was not new"),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
-	public Response postDoc(String inputJsonString, @PathParam("version") int version, @PathParam("id") String id) {
-
+	public Response postDoc(String inputJsonString, @PathParam("version") int version, @PathParam("id") int id) {
 		ObjectMapper mapper = new ObjectMapper();
 		try {
 			this.metadataDocService.createUpdateUserGeneratedMetadata(id, inputJsonString, version);

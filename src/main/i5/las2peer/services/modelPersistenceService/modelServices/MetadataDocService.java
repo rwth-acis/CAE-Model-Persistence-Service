@@ -14,6 +14,8 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.ResultSet;
 
+import i5.las2peer.api.Context;
+import i5.las2peer.api.logging.MonitoringEvent;
 import i5.las2peer.logging.L2pLogger;
 import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
 import i5.las2peer.services.modelPersistenceService.model.Model;
@@ -21,8 +23,6 @@ import i5.las2peer.services.modelPersistenceService.model.node.Node;
 import i5.las2peer.services.modelPersistenceService.model.edge.Edge;
 import i5.las2peer.services.modelPersistenceService.model.metadata.MetadataDoc;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -227,7 +227,7 @@ public class MetadataDocService {
     }
 
     /****** CREATE UPDATE MODEL GENERATED METADATA DOC */
-    public void createUpdateUserGeneratedMetadata(String componentId, String inputJson, int version) throws SQLException {
+    public void createUpdateUserGeneratedMetadata(int componentId, String inputJson, int version) throws SQLException {
         String docType = "json";
         // refresh connection
         _connection = _dbm.getConnection();
@@ -235,7 +235,7 @@ public class MetadataDocService {
                 " INSERT INTO MetadataDoc(componentId, docInput, docType, version) VALUES (?,?,?,?) " + 
                 " ON DUPLICATE KEY UPDATE docInput=?, docType=?, urlDeployed=NULL");
         try {
-            sqlQuery.setString(1, componentId);
+            sqlQuery.setInt(1, componentId);
             sqlQuery.setString(2, inputJson);
             sqlQuery.setString(3, docType);
             sqlQuery.setInt(4, version);
@@ -376,7 +376,7 @@ public class MetadataDocService {
      * Convert model object to swagger json object
      * @param model CAE model, assumed valid
      */
-    public String modelToSwagger(Model model) {
+    public String modelToSwagger(int versionedModelId, Model model) {
         // check for model type
         String modelType = null;
         int componentVersion = 1;
@@ -395,13 +395,13 @@ public class MetadataDocService {
         }
         
         if (modelType.equals("microservice")) {
-            return microserviceToSwagger(model, componentVersion);
+            return microserviceToSwagger(versionedModelId, model, componentVersion);
         } else {
             return "{}";
         }
     }
 
-    private String microserviceToSwagger(Model model, int componentVersion) {
+    private String microserviceToSwagger(int versionedModelId, Model model, int componentVersion) {
         ObjectMapper mapper = new ObjectMapper();
 
         // maps for model to http methods, payloads, responses, path
@@ -431,9 +431,7 @@ public class MetadataDocService {
         ObjectNode rootObject = mapper.createObjectNode();
 
         // get user input metadata doc if exists
-        // TODO: changed from name to id here, check if works
-        int modelId = model.getId();
-        String userInputMetadataDoc = getUserInputMetadataDocStringByComponentId(modelId);
+        String userInputMetadataDoc = getUserInputMetadataDocStringByComponentId(versionedModelId);
         
         String description = "No description";
         String version = "1.0";
@@ -614,7 +612,7 @@ public class MetadataDocService {
             }
 
         } catch(Exception e) {
-            _logger.printStackTrace(e);
+        	_logger.printStackTrace(e);
             return rootObject.toString();
         }
 
@@ -706,7 +704,7 @@ public class MetadataDocService {
 
             }
         } catch(Exception e) {
-            _logger.printStackTrace(e);
+        	_logger.printStackTrace(e);
             return rootObject.toString();
         }
 
@@ -724,7 +722,7 @@ public class MetadataDocService {
                 pathsObject.put(path, pathNode);
             }
         } catch(Exception e) {
-            _logger.printStackTrace(e);
+        	_logger.printStackTrace(e);
             return rootObject.toString();
         }
 
@@ -734,9 +732,9 @@ public class MetadataDocService {
         _logger.info("[SAVING SWAGGER INFO]");
         // save result to database
         try {
-            createUpdateModelGeneratedMetadata(modelId, rootObject.toString(), "json", componentVersion);
+            createUpdateModelGeneratedMetadata(versionedModelId, rootObject.toString(), "json", componentVersion);
         } catch (SQLException e) {
-            _logger.printStackTrace(e);
+        	_logger.printStackTrace(e);
         }
         _logger.info(rootObject.toString());
         
