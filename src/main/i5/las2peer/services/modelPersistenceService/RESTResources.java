@@ -774,16 +774,33 @@ public class RESTResources {
 			// iterate through the nodes and add corresponding models to
 			// array
 			for (SimpleNode node : simpleModel.getNodes()) {
+				// CAE-Frontend sends some attributes which contain the information we need 
+				// about the components that the application consists of
+				
+				// the first information that we need is the versioned model id of the component
 				String versionedModelIdStr = "-1";
+				// besides the versioned model id, we also need the version of the component which got
+				// selected, because different versions of the component can be selected, which allows 
+				// to choose older versions to be included in an application
+				String selectedComponentVersion = null;
+				// iterate through attributes of the node (=component)
 				for(SimpleEntityAttribute a : node.getAttributes()) {
 					if(a.getName().equals("versionedModelId")) {
 						versionedModelIdStr = a.getValue();
-						break;
+					} else if(a.getName().equals("version")) {
+						selectedComponentVersion = a.getValue();
 					}
 				}
+				// convert versioned model id to int
 				int versionedModelId = Integer.parseInt(versionedModelIdStr);
 				
-				// get latest commit
+				// it should not be the case, that the selected component version cannot be found in the attributes
+				if(selectedComponentVersion == null) {
+				    throw new CGSInvocationException("There exists a component which is part of the application, where no 'version' attribute is given.");
+				}
+				
+				// since we now got the id of the versioned model which belongs to the component,
+				// we are able to load the versioned model from the database
 				VersionedModel v;
 				try {
 					connection = dbm.getConnection();
@@ -797,17 +814,43 @@ public class RESTResources {
 						logger.printStackTrace(e);
 					}
 				}
+				
+				// get the commits of the versioned model
 				ArrayList<Commit> commits = v.getCommits();
 				if(commits.size() < 2) throw new CGSInvocationException("Application contains versioned model without commit.");
 				
 				
-				// get first "model-commit"
 				Model m = null;
-				for(int i = 1; i < commits.size(); i++) {
-					if(commits.get(i).getCommitType() == Commit.COMMIT_TYPE_MODEL) {
-					    m = commits.get(i).getModel();
+				// either we should use the latest version of the component, or another version (which belongs to a 
+				// version tag of a commit of the versioned model) is given
+				if(selectedComponentVersion.equals("Latest")) {
+					// get latest commit
+					// NOTE: currently, only commits with the commitType COMMIT_TYPE_MODEL include a model
+					// since we need the model here, we cannot use the latest commit, but we have to use the 
+					// latest commit which includes a model
+					
+					// get first "model-commit"
+					for(int i = 1; i < commits.size(); i++) {
+						if(commits.get(i).getCommitType() == Commit.COMMIT_TYPE_MODEL) {
+						    m = commits.get(i).getModel();
+						    break;
+						}
+					}
+				} else {
+					// we want to get the model with a specific version 
+					for(Commit c : commits) {
+						if(c.getVersionTag() != null) {
+							if(c.getVersionTag().equals(selectedComponentVersion)) {
+								m = c.getModel();
+								break;
+							}
+						}
 					}
 				}
+				
+				// safety check
+				if(m == null) throw new CGSInvocationException("Tried to get model of a component, but it is null.");
+				
 				
 				String type = "";
 				if(node.getType().equals("Frontend Component")) type = "frontend-component";
