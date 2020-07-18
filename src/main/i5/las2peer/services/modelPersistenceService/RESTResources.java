@@ -1127,6 +1127,8 @@ public class RESTResources {
 			@ApiResponse(code = HttpURLConnection.HTTP_CONFLICT, message = "Tried to save a model that already had a name and thus was not new"),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
 	public Response postDoc(String inputJsonString, @PathParam("version") int version, @PathParam("id") int id) {
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postDoc called with version " + version + " and id " + id);
+
 		ObjectMapper mapper = new ObjectMapper();
 		try {
 			this.metadataDocService.createUpdateUserGeneratedMetadata(id, inputJsonString, version);
