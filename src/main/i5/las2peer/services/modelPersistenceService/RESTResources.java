@@ -821,6 +821,7 @@ public class RESTResources {
 				
 				
 				Model m = null;
+				String selectedCommitSha = "";
 				// either we should use the latest version of the component, or another version (which belongs to a 
 				// version tag of a commit of the versioned model) is given
 				if(selectedComponentVersion.equals("Latest")) {
@@ -833,6 +834,7 @@ public class RESTResources {
 					for(int i = 1; i < commits.size(); i++) {
 						if(commits.get(i).getCommitType() == Commit.COMMIT_TYPE_MODEL) {
 						    m = commits.get(i).getModel();
+						    selectedCommitSha = commits.get(i).getSha();
 						    break;
 						}
 					}
@@ -842,6 +844,7 @@ public class RESTResources {
 						if(c.getVersionTag() != null) {
 							if(c.getVersionTag().equals(selectedComponentVersion)) {
 								m = c.getModel();
+								selectedCommitSha = c.getSha();
 								break;
 							}
 						}
@@ -850,6 +853,11 @@ public class RESTResources {
 				
 				// safety check
 				if(m == null) throw new CGSInvocationException("Tried to get model of a component, but it is null.");
+				
+				// now we add the sha of the selected commit (the latest commit or the one matching a specific version)
+				// to the model attributes
+				// when the application code gets generated, then we can easily find the commit again
+				m.getAttributes().add(new EntityAttribute("commitSha", "commitSha", selectedCommitSha));
 				
 				
 				String type = "";

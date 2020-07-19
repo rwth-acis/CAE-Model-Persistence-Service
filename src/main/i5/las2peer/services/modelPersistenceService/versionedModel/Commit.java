@@ -270,6 +270,10 @@ public class Commit {
 		return this.id;
 	}
 	
+	public String getSha() {
+		return this.sha;
+	}
+	
 	public Model getModel() {
 		return this.model;
 	}
