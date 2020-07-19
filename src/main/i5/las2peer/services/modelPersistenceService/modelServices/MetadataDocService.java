@@ -272,7 +272,7 @@ public class MetadataDocService {
                     String componentId = null;
                     ArrayList<EntityAttribute> nodeAttributes = appNode.getAttributes();
                     for (EntityAttribute nodeAttribute: nodeAttributes) {
-                        if (nodeAttribute.getName().equals("label")) {
+                        if (nodeAttribute.getName().equals("versionedModelId")) {
                             componentId = nodeAttribute.getValue();
                         }
                     }
@@ -284,7 +284,7 @@ public class MetadataDocService {
                             " UPDATE MetadataDoc SET urlDeployed=?, timeDeployed=NOW() " + 
                             " WHERE componentId=? ");
                         sqlQuery.setString(1, urlDeployed);
-                        sqlQuery.setString(2, componentId);
+                        sqlQuery.setInt(2, Integer.parseInt(componentId));
 
                         _logger.info(String.format(_logPrefix, "Executing update deployment query"));
                         sqlQuery.executeUpdate();
