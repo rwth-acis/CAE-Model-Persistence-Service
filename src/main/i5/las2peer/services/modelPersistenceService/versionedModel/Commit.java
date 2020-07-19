@@ -93,7 +93,7 @@ public class Commit {
     	}
     	
     	// check if a version tag is included
-    	if(completeJsonCommit.containsKey("versionTag")) {
+    	if(completeJsonCommit.containsKey("versionTag") && !commitForUncommitedChanges) {
     		this.versionTag = (String) completeJsonCommit.get("versionTag");
     	}
     	

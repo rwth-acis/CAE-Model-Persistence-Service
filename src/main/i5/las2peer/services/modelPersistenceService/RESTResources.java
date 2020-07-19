@@ -840,7 +840,8 @@ public class RESTResources {
 					}
 				} else {
 					// we want to get the model with a specific version 
-					for(Commit c : commits) {
+					for(int i = 1; i < commits.size(); i++) {
+					    Commit c = commits.get(i);
 						if(c.getVersionTag() != null) {
 							if(c.getVersionTag().equals(selectedComponentVersion)) {
 								m = c.getModel();
@@ -851,8 +852,9 @@ public class RESTResources {
 					}
 				}
 				
-				// safety check
+				// safety checks
 				if(m == null) throw new CGSInvocationException("Tried to get model of a component, but it is null.");
+				if(selectedCommitSha == null) throw new CGSInvocationException("Selected a commit where the sha identifier is null.");
 				
 				// now we add the sha of the selected commit (the latest commit or the one matching a specific version)
 				// to the model attributes
