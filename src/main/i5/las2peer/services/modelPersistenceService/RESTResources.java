@@ -826,24 +826,42 @@ public class RESTResources {
 				// version tag of a commit of the versioned model) is given
 				if(selectedComponentVersion.equals("Latest")) {
 					// get latest commit
-					// NOTE: currently, only commits with the commitType COMMIT_TYPE_MODEL include a model
-					// since we need the model here, we cannot use the latest commit, but we have to use the 
-					// latest commit which includes a model
+					// NOTE: Currently, only commits with the commitType COMMIT_TYPE_MODEL include a model and 
+					// commits with commitType COMMIT_TYPE_CODE do not include a model.
+					// The code generation needs a model, thus when the first commit is a code commit without a model,
+					// we need to add the latest model to it.
 					
-					// get first "model-commit"
-					for(int i = 1; i < commits.size(); i++) {
-						if(commits.get(i).getCommitType() == Commit.COMMIT_TYPE_MODEL) {
-						    m = commits.get(i).getModel();
-						    selectedCommitSha = commits.get(i).getSha();
-						    break;
+					// get first commit
+					Commit firstCommit = commits.get(1); // the one at index 0 is the "uncommited changes" commit
+					if(firstCommit.getCommitType() == Commit.COMMIT_TYPE_MODEL) {
+						// everything is fine, we can just use the model of this commit
+						m = firstCommit.getModel();
+						selectedCommitSha = firstCommit.getSha();
+					} else {
+						// the first commit does not include a model, so we need to find the latest commit with a model
+						// but we use the commit sha identifier of the first commit (otherwise the code changes are not
+						// part of the generated code later)
+						selectedCommitSha = firstCommit.getSha();
+						
+						// get first "model-commit"
+						// start with index 2, because index 1 is the first commit which is no "model-commit"
+						for(int i = 2; i < commits.size(); i++) {
+							if(commits.get(i).getCommitType() == Commit.COMMIT_TYPE_MODEL) {
+							    m = commits.get(i).getModel();
+							    break;
+							}
 						}
 					}
+					
+					
 				} else {
-					// we want to get the model with a specific version 
+					// we want to get the model with a specific version
 					for(int i = 1; i < commits.size(); i++) {
 					    Commit c = commits.get(i);
 						if(c.getVersionTag() != null) {
 							if(c.getVersionTag().equals(selectedComponentVersion)) {
+								// currently, only commits with a model can be tagged with a version
+								// thus, we now that a model exists
 								m = c.getModel();
 								selectedCommitSha = c.getSha();
 								break;
