@@ -122,6 +122,23 @@ public class VersionedModel {
 		
 	}
 	
+	/**
+	 * Returns a list of strings containing the version tags that are set to commits of the versioned model.
+	 * @return ArrayList containing the version tags of the versioned model as strings.
+	 */
+	public ArrayList<String> getVersions() {
+		ArrayList<String> versions = new ArrayList<>();
+		
+		for(Commit commit : this.commits) {
+			// skip the commit for "uncommited changes"
+			if(commit.getMessage() == null) continue;
+			
+			if(commit.getVersionTag() != null) versions.add(commit.getVersionTag());
+		}
+		
+		return versions;
+	}
+	
 	public int getId() {
 		return this.id;
 	}

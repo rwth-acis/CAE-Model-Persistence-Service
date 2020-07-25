@@ -165,4 +165,28 @@ public class ModelPersistenceService extends RESTService {
 		}
 	}
 	
+	/**
+	 * Returns a list containing the version tags of the versioned model with the given id.
+	 * @param versionedModelId Id of the versioned model, where the version tags should be searched for.
+	 * @return ArrayList containing the version tags of the versioned model as strings.
+	 */
+	public ArrayList<String> getVersionsOfVersionedModel(int versionedModelId) {
+		ArrayList<String> versions = new ArrayList<>();
+		Connection connection = null;
+		try {
+			connection = dbm.getConnection();
+			
+			VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
+			return versionedModel.getVersions();
+		} catch (SQLException e) {
+			return versions;
+		} finally {
+			try {
+			    connection.close();
+			} catch (SQLException e) {
+				return versions;
+			}
+		}
+	}
+	
 }
