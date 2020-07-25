@@ -7,6 +7,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
@@ -432,8 +433,7 @@ public class RESTResources {
 								metadataDocString = "";
 
 							Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postModel: invoking code generation service..");
-							// TODO: reactivate usage of code generation service
-							// TODO: EDIT: is reactivated now, check if everything works, then this TODO can be removed
+							
 							// check if it is the first commit or not
 							if(versionedModel.getCommits().size() == 2) {
 								// this is the first commit (there are 2 in total, because of the "uncommited changes" commit)
@@ -750,7 +750,11 @@ public class RESTResources {
 			metadataDoc = "";
 		
 		Connection connection = null;
-		Serializable[] modelsToSend = null;
+		
+		// create an ArrayList to store the models
+		ArrayList<SimpleModel> modelsToSendList = new ArrayList<>();
+		HashMap<String, String> extDependenciesToSend = new HashMap<>();
+		
 		SimpleModel simpleModel = (SimpleModel) model.getMinifiedRepresentation();
 		boolean isApplication = false;
 		
@@ -767,18 +771,28 @@ public class RESTResources {
 		}
 
 		if (isApplication) {
-			modelsToSend = new SimpleModel[simpleModel.getNodes().size() + 1];
-			modelsToSend[0] = simpleModel; // first is always "application"
-											// model itself
-			int modelsToSendIndex = 1;
+			// If we call the code generation service with an application to be generated, then we also need
+			// to send the models of the components (frontend components and microservices).
+			// The "simpleModel" contains nodes, which can either be frontend components, microservices or 
+			// external dependencies. Since we do not have models for external dependencies, we cannot send them for
+			// external dependencies.
+			
+			// first item is always the "application" model itself
+			modelsToSendList.add(simpleModel);
+			
 			// iterate through the nodes and add corresponding models to
 			// array
 			for (SimpleNode node : simpleModel.getNodes()) {
 				// CAE-Frontend sends some attributes which contain the information we need 
 				// about the components that the application consists of
 				
+				// nodes can either be frontend components, microservices or external dependencies
+				// frontend components and microservice contain a versionedModelId attribute
+				// external dependencies contain a gitHubURL attribute
+				
 				// the first information that we need is the versioned model id of the component
-				String versionedModelIdStr = "-1";
+				String versionedModelIdStr = null;
+				String gitHubURL = null;
 				// besides the versioned model id, we also need the version of the component which got
 				// selected, because different versions of the component can be selected, which allows 
 				// to choose older versions to be included in an application
@@ -789,15 +803,32 @@ public class RESTResources {
 						versionedModelIdStr = a.getValue();
 					} else if(a.getName().equals("version")) {
 						selectedComponentVersion = a.getValue();
+					} else if(a.getName().equals("gitHubURL")) {
+						gitHubURL = a.getValue();
 					}
 				}
-				// convert versioned model id to int
-				int versionedModelId = Integer.parseInt(versionedModelIdStr);
+				
+				if(versionedModelIdStr == null && gitHubURL == null) {
+					throw new CGSInvocationException("There exists a node in the application, which does not contain a versionedModelId or gitHubURL.");
+				}
 				
 				// it should not be the case, that the selected component version cannot be found in the attributes
 				if(selectedComponentVersion == null) {
 				    throw new CGSInvocationException("There exists a component which is part of the application, where no 'version' attribute is given.");
 				}
+				
+				if(gitHubURL != null) {
+					// this is an external dependency
+					extDependenciesToSend.put(gitHubURL, selectedComponentVersion);
+					
+					continue;
+				}
+				
+				// this is a frontend component or microservice
+				
+				
+				// convert versioned model id to int
+				int versionedModelId = Integer.parseInt(versionedModelIdStr);
 				
 				// since we now got the id of the versioned model which belongs to the component,
 				// we are able to load the versioned model from the database
@@ -895,7 +926,7 @@ public class RESTResources {
 					// s now has the id of the model as id, not the versioned model id
 					// thus we create a new SimpleModel and use the versioned model id as the model id
 					SimpleModel s2 = new SimpleModel(String.valueOf(versionedModelId), s.getNodes(), s.getEdges(), s.getAttributes());
-					modelsToSend[modelsToSendIndex] = (Serializable) s2;
+					modelsToSendList.add(s2);
 				} catch (SQLException e) {
 					// model might not exist
 					logger.printStackTrace(e);
@@ -907,7 +938,6 @@ public class RESTResources {
 						logger.printStackTrace(e);
 					}
 				}
-				modelsToSendIndex++;
 			}
 		} else {
 			SimpleModel oldModel = null;
@@ -916,12 +946,10 @@ public class RESTResources {
 			int commitCount = versionedModel.getCommits().size();
 			if(commitCount == 2) {
 				// there only exists one commit and the "uncommited changes" commit
-				modelsToSend = new SimpleModel[1];
-				modelsToSend[0] = simpleModel;
+				modelsToSendList.add(simpleModel);
 			} else {
 				// there exists an old commit
-				modelsToSend = new SimpleModel[2];
-				modelsToSend[0] = simpleModel;
+				modelsToSendList.add(simpleModel);
 				
 				Model old = null;
 				for(int i = 2; i < versionedModel.getCommits().size(); i++) {
@@ -935,7 +963,7 @@ public class RESTResources {
 				
 				oldModel = (SimpleModel) old.getMinifiedRepresentation();
 				
-				modelsToSend[1] = oldModel;
+				modelsToSendList.add(oldModel);
 			}
 		}
 
@@ -944,13 +972,13 @@ public class RESTResources {
 		try {
 			String answer = "";
 			if (!methodName.equals("updateRepositoryOfModel") && !methodName.equals("createFromModel")) {
-				Serializable[] payload = { modelsToSend };
+				Serializable[] payload = { modelsToSendList };
 				answer = (String) Context.getCurrent().invoke(codeGenerationService, methodName, payload);
 			} else {
 				// method is either updateRepositoryOfModel or createFromModel
 				String versionTag = commit.getVersionTag();
 				if(versionTag == null) versionTag = "";
-				Serializable[] payload = { commit.getMessage(), versionTag, metadataDoc, modelsToSend };
+				Serializable[] payload = { commit.getMessage(), versionTag, metadataDoc, modelsToSendList, (Serializable) extDependenciesToSend };
 				answer = (String) Context.getCurrent().invoke(codeGenerationService, methodName, payload);
 			}
 
