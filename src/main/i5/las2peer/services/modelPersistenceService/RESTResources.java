@@ -411,6 +411,7 @@ public class RESTResources {
 					// this "type" attribute is included in the request body
 					JSONObject commitJson = (JSONObject) JSONValue.parse(inputCommit);
 					String type = (String) commitJson.get("componentType");
+					String componentName = (String) commitJson.get("componentName");
 					
 					// given type "frontend" needs to be converted to "frontend-component"
 					if(type.equals("frontend")) type = "frontend-component";
@@ -421,6 +422,8 @@ public class RESTResources {
 					model.getAttributes().add(new EntityAttribute(new SimpleEntityAttribute("syncmetaid", "type", type)));
 
 					model.getAttributes().add(new EntityAttribute("syncmetaid", "versionedModelId", String.valueOf(versionedModelId)));
+					
+					model.getAttributes().add(new EntityAttribute("syncmetaid", "componentName", componentName));
 					
 					// call code generation service
 					String commitSha = "";
