@@ -972,7 +972,7 @@ public class RESTResources {
 		try {
 			String answer = "";
 			if (!methodName.equals("updateRepositoryOfModel") && !methodName.equals("createFromModel")) {
-				Serializable[] payload = { modelsToSendList };
+				Serializable[] payload = { modelsToSendList, (Serializable) extDependenciesToSend };
 				answer = (String) Context.getCurrent().invoke(codeGenerationService, methodName, payload);
 			} else {
 				// method is either updateRepositoryOfModel or createFromModel
