@@ -796,6 +796,7 @@ public class RESTResources {
 				// the first information that we need is the versioned model id of the component
 				String versionedModelIdStr = null;
 				String gitHubURL = null;
+				String extDependencyType = null;
 				// besides the versioned model id, we also need the version of the component which got
 				// selected, because different versions of the component can be selected, which allows 
 				// to choose older versions to be included in an application
@@ -808,6 +809,8 @@ public class RESTResources {
 						selectedComponentVersion = a.getValue();
 					} else if(a.getName().equals("gitHubURL")) {
 						gitHubURL = a.getValue();
+					} else if(a.getName().equals("type")) {
+						extDependencyType = a.getValue();
 					}
 				}
 				
@@ -822,7 +825,7 @@ public class RESTResources {
 				
 				if(gitHubURL != null) {
 					// this is an external dependency
-					extDependenciesToSend.put(gitHubURL, selectedComponentVersion);
+					extDependenciesToSend.put(extDependencyType + ":" + gitHubURL, selectedComponentVersion);
 					
 					continue;
 				}
