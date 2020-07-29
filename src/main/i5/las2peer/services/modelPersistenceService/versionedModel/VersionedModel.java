@@ -147,4 +147,12 @@ public class VersionedModel {
 		return this.commits;
 	}
 	
+	public Commit getCommitBySha(String sha) {
+		for(Commit commit : this.getCommits()) {
+			if(commit.getSha() == null) continue;
+			if(commit.getSha().equals(sha)) return commit;
+		}
+		return null;
+	}
+	
 }

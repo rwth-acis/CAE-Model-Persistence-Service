@@ -245,6 +245,23 @@ public class Commit {
 	}
 	
 	/**
+	 * Adds the given versionTag to the commit and stores it into the database.
+	 * This method should only be used, if no version tag is already stored for this commit.
+	 * @param versionTag Tag that should be set to the commit.
+	 * @param connection Connection object
+	 * @throws SQLException If something with the database went wrong.
+	 */
+	public void setVersionTag(String versionTag, Connection connection) throws SQLException {
+		this.versionTag = versionTag;
+		
+		PreparedStatement statement = connection.prepareStatement("INSERT INTO VersionTag (tag, commitId) VALUE (?, ?);");
+    	statement.setString(1, this.versionTag);
+    	statement.setInt(2, this.id);
+    	statement.executeUpdate();
+    	statement.close();
+	}
+	
+	/**
 	 * Updates the sha identifier of the commit in the database.
 	 * @param sha Commit sha identifier.
 	 * @param connection Connection object

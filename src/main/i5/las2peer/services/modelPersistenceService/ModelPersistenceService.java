@@ -166,6 +166,35 @@ public class ModelPersistenceService extends RESTService {
 	}
 	
 	/**
+	 * Used by Code Generation Service. Stores the given tag to the given commit.
+	 * @param commitSha Sha identifier of the commit, which should be tagged.
+	 * @param versionedModelId Id of the versioned model, which the commit belongs to.
+	 * @param tag Tag that should be set to the commit.
+	 * @return
+	 */
+	public String addTagToCommit(String commitSha, int versionedModelId, String tag) {
+		Connection connection = null;
+		try {
+			connection = dbm.getConnection();
+			
+			VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
+			Commit commit = versionedModel.getCommitBySha(commitSha);
+			if(commit == null) return "error";
+			
+			commit.setVersionTag(tag, connection);
+			return "done";
+		} catch (SQLException e) {
+			return "error";
+		} finally {
+			try {
+			    connection.close();
+			} catch (SQLException e) {
+				return "error";
+			}
+		}
+	}
+	
+	/**
 	 * Returns a list containing the version tags of the versioned model with the given id.
 	 * @param versionedModelId Id of the versioned model, where the version tags should be searched for.
 	 * @return ArrayList containing the version tags of the versioned model as strings.
