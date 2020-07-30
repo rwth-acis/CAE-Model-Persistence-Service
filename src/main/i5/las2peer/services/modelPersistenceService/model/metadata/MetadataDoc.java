@@ -21,7 +21,7 @@ public class MetadataDoc {
     private Date timeCreated;
     private String timeEdited;
     private String timeDeployed;
-    private int version;
+    private String version;
     
     /**
      * Default empty object constructor
@@ -44,7 +44,7 @@ public class MetadataDoc {
         String docInput,
         Date timeCreated,
         String timeEdited,
-        int version) {
+        String version) {
             this.componentId = componentId;
             this.docType = docType;
             this.docString = docString;
@@ -65,7 +65,7 @@ public class MetadataDoc {
         Date timeCreated,
         String timeEdited,
         String timeDeployed,
-        int version) {
+        String version) {
             this.componentId = componentId;
             this.docType = docType;
             this.docString = docString;
@@ -177,11 +177,11 @@ public class MetadataDoc {
      * Get deployed time
      * @return deployed time String
      */
-    public int getVersion() {
+    public String getVersion() {
     	return version;
     }
 
-    public void setVersion(int version) {
+    public void setVersion(String version) {
         this.version = version;
     }
 }

@@ -412,6 +412,7 @@ public class RESTResources {
 					JSONObject commitJson = (JSONObject) JSONValue.parse(inputCommit);
 					String type = (String) commitJson.get("componentType");
 					String componentName = (String) commitJson.get("componentName");
+					String metadataVersion = (String) commitJson.get("metadataVersion");
 					
 					// given type "frontend" needs to be converted to "frontend-component"
 					if(type.equals("frontend")) type = "frontend-component";
@@ -454,7 +455,7 @@ public class RESTResources {
 					}
 					
 					// generate metadata swagger doc after model valid in code generation
-					metadataDocService.modelToSwagger(versionedModel.getId(), model);
+					metadataDocService.modelToSwagger(versionedModel.getId(), model, metadataVersion);
 					
 					// now persist the sha given by code generation service
 					commit.persistSha(commitSha, connection);
@@ -1200,7 +1201,7 @@ public class RESTResources {
 	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, metadata doc found"),
 			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "No metadata doc could be found."),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
-	public Response getDocByComponentIdVersion(@PathParam("id") String id, @PathParam("version") int version) {
+	public Response getDocByComponentIdVersion(@PathParam("id") String id, @PathParam("version") String version) {
 		MetadataDoc doc = null;
 		ObjectMapper mapper = new ObjectMapper();
 
@@ -1231,7 +1232,7 @@ public class RESTResources {
 			@ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST, message = "Input model was not valid"),
 			@ApiResponse(code = HttpURLConnection.HTTP_CONFLICT, message = "Tried to save a model that already had a name and thus was not new"),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
-	public Response postDoc(String inputJsonString, @PathParam("version") int version, @PathParam("id") int id) {
+	public Response postDoc(String inputJsonString, @PathParam("version") String version, @PathParam("id") int id) {
 		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postDoc called with version " + version + " and id " + id);
 
 		ObjectMapper mapper = new ObjectMapper();

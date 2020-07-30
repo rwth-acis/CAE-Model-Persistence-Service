@@ -62,7 +62,7 @@ public class MetadataDocService {
             Date timeCreated = queryResult.getDate("timeCreated");
             String timeEdited = queryResult.getString("timeEditedUnix");
             String timeDeployed = queryResult.getString("timeDeployedUnix");
-            int version = queryResult.getInt("version");
+            String version = queryResult.getString("version");
             MetadataDoc model = new MetadataDoc(componentId, docType, docString, docInput, urlDeployed, timeCreated, timeEdited, timeDeployed, version);
             return model;
         } catch (SQLException e) {
@@ -142,7 +142,7 @@ public class MetadataDocService {
      * @param queryId id of metadata doc
      * @return founded metadata doc
      */
-    public MetadataDoc getByComponentIdVersion(String queryId, int version) throws SQLException {
+    public MetadataDoc getByComponentIdVersion(String queryId, String version) throws SQLException {
         PreparedStatement sqlQuery;
 
         // refresh connection
@@ -151,7 +151,7 @@ public class MetadataDocService {
             
         try {
             sqlQuery.setString(1, queryId);
-            sqlQuery.setInt(2, version);
+            sqlQuery.setString(2, version);
             _logger.info(String.format(_logPrefix, "Executing GET BY ID & VERSION query with componentId " + queryId + " and version " + version));
             ResultSet queryResult = sqlQuery.executeQuery();
             if(queryResult.next()) {
@@ -200,7 +200,7 @@ public class MetadataDocService {
     }
 
     /****** CREATE UPDATE MODEL GENERATED METADATA DOC */
-    public void createUpdateModelGeneratedMetadata(int componentId, String modelGenerateMetadata, String docType, int version) throws SQLException {
+    public void createUpdateModelGeneratedMetadata(int componentId, String modelGenerateMetadata, String docType, String version) throws SQLException {
         
         // refresh connection
         _connection = _dbm.getConnection();
@@ -211,7 +211,7 @@ public class MetadataDocService {
             sqlQuery.setInt(1, componentId);
             sqlQuery.setString(2, modelGenerateMetadata);
             sqlQuery.setString(3, docType);
-            sqlQuery.setInt(4, version);
+            sqlQuery.setString(4, version);
             sqlQuery.setString(5, modelGenerateMetadata);
             sqlQuery.setString(6, docType);
             _logger.info(String.format(_logPrefix, "Executing model generated metadata CREATE UPDATE query"));
@@ -227,7 +227,7 @@ public class MetadataDocService {
     }
 
     /****** CREATE UPDATE MODEL GENERATED METADATA DOC */
-    public void createUpdateUserGeneratedMetadata(int componentId, String inputJson, int version) throws SQLException {
+    public void createUpdateUserGeneratedMetadata(int componentId, String inputJson, String version) throws SQLException {
         String docType = "json";
         // refresh connection
         _connection = _dbm.getConnection();
@@ -238,7 +238,7 @@ public class MetadataDocService {
             sqlQuery.setInt(1, componentId);
             sqlQuery.setString(2, inputJson);
             sqlQuery.setString(3, docType);
-            sqlQuery.setInt(4, version);
+            sqlQuery.setString(4, version);
             sqlQuery.setString(5, inputJson);
             sqlQuery.setString(6, docType);
             _logger.info(String.format(_logPrefix, "Executing user generated metadata CREATE UPDATE query"));
@@ -376,21 +376,13 @@ public class MetadataDocService {
      * Convert model object to swagger json object
      * @param model CAE model, assumed valid
      */
-    public String modelToSwagger(int versionedModelId, Model model) {
+    public String modelToSwagger(int versionedModelId, Model model, String componentVersion) {
         // check for model type
         String modelType = null;
-        int componentVersion = 1;
         ArrayList<EntityAttribute> modelAttributes = model.getAttributes();
         for (EntityAttribute modelAttribute: modelAttributes) {
             if (modelAttribute.getName().equals("type")) {
                 modelType = modelAttribute.getValue();
-            }
-
-            if (modelAttribute.getName().equals("version")) {
-                String[] versionParts = modelAttribute.getValue().split(".");
-                if (versionParts.length > 0) {
-                    componentVersion = Integer.parseInt(versionParts[0]);
-                }
             }
         }
         
@@ -401,7 +393,7 @@ public class MetadataDocService {
         }
     }
 
-    private String microserviceToSwagger(int versionedModelId, Model model, int componentVersion) {
+    private String microserviceToSwagger(int versionedModelId, Model model, String componentVersion) {
         ObjectMapper mapper = new ObjectMapper();
 
         // maps for model to http methods, payloads, responses, path

@@ -7,6 +7,6 @@ CREATE TABLE IF NOT EXISTS commedit.MetadataDoc (
   `timeDeployed` datetime DEFAULT NULL,
   `urlDeployed` varchar(255) DEFAULT NULL,
   `timeCreated` datetime DEFAULT NULL,
-  `version` int(11) NOT NULL DEFAULT '1',
+  `version` VARCHAR(255) NOT NULL,
   PRIMARY KEY (`componentId`,`version`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
