@@ -13,7 +13,7 @@ import java.io.IOException;
  * 
  */
 public class MetadataDoc {
-    private String componentId;
+    private String versionedModelId;
     private String docType;
     private String docString;
     private String docInput;
@@ -30,7 +30,7 @@ public class MetadataDoc {
     
     /**
      * Constructor with values without id
-     * @param componentId component id
+     * @param versionedModelId versioned model id
      * @param docType string of the component doc type
      * @param docString string of the component doc
      * @param docInput string of the user inputted component doc
@@ -38,14 +38,14 @@ public class MetadataDoc {
      * @param timeEdited edited time
      */
     public MetadataDoc(
-        String componentId, 
+        String versionedModelId,
         String docType,
         String docString, 
         String docInput,
         Date timeCreated,
         String timeEdited,
         String version) {
-            this.componentId = componentId;
+            this.versionedModelId = versionedModelId;
             this.docType = docType;
             this.docString = docString;
             this.docInput = docInput;
@@ -57,7 +57,7 @@ public class MetadataDoc {
         }
 
         public MetadataDoc(
-        String componentId, 
+        String versionedModelId,
         String docType,
         String docString, 
         String docInput,
@@ -66,7 +66,7 @@ public class MetadataDoc {
         String timeEdited,
         String timeDeployed,
         String version) {
-            this.componentId = componentId;
+            this.versionedModelId = versionedModelId;
             this.docType = docType;
             this.docString = docString;
             this.docInput = docInput;
@@ -78,15 +78,15 @@ public class MetadataDoc {
         }
 
 	/**
-     * Get component id
-     * @return component id string
+     * Get versioned model id
+     * @return versioned model id string
      */
-    public String getComponentId() {
-        return componentId;
+    public String getVersionedModelId() {
+        return versionedModelId;
     }
 
-    public void setComponentId(String componentId) {
-    	this.componentId = componentId;
+    public void setVersionedModelId(String versionedModelId) {
+    	this.versionedModelId = versionedModelId;
     }
 
     /**

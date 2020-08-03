@@ -455,7 +455,7 @@ public class RESTResources {
 					}
 					
 					// generate metadata swagger doc after model valid in code generation
-					metadataDocService.modelToSwagger(versionedModel.getId(), model, metadataVersion);
+					metadataDocService.modelToSwagger(versionedModel.getId(), componentName, model, metadataVersion);
 					
 					// now persist the sha given by code generation service
 					commit.persistSha(commitSha, connection);
@@ -1177,7 +1177,7 @@ public class RESTResources {
 		ObjectMapper mapper = new ObjectMapper();
 
 		try {
-			doc = this.metadataDocService.getByComponentId(id);
+			doc = this.metadataDocService.getByVersionedModelId(id);
 			String jsonString = mapper.writeValueAsString(doc);
 			return Response.ok(jsonString, MediaType.APPLICATION_JSON).build();
 		} catch (SQLException e) {
@@ -1206,7 +1206,7 @@ public class RESTResources {
 		ObjectMapper mapper = new ObjectMapper();
 
 		try {
-			doc = this.metadataDocService.getByComponentIdVersion(id, version);
+			doc = this.metadataDocService.getByVersionedModelIdVersion(id, version);
 			String jsonString = mapper.writeValueAsString(doc);
 			return Response.ok(jsonString, MediaType.APPLICATION_JSON).build();
 		} catch (SQLException e) {
@@ -1225,19 +1225,19 @@ public class RESTResources {
 	 * @return HttpResponse with the status
 	 */
 	@POST
-	@Path("/docs/{id}/{version}")
+	@Path("/docs/{versionedModelId}/{version}")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@ApiOperation(value = "Create or update metadata doc.", notes = "Create or update metadata doc.")
 	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_CREATED, message = "OK, model stored"),
 			@ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST, message = "Input model was not valid"),
 			@ApiResponse(code = HttpURLConnection.HTTP_CONFLICT, message = "Tried to save a model that already had a name and thus was not new"),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
-	public Response postDoc(String inputJsonString, @PathParam("version") String version, @PathParam("id") int id) {
-		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postDoc called with version " + version + " and id " + id);
+	public Response postDoc(String inputJsonString, @PathParam("version") String version, @PathParam("versionedModelId") int versionedModelId) {
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postDoc called with version " + version + " and versionedModelId " + versionedModelId);
 
 		ObjectMapper mapper = new ObjectMapper();
 		try {
-			this.metadataDocService.createUpdateUserGeneratedMetadata(id, inputJsonString, version);
+			this.metadataDocService.createUpdateUserGeneratedMetadata(versionedModelId, inputJsonString, version);
 			return Response.ok().entity("Doc updated or created").build();
 		} catch (SQLException e) {
 			this.logger.printStackTrace(e);
