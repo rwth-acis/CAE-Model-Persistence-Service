@@ -894,15 +894,21 @@ public class RESTResources {
 					
 				} else {
 					// we want to get the model with a specific version
+					boolean reachedTag = false;
 					for(int i = 1; i < commits.size(); i++) {
 					    Commit c = commits.get(i);
-						if(c.getVersionTag() != null) {
-							if(c.getVersionTag().equals(selectedComponentVersion)) {
-								// currently, only commits with a model can be tagged with a version
-								// thus, we now that a model exists
-								m = c.getModel();
-								selectedCommitSha = c.getSha();
-								break;
+						if(c.getVersionTag() != null || reachedTag) {
+							if(reachedTag || c.getVersionTag().equals(selectedComponentVersion)) {
+								// we reached the commit with the tag which we are searching for
+								reachedTag = true;
+								// check if the commit is of type "model-commit"
+								if(c.getCommitType() == Commit.COMMIT_TYPE_MODEL) {
+									// it is a "model-commit" so we can use the model of this commit
+									m = c.getModel();
+									selectedCommitSha = c.getSha();
+									break;
+								}
+								// otherwise, if the commit is a "code-commit", we wait for the next "model-commit"
 							}
 						}
 					}
