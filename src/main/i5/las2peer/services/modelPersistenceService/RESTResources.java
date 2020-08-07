@@ -901,11 +901,16 @@ public class RESTResources {
 							if(reachedTag || c.getVersionTag().equals(selectedComponentVersion)) {
 								// we reached the commit with the tag which we are searching for
 								reachedTag = true;
+								// only set commit sha of the first commit which matches the tag
+								// after that do not change it, otherwise also the code of the "model" commit
+								// gets used
+								if(selectedCommitSha.isEmpty()) {
+								    selectedCommitSha = c.getSha();
+								}
 								// check if the commit is of type "model-commit"
 								if(c.getCommitType() == Commit.COMMIT_TYPE_MODEL) {
 									// it is a "model-commit" so we can use the model of this commit
 									m = c.getModel();
-									selectedCommitSha = c.getSha();
 									break;
 								}
 								// otherwise, if the commit is a "code-commit", we wait for the next "model-commit"
