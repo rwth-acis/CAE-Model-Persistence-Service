@@ -864,14 +864,14 @@ public class RESTResources {
 				// version tag of a commit of the versioned model) is given
 				if(selectedComponentVersion.equals("Latest")) {
 					// get latest commit
-					// NOTE: Currently, only commits with the commitType COMMIT_TYPE_MODEL include a model and 
-					// commits with commitType COMMIT_TYPE_CODE do not include a model.
+					// NOTE: Currently, only commits with the commitType COMMIT_TYPE_MANUAL include a model and 
+					// commits with commitType COMMIT_TYPE_AUTO do not include a model.
 					// The code generation needs a model, thus when the first commit is a code commit without a model,
 					// we need to add the latest model to it.
 					
 					// get first commit
 					Commit firstCommit = commits.get(1); // the one at index 0 is the "uncommited changes" commit
-					if(firstCommit.getCommitType() == Commit.COMMIT_TYPE_MODEL) {
+					if(firstCommit.getCommitType() == Commit.COMMIT_TYPE_MANUAL) {
 						// everything is fine, we can just use the model of this commit
 						m = firstCommit.getModel();
 						selectedCommitSha = firstCommit.getSha();
@@ -881,10 +881,10 @@ public class RESTResources {
 						// part of the generated code later)
 						selectedCommitSha = firstCommit.getSha();
 						
-						// get first "model-commit"
-						// start with index 2, because index 1 is the first commit which is no "model-commit"
+						// get first "manual-commit"
+						// start with index 2, because index 1 is the first commit which is no "manual-commit"
 						for(int i = 2; i < commits.size(); i++) {
-							if(commits.get(i).getCommitType() == Commit.COMMIT_TYPE_MODEL) {
+							if(commits.get(i).getCommitType() == Commit.COMMIT_TYPE_MANUAL) {
 							    m = commits.get(i).getModel();
 							    break;
 							}
@@ -902,18 +902,18 @@ public class RESTResources {
 								// we reached the commit with the tag which we are searching for
 								reachedTag = true;
 								// only set commit sha of the first commit which matches the tag
-								// after that do not change it, otherwise also the code of the "model" commit
+								// after that do not change it, otherwise also the code of the "manual" commit
 								// gets used
 								if(selectedCommitSha.isEmpty()) {
 								    selectedCommitSha = c.getSha();
 								}
-								// check if the commit is of type "model-commit"
-								if(c.getCommitType() == Commit.COMMIT_TYPE_MODEL) {
-									// it is a "model-commit" so we can use the model of this commit
+								// check if the commit is of type "manual-commit"
+								if(c.getCommitType() == Commit.COMMIT_TYPE_MANUAL) {
+									// it is a "manual-commit" so we can use the model of this commit
 									m = c.getModel();
 									break;
 								}
-								// otherwise, if the commit is a "code-commit", we wait for the next "model-commit"
+								// otherwise, if the commit is a "auto-commit", we wait for the next "manual-commit"
 							}
 						}
 					}
@@ -971,7 +971,7 @@ public class RESTResources {
 				
 				Model old = null;
 				for(int i = 2; i < versionedModel.getCommits().size(); i++) {
-					if(versionedModel.getCommits().get(i).getCommitType() == Commit.COMMIT_TYPE_MODEL) {
+					if(versionedModel.getCommits().get(i).getCommitType() == Commit.COMMIT_TYPE_MANUAL) {
 						old = versionedModel.getCommits().get(i).getModel();
 						break;
 					}

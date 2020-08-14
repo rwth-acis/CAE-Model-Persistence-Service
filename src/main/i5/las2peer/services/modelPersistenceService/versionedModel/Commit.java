@@ -16,22 +16,22 @@ import i5.las2peer.services.modelPersistenceService.model.Model;
 public class Commit {
 	
 	/**
-	 * Commits with commitType set to COMMIT_TYPE_MODEL belong to
-	 * changes that were done to the model, i.e. changes created in 
+	 * Commits with commitType set to COMMIT_TYPE_MANUAL belong to
+	 * changes that were done to the model manually, i.e. changes created in 
 	 * the modeling editor.
 	 * These commits are connected to a model (which already contains
 	 * the changes of the commit).
 	 */
-	public static final int COMMIT_TYPE_MODEL = 0;
+	public static final int COMMIT_TYPE_MANUAL = 0;
 	
 	/**
-	 * Commits with commitType set to COMMIT_TYPE_CODE belong to 
-	 * changes that were done to the code, i.e. changes created in 
+	 * Commits with commitType set to COMMIT_TYPE_AUTO belong to 
+	 * changes that were done to the code, i.e. changes created automatically by
 	 * the live code editor.
 	 * These commits are NOT connected to a model. Only the commit
 	 * sha identifier is stored to link the commit to GitHub.
 	 */
-	public static final int COMMIT_TYPE_CODE = 1;
+	public static final int COMMIT_TYPE_AUTO = 1;
 
 	/**
 	 * Id of the commit is set to -1 before the commit gets persisted.
@@ -98,18 +98,18 @@ public class Commit {
     	}
     	
     	// set commit type for a commit that changes the model
-    	this.commitType = COMMIT_TYPE_MODEL;
+    	this.commitType = COMMIT_TYPE_MANUAL;
     	
     	this.model = new Model(((JSONObject) completeJsonCommit.get("model")).toJSONString());
 	}
 	
 	/**
-	 * Constructor used to create commits of type COMMIT_TYPE_CODE.
+	 * Constructor used to create commits of type COMMIT_TYPE_AUTO.
 	 * @param commitMessage
 	 */
 	public Commit(String commitMessage) {
 		this.message = commitMessage;
-		this.commitType = COMMIT_TYPE_CODE;
+		this.commitType = COMMIT_TYPE_AUTO;
 	}
 	
 	/**
@@ -137,7 +137,7 @@ public class Commit {
 		statement.close();
 		
 		// load model
-		if(this.commitType == COMMIT_TYPE_MODEL) {
+		if(this.commitType == COMMIT_TYPE_MANUAL) {
 			statement = connection.prepareStatement("SELECT modelId FROM CommitToModel WHERE commitId = ?;");
 			statement.setInt(1, commitId);
 			queryResult = statement.executeQuery();
@@ -164,7 +164,7 @@ public class Commit {
 		
 		jsonCommit.put("id", this.id);
 		jsonCommit.put("commitType", this.commitType);
-		if(this.commitType == COMMIT_TYPE_MODEL) {
+		if(this.commitType == COMMIT_TYPE_MANUAL) {
 		  jsonCommit.put("model", this.model.toJSONObject());
 		}
 		jsonCommit.put("message", this.message);
@@ -212,7 +212,7 @@ public class Commit {
 		    }
 		    
 		    // store model
-		    if(this.commitType == COMMIT_TYPE_MODEL) {
+		    if(this.commitType == COMMIT_TYPE_MANUAL) {
 		        this.model.persist(connection, false);
 		        
 		        // add CommitToModel entry
