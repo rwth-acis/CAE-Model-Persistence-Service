@@ -134,7 +134,7 @@ public class ModelPersistenceService extends RESTService {
 	 * @param versionedModelId Id of the versioned model where the commit should be added to.
 	 * @return
 	 */
-	public String addCodeCommitToVersionedModel(String commitSha, String commitMessage, int versionedModelId) {
+	public String addAutoCommitToVersionedModel(String commitSha, String commitMessage, int versionedModelId) {
 		Connection connection = null;
 		try {
 			connection = dbm.getConnection();
