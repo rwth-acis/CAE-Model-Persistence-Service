@@ -54,6 +54,8 @@ import io.swagger.models.Swagger;
 import io.swagger.util.Json;
 
 import i5.las2peer.services.modelPersistenceService.modelServices.*;
+import i5.las2peer.services.modelPersistenceService.versionedModel.Commit;
+import i5.las2peer.services.modelPersistenceService.versionedModel.VersionedModel;
 
 /**
  * 
@@ -121,6 +123,99 @@ public class ModelPersistenceService extends RESTService {
 
 	public MetadataDocService getMetadataService(){
 		return metadataDocService;
+	}
+	
+	/**
+	 * Used by Code Generation Service. When the Live Code Editor widget changes a file and creates a new 
+	 * commit, then also this method gets called which stores the commit message and the sha identifier of
+	 * the commit to the database.
+	 * @param commitSha Sha identifier of the commit.
+	 * @param commitMessage Message of the commit.
+	 * @param versionedModelId Id of the versioned model where the commit should be added to.
+	 * @return
+	 */
+	public String addAutoCommitToVersionedModel(String commitSha, String commitMessage, int versionedModelId) {
+		Connection connection = null;
+		try {
+			connection = dbm.getConnection();
+			
+			// there always exists a commit for "uncommited changes"
+			// that one needs to be removed first
+			VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
+			Commit uncommitedChanges = versionedModel.getCommitForUncommitedChanges();
+			uncommitedChanges.delete(connection);
+			
+			// now create a new commit
+			Commit commit = new Commit(commitMessage);
+			commit.persist(versionedModelId, connection, true);
+			commit.persistSha(commitSha, connection);
+			
+			// readd uncommited changes commit
+			uncommitedChanges.persist(versionedModelId, connection, true);
+			
+			return "done";
+		} catch (SQLException e) {
+			return "error";
+		} finally {
+			try {
+			    connection.close();
+			} catch (SQLException e) {
+				return "error";
+			}
+		}
+	}
+	
+	/**
+	 * Used by Code Generation Service. Stores the given tag to the given commit.
+	 * @param commitSha Sha identifier of the commit, which should be tagged.
+	 * @param versionedModelId Id of the versioned model, which the commit belongs to.
+	 * @param tag Tag that should be set to the commit.
+	 * @return
+	 */
+	public String addTagToCommit(String commitSha, int versionedModelId, String tag) {
+		Connection connection = null;
+		try {
+			connection = dbm.getConnection();
+			
+			VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
+			Commit commit = versionedModel.getCommitBySha(commitSha);
+			if(commit == null) return "error";
+			
+			commit.setVersionTag(tag, connection);
+			return "done";
+		} catch (SQLException e) {
+			return "error";
+		} finally {
+			try {
+			    connection.close();
+			} catch (SQLException e) {
+				return "error";
+			}
+		}
+	}
+	
+	/**
+	 * Returns a list containing the version tags of the versioned model with the given id.
+	 * @param versionedModelId Id of the versioned model, where the version tags should be searched for.
+	 * @return ArrayList containing the version tags of the versioned model as strings.
+	 */
+	public ArrayList<String> getVersionsOfVersionedModel(int versionedModelId) {
+		ArrayList<String> versions = new ArrayList<>();
+		Connection connection = null;
+		try {
+			connection = dbm.getConnection();
+			
+			VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
+			return versionedModel.getVersions();
+		} catch (SQLException e) {
+			return versions;
+		} finally {
+			try {
+			    connection.close();
+			} catch (SQLException e) {
+				return versions;
+			}
+		}
 	}
 	
 }
