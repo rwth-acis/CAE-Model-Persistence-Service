@@ -45,6 +45,18 @@ public class EntityAttribute {
 		this.value = (String) (jsonAttribute.get("value") + ""); // only store
 																	// strings
 	}
+	
+	/**
+	 * Creates a new EntityAttribute.
+	 * @param syncMetaId 
+	 * @param name
+	 * @param value
+	 */
+	public EntityAttribute(String syncMetaId, String name, String value) {
+		this.syncMetaId = syncMetaId;
+		this.name = name;
+		this.value = value;
+	}
 
 	/**
 	 * 

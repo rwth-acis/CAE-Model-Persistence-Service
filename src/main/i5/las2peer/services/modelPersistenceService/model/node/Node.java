@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
@@ -23,7 +24,8 @@ import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
  */
 public class Node {
 
-	private String id;
+	private int id = -1;
+	private String syncMetaId;
 	private NodePosition position;
 	private String type;
 	private ArrayList<EntityAttribute> attributes;
@@ -32,14 +34,14 @@ public class Node {
 	 * 
 	 * Creates a new node entity.
 	 * 
-	 * @param nodeId
+	 * @param syncMetaId
 	 *            the node id
 	 * @param jsonNode
 	 *            the content of the node entry in the (JSON-represented) model
 	 * 
 	 */
-	public Node(String nodeId, JSONObject jsonNode) {
-		this.id = nodeId;
+	public Node(String syncMetaId, JSONObject jsonNode) {
+		this.syncMetaId = syncMetaId;
 		this.type = (String) jsonNode.get("type");
 		this.position = new NodePosition((int) ((Number) jsonNode.get("left")).intValue(),
 				((Number) jsonNode.get("top")).intValue(), ((Number) jsonNode.get("width")).intValue(),
@@ -71,19 +73,20 @@ public class Node {
 	 *             if something went wrong fetching the node from the database
 	 * 
 	 */
-	public Node(String nodeId, Connection connection) throws SQLException {
+	public Node(int nodeId, Connection connection) throws SQLException {
 		// first create empty attribute list
 		this.attributes = new ArrayList<EntityAttribute>();
 
 		// fetch node
 		PreparedStatement statement = connection.prepareStatement("SELECT * FROM Node WHERE nodeId = ?;");
-		statement.setString(1, nodeId);
+		statement.setInt(1, nodeId);
 		ResultSet queryResult = statement.executeQuery();
 		if (queryResult.next()) {
-			this.id = queryResult.getString(1);
-			this.type = queryResult.getString(2);
-			this.position = new NodePosition(queryResult.getInt(3), queryResult.getInt(4), queryResult.getInt(5),
-					queryResult.getInt(6), queryResult.getInt(7));
+			this.id = queryResult.getInt(1);
+			this.syncMetaId = queryResult.getString(2);
+			this.type = queryResult.getString(3);
+			this.position = new NodePosition(queryResult.getInt(4), queryResult.getInt(5), queryResult.getInt(6),
+					queryResult.getInt(7), queryResult.getInt(8));
 			statement.close();
 		} else {
 			throw new SQLException("Could not find node!");
@@ -91,7 +94,7 @@ public class Node {
 
 		// attribute entries
 		statement = connection.prepareStatement("SELECT attributeId FROM AttributeToNode WHERE nodeId = ?;");
-		statement.setString(1, this.id);
+		statement.setInt(1, this.id);
 		queryResult = statement.executeQuery();
 		while (queryResult.next()) {
 			this.attributes.add(new EntityAttribute(queryResult.getInt(1), connection));
@@ -112,7 +115,7 @@ public class Node {
 	 * 
 	 */
 	public Node(SimpleNode node, NodePosition position) {
-		this.id = node.getId();
+		this.syncMetaId = node.getId();
 		this.type = node.getType();
 		this.attributes = new ArrayList<EntityAttribute>();
 		for (SimpleEntityAttribute attribute : node.getAttributes()) {
@@ -121,8 +124,12 @@ public class Node {
 		this.position = position;
 	}
 
-	public String getId() {
+	public int getId() {
 		return id;
+	}
+	
+	public String getSyncMetaId() {
+		return syncMetaId;
 	}
 
 	public NodePosition getPosition() {
@@ -175,12 +182,12 @@ public class Node {
 		for (int attributeIndex = 0; attributeIndex < this.attributes.size(); attributeIndex++) {
 			EntityAttribute currentAttribute = this.attributes.get(attributeIndex);
 			JSONObject attributeContent = new JSONObject();
-			attributeContent.put("id", this.id + "[" + currentAttribute.getName() + "]");
+			attributeContent.put("id", this.syncMetaId + "[" + currentAttribute.getName() + "]");
 			attributeContent.put("name", currentAttribute.getName());
 
 			// value of attribute
 			JSONObject attributeValue = new JSONObject();
-			attributeValue.put("id", this.id + "[" + currentAttribute.getName() + "]");
+			attributeValue.put("id", this.syncMetaId + "[" + currentAttribute.getName() + "]");
 			attributeValue.put("name", currentAttribute.getName());
 			String value = currentAttribute.getValue();
 			// TODO hotfix for boolean attributes
@@ -203,9 +210,9 @@ public class Node {
 				// will just use the empty
 				// "Label" marker.
 				hasName = true;
-				label.put("id", this.id + "[name]");
+				label.put("id", this.syncMetaId + "[name]");
 				label.put("name", "name");
-				labelValue.put("id", this.id + "[name]");
+				labelValue.put("id", this.syncMetaId + "[name]");
 				labelValue.put("name", "name");
 				labelValue.put("value", currentAttribute.getValue());
 				label.put("value", labelValue);
@@ -213,9 +220,9 @@ public class Node {
 		}
 		// empty "Label" marker
 		if (!hasName) {
-			label.put("id", this.id + "[label]");
+			label.put("id", this.syncMetaId + "[label]");
 			label.put("name", "Label");
-			labelValue.put("id", this.id + "[label]");
+			labelValue.put("id", this.syncMetaId + "[label]");
 			labelValue.put("name", "Label");
 			labelValue.put("value", "");
 			label.put("value", labelValue);
@@ -241,8 +248,8 @@ public class Node {
 	 */
 	public void persist(Connection connection) throws SQLException {
 		PreparedStatement statement = connection.prepareStatement(
-				"INSERT INTO Node (nodeId, type, pLeft, pTop, pWidth, pHeight, pZIndex) VALUES (?,?,?,?,?,?,?);");
-		statement.setString(1, this.id);
+				"INSERT INTO Node (syncMetaId, type, pLeft, pTop, pWidth, pHeight, pZIndex) VALUES (?,?,?,?,?,?,?);", Statement.RETURN_GENERATED_KEYS);
+		statement.setString(1, this.syncMetaId);
 		statement.setString(2, this.type);
 		statement.setInt(3, this.position.getLeft());
 		statement.setInt(4, this.position.getTop());
@@ -250,6 +257,9 @@ public class Node {
 		statement.setInt(6, this.position.getHeight());
 		statement.setInt(7, this.position.getzIndex());
 		statement.executeUpdate();
+		ResultSet genKeys = statement.getGeneratedKeys();
+		genKeys.next();
+		this.id = genKeys.getInt(1);
 		statement.close();
 		// attributes entries
 		for (int i = 0; i < this.attributes.size(); i++) {
@@ -257,7 +267,7 @@ public class Node {
 			// AttributeToNode entry ("connect" them)
 			statement = connection.prepareStatement("INSERT INTO AttributeToNode (attributeId, nodeId) VALUES (?, ?);");
 			statement.setInt(1, this.attributes.get(i).getId());
-			statement.setString(2, this.getId());
+			statement.setInt(2, this.getId());
 			statement.executeUpdate();
 			statement.close();
 		}
@@ -276,7 +286,7 @@ public class Node {
 	 */
 	public void deleteFromDatabase(Connection connection) throws SQLException {
 		PreparedStatement statement = connection.prepareStatement("DELETE FROM Node WHERE nodeId = ?;");
-		statement.setString(1, this.id);
+		statement.setInt(1, this.id);
 		statement.executeUpdate();
 		statement.close();
 		for (int i = 0; i < this.attributes.size(); i++) {
