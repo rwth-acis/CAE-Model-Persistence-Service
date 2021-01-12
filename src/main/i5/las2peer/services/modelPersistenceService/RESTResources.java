@@ -27,6 +27,10 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 import org.json.simple.parser.ParseException;
+import org.web3j.abi.datatypes.Int;
+import java.net.URL;
+import java.io.InputStreamReader;
+import java.io.BufferedReader;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -613,6 +617,346 @@ public class RESTResources {
 			} catch (SQLException e) {
 				logger.printStackTrace(e);
 			}
+		}
+	}
+/**
+	 * 
+	 * Requests the code generation service to start a Jenkins job for an
+	 * application model.
+	 * 
+	 * @param versionedModelId
+	 *            id of the versioned model
+	 * @param jobAlias
+	 *            the name/alias of the job to run, i.e. either "Build" or
+	 *            "Docker"
+	 * 
+	 * @return HttpResponse containing the status code of the request
+	 * 
+	 */
+	@POST
+	@Path("/deploy/{versionedModelId}/{jobAlias}")
+	@ApiOperation(value = "Deploys an application model.", notes = "Deploys an application model.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model will be deployed"),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response myDeployModel(@PathParam("versionedModelId") int versionedModelId, @PathParam("jobAlias") String jobAlias, String body) {
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deployModel: trying to deploy versioned model with id: " + versionedModelId);
+		Model model;
+		Connection connection = null;
+		System.out.println("++++++++++++++++++++++++++++++++++++++++++++++");
+
+
+		// first parse the updated model and check for correctness of format
+		try {
+			System.out.println(body);
+			JSONObject json = (JSONObject)  JSONValue.parse(body);
+			System.out.println(json.toString());
+			String name = (String) json.get("name");
+			System.out.println(name);
+			
+			connection = dbm.getConnection();
+			if(jobAlias.equals("Build")){
+				PreparedStatement statement;
+				statement = connection.prepareStatement("INSERT INTO DEPLOYING values(?,?,?);");
+				statement.setInt(1,versionedModelId);
+				statement.setString(2,name);
+				statement.setString(3,"DEPLOYING");  
+				statement.executeUpdate();
+				statement.close();
+			}
+			
+			VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
+			ArrayList<Commit> commits = versionedModel.getCommits();
+			if(commits.size() < 2) {
+				return Response.serverError().entity("There does not exist a commit to the versioned model with the given id.").build();
+			}
+			
+			// get the commit at index 1, because the commit at index 0 is the one for uncommited changes
+			Commit latestCommit = commits.get(1);
+			// use the model of the latest commit for the deployment
+			model = latestCommit.getModel();
+			
+			// add type attribute "application"
+			model.getAttributes().add(new EntityAttribute(new SimpleEntityAttribute("syncmetaid", "type", "application")));
+			
+			// add attribute for versionedModelId
+			model.getAttributes().add(new EntityAttribute(new SimpleEntityAttribute("syncmetaid", "versionedModelId", String.valueOf(versionedModelId))));
+
+			try {
+
+				// only create temp repository once, i.e. before the "Build"
+				// job is started in Jenkins
+				if (jobAlias.equals("Build")) {
+					Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deployModel: invoking code generation service..");
+					// TODO: reactivate usage of code generation service
+					// TODO: EDIT: is reactivated now, check if everything works, then TODO can be removed
+					callCodeGenerationService("prepareDeploymentApplicationModel", "", null, latestCommit);
+				}
+
+				// start the jenkins job by the code generation service
+				String answer = (String) Context.getCurrent().invoke(
+						"i5.las2peer.services.codeGenerationService.CodeGenerationService@0.1", "startJenkinsJob",
+						jobAlias, body);
+
+				// safe deployment time and url
+				if(!deploymentUrl.isEmpty())
+					metadataDocService.updateDeploymentDetails(model, deploymentUrl);
+					connection.close();
+				return Response.ok(answer).build();
+			} catch (CGSInvocationException e) {
+				return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
+			}
+		} catch (Exception e) {
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "updateModel: something went seriously wrong: " + e);
+			logger.printStackTrace(e);
+			return Response.serverError().entity("Internal server error!").build();
+		} // always close connections
+		finally {
+			try {
+				connection.close();
+			} catch (SQLException e) {
+				logger.printStackTrace(e);
+			}
+		}
+	}
+
+/**
+	 * 
+	 * Requests the code generation service to start a Jenkins job for an
+	 * application model.
+	 * 
+	 * @param versionedModelId
+	 *            id of the versioned model
+	 * @param jobAlias
+	 *            the name/alias of the job to run, i.e. either "Build" or
+	 *            "Docker"
+	 * 
+	 * @return HttpResponse containing the status code of the request
+	 * 
+	 */
+	@POST
+	@Path("/checkDeployStatus/{versionedModelId}")
+	@ApiOperation(value = "Deploys an application model.", notes = "Deploys an application model.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model will be deployed"),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response checkDeployStatus(@PathParam("versionedModelId") int versionedModelId, String body) {
+
+		try {
+			System.out.println("++_+_+_+_+_+_+_+_+_+++_+_+_++");
+			Connection connection = null;
+			connection = dbm.getConnection();
+			PreparedStatement statement = connection.prepareStatement("SELECT * FROM DEPLOYING WHERE id = ?;");
+			String id = String.valueOf(versionedModelId);
+			statement.setString(1, id);
+
+			ResultSet queryResult = statement.executeQuery();
+			String deployStatus = "";
+			while(queryResult.next()) {
+				System.out.println(queryResult.getInt("id"));
+				System.out.println(queryResult.getString("name"));
+				System.out.println(queryResult.getString("deployStatus"));
+				deployStatus = queryResult.getString("deployStatus");
+
+			}
+			if (deployStatus.equals("DEPLOYING")) {
+				statement.close();
+				connection.close();
+				return Response.ok("DEPLOYING").build();
+			} else if (deployStatus.equals("DEPLOYED")) {
+				statement.close();
+				connection.close();
+				return Response.ok("DEPLOYED").build();
+			} else if (deployStatus.equals("ERROR")) {
+				statement.close();
+				connection.close();
+				return Response.ok("ERROR").build();
+			}
+			statement.close();
+			connection.close();
+			return Response.ok("NOT DEPLOYED").build();
+
+
+
+		} catch (Exception e) {
+			logger.printStackTrace(e);
+			return Response.serverError().entity("Internal server error!").build();
+
+		}
+	}
+
+/**
+	 * 
+	 * Requests the code generation service to start a Jenkins job for an
+	 * application model.
+	 * 
+	 * @param versionedModelId
+	 *            id of the versioned model
+	 * @param jobAlias
+	 *            the name/alias of the job to run, i.e. either "Build" or
+	 *            "Docker"
+	 * 
+	 * @return HttpResponse containing the status code of the request
+	 * 
+	 */
+	@POST
+	@Path("/updateDeployStatus/{statusUpdate}")
+	@ApiOperation(value = "Deploys an application model.", notes = "Deploys an application model.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model will be deployed"),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response updateDeployStatus(@PathParam("statusUpdate") String statusUpdate, String body) {
+
+		try {
+			System.out.println("++_+_+_+_+uuuppddaaaatteeee+_+++_+_+_++");
+			System.out.println(body);
+			JSONObject json = (JSONObject) JSONValue.parse(body);
+			System.out.println(json.toString());	
+			Connection connection = null;
+			connection = dbm.getConnection();
+			PreparedStatement statement = connection.prepareStatement("SELECT * FROM DEPLOYING WHERE id = ?;");
+			String id = (String) json.get("id");
+			statement.setString(1, id);
+
+			ResultSet qr = statement.executeQuery();
+			String deployStatus = "";
+			while(qr.next()) {
+				System.out.println(qr.getInt("id"));
+				System.out.println(qr.getString("name"));
+				System.out.println(qr.getString("deployStatus"));
+				deployStatus = qr.getString("deployStatus");
+
+			}
+
+			String status = statusUpdate;
+			String name = (String) json.get("name");
+			connection = null;
+			connection = dbm.getConnection();
+			statement = connection.prepareStatement("DELETE FROM DEPLOYING WHERE id = ?;");
+			statement.setInt(1, Integer.valueOf(id));
+			int res = statement.executeUpdate();
+			System.out.println(deployStatus);
+			if(status.equals("DEPLOYED") && deployStatus.equals("DEPLOYING")){
+				statement = connection.prepareStatement("INSERT INTO DEPLOYING values(?,?,?);");
+				statement.setInt(1, Integer.valueOf(id));
+				statement.setString(2,name);
+				statement.setString(3,"DEPLOYED");  
+				int queryResult = statement.executeUpdate();
+				statement.close();
+				connection.close();
+			}else if(status.equals("ERROR") && deployStatus.equals("DEPLOYING")){
+				String DELETE_HELM_REPO = "http://172.16.95.5:30007/api/charts/" + json.get("name") + "/0.1.0";
+				Connection http_Connection = null;
+				http_Connection = dbm.getConnection();
+				String USER_AGENT = "Mozilla/5.0";
+				URL http_obj = new URL(DELETE_HELM_REPO);
+				HttpURLConnection con = (HttpURLConnection) http_obj.openConnection();
+				con.setRequestMethod("DELETE");
+				con.setRequestProperty("User-Agent", USER_AGENT);
+				BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+				String inputLine;
+				StringBuffer response = new StringBuffer();
+				while ((inputLine = in.readLine()) != null) {
+					response.append(inputLine);
+				}
+				in.close();
+				statement = connection.prepareStatement("INSERT INTO DEPLOYING values(?,?,?);");
+				statement.setInt(1, Integer.valueOf(id));
+				statement.setString(2,name);
+				statement.setString(3,"ERROR");  
+				int queryResult = statement.executeUpdate();
+				statement = connection.prepareStatement("DELETE FROM DEPLOYING WHERE id = ?;");
+				statement.setInt(1, Integer.valueOf(id));
+				statement.executeUpdate();
+				statement.close();
+				connection.close();
+			}
+
+			return Response.ok("UPDATED").build();
+
+
+
+		} catch (Exception e) {
+			logger.printStackTrace(e);
+			return Response.serverError().entity("NOT UPDATED!").build();
+
+		}
+	}
+/**
+	 * 
+	 * Requests the code generation service to start a Jenkins job for an
+	 * application model.
+	 * 
+	 * @param versionedModelId
+	 *            id of the versioned model
+	 * @param jobAlias
+	 *            the name/alias of the job to run, i.e. either "Build" or
+	 *            "Docker"
+	 * 
+	 * @return HttpResponse containing the status code of the request
+	 * 
+	 */
+	@POST
+	@Path("/deleteDeployment/{versionedModelId}")
+	@ApiOperation(value = "Deploys an application model.", notes = "Deploys an application model.")
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model will be deployed"),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	public Response deleteDeployment(@PathParam("versionedModelId") int versionedModelId, String body) {
+
+		try {
+			System.out.println(body);
+			JSONObject json = (JSONObject) JSONValue.parse(body);
+
+			String DELETE_HELM_REPO = "http://172.16.95.5:30007/api/charts/" + json.get("name") + "/0.1.0";
+			String DELETE_DEPLOYMENT = "http://172.16.95.5:30008/api/namespaces/foo/releases/" + json.get("name");
+			Connection connection = null;
+			connection = dbm.getConnection();
+			String USER_AGENT = "Mozilla/5.0";
+			URL obj = null;
+			HttpURLConnection con = null;
+			BufferedReader in = null;
+			String inputLine = null;
+			StringBuffer response = null;
+			try{
+				 obj = new URL(DELETE_HELM_REPO);
+				 con = (HttpURLConnection) obj.openConnection();
+				con.setRequestMethod("DELETE");
+				con.setRequestProperty("User-Agent", USER_AGENT);
+				 in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+				 response = new StringBuffer();
+				while ((inputLine = in.readLine()) != null) {
+					response.append(inputLine);
+				}
+				in.close();
+			}catch(Exception e){
+
+			}
+
+			obj = new URL(DELETE_DEPLOYMENT);
+			con = (HttpURLConnection) obj.openConnection();
+			con.setRequestMethod("DELETE");
+			con.setRequestProperty("User-Agent", USER_AGENT);
+			in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+			response = new StringBuffer();
+			while ((inputLine = in.readLine()) != null) {
+				response.append(inputLine);
+			}
+			in.close();
+
+			PreparedStatement statement = connection.prepareStatement("DELETE FROM DEPLOYING WHERE id = ?;");
+			statement.setInt(1, versionedModelId);
+			int res = statement.executeUpdate();
+			statement.close();
+			connection.close();
+			return Response.ok("DELETED").build();
+
+
+
+		} catch (Exception e) {
+			logger.printStackTrace(e);
+			return Response.serverError().entity("NOT UPDATED!").build();
+
 		}
 	}
 
