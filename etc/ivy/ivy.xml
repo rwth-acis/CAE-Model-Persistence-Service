@@ -11,7 +11,7 @@
 	<dependencies>
 	    <!-- las2peer core -->
         <dependency org="i5" name="las2peer-bundle" rev="${core.version}" changing="true" conf="platform->*" />
-		<dependency org="junit" name="junit" rev="4.12" conf="platform->*"/>
+		<dependency org="junit" name="junit" rev="4.13.1" conf="platform->*"/>
 		<dependency org="i5" name="cae-simple-model-representation" rev="0.3" conf="bundle->default"/>
 		<dependency org="i5" name="semantic-check-response" rev="0.1" conf="bundle->default"/>
 		<dependency org="mysql" name="mysql-connector-java" rev="5.1.6" conf="bundle->default"/>
