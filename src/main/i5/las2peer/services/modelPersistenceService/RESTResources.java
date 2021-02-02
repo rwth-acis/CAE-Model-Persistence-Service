@@ -34,6 +34,7 @@ import java.io.BufferedReader;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.OutputStreamWriter;
 
 import i5.cae.semanticCheck.SemanticCheckResponse;
 import i5.cae.simpleModel.SimpleEntityAttribute;
@@ -70,7 +71,11 @@ import i5.las2peer.services.modelPersistenceService.versionedModel.VersionedMode
 
 @Path("/")
 public class RESTResources {
-
+	String contractURL = "http://192.168.178.90:1235";
+	String dockerURL = "host.docker.internal";
+	String minikubeURL = "http://192.168.178.90:30007";
+	String minikubeWrapperURL = "http://192.168.178.90:30008";
+	
 	private static final String PROJECT_MANAGEMENT_SERVICE = "i5.las2peer.services.projectManagementService.ProjectManagementService@0.1.0";
 	
 	private final ModelPersistenceService service = (ModelPersistenceService) Context.getCurrent().getService();
@@ -656,13 +661,20 @@ public class RESTResources {
 			
 			connection = dbm.getConnection();
 			if(jobAlias.equals("Build")){
-				PreparedStatement statement;
-				statement = connection.prepareStatement("INSERT INTO DEPLOYING values(?,?,?);");
-				statement.setInt(1,versionedModelId);
-				statement.setString(2,name);
-				statement.setString(3,"DEPLOYING");  
-				statement.executeUpdate();
-				statement.close();
+				String SAVE_DEPLOY_INFO = contractURL + "/verification/setDeployStatus";
+				String USER_AGENT = "Mozilla/5.0";
+				URL http_obj = new URL(SAVE_DEPLOY_INFO);
+				HttpURLConnection con = (HttpURLConnection) http_obj.openConnection();
+				con.setRequestMethod("POST");
+				con.setDoOutput(true);
+				con.setRequestProperty("Content-Type", "text/plain");
+				con.setRequestProperty("Content-Length", String.valueOf(body.length()));
+				con.setConnectTimeout(50000000);
+				OutputStreamWriter writer = new OutputStreamWriter(con.getOutputStream());
+				writer.write(body);
+				writer.flush();
+				writer.close();
+				con.getResponseCode(); 
 			}
 			
 			VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
@@ -736,45 +748,35 @@ public class RESTResources {
 	 */
 	@POST
 	@Path("/checkDeployStatus/{versionedModelId}")
-	@ApiOperation(value = "Deploys an application model.", notes = "Deploys an application model.")
-	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model will be deployed"),
-			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
-			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
+	@Produces({"text/json"})
 	public Response checkDeployStatus(@PathParam("versionedModelId") int versionedModelId, String body) {
 
 		try {
-			System.out.println("++_+_+_+_+_+_+_+_+_+++_+_+_++");
-			Connection connection = null;
-			connection = dbm.getConnection();
-			PreparedStatement statement = connection.prepareStatement("SELECT * FROM DEPLOYING WHERE id = ?;");
-			String id = String.valueOf(versionedModelId);
-			statement.setString(1, id);
-
-			ResultSet queryResult = statement.executeQuery();
-			String deployStatus = "";
-			while(queryResult.next()) {
-				System.out.println(queryResult.getInt("id"));
-				System.out.println(queryResult.getString("name"));
-				System.out.println(queryResult.getString("deployStatus"));
-				deployStatus = queryResult.getString("deployStatus");
-
+			System.out.println(body);
+			JSONObject json = (JSONObject)  JSONValue.parse(body);
+			System.out.println("++_+_+_+_+_+_+checkstatus_+_+_+++_+_+_++");
+			String GET_DEPLOY_INFO = contractURL + "/verification/getDeployStatus";
+			String USER_AGENT = "Mozilla/5.0";
+			URL http_obj = new URL(GET_DEPLOY_INFO);
+			HttpURLConnection con = (HttpURLConnection) http_obj.openConnection();
+			con.setRequestMethod("POST");
+			con.setDoOutput(true);
+			con.setDoInput(true);
+			con.setRequestProperty("Content-Type", "text/plain");
+			con.setRequestProperty("Content-Length", String.valueOf(body.length()));
+			con.setConnectTimeout(50000000);
+			OutputStreamWriter writer = new OutputStreamWriter(con.getOutputStream());
+			writer.write(body);
+			writer.flush();
+			writer.close();
+			con.getResponseCode();
+			String response = "";
+			BufferedReader reader = new BufferedReader(new InputStreamReader(con.getInputStream()));
+			for (String line; (line = reader.readLine()) != null;) {
+				response += line;
 			}
-			if (deployStatus.equals("DEPLOYING")) {
-				statement.close();
-				connection.close();
-				return Response.ok("DEPLOYING").build();
-			} else if (deployStatus.equals("DEPLOYED")) {
-				statement.close();
-				connection.close();
-				return Response.ok("DEPLOYED").build();
-			} else if (deployStatus.equals("ERROR")) {
-				statement.close();
-				connection.close();
-				return Response.ok("ERROR").build();
-			}
-			statement.close();
-			connection.close();
-			return Response.ok("NOT DEPLOYED").build();
+			reader.close();
+			return Response.ok(response).build();
 
 
 
@@ -812,68 +814,23 @@ public class RESTResources {
 			System.out.println(body);
 			JSONObject json = (JSONObject) JSONValue.parse(body);
 			System.out.println(json.toString());	
-			Connection connection = null;
-			connection = dbm.getConnection();
-			PreparedStatement statement = connection.prepareStatement("SELECT * FROM DEPLOYING WHERE id = ?;");
-			String id = (String) json.get("id");
-			statement.setString(1, id);
+			json.put("deployStatus", statusUpdate);
+			String UPDATE_DEPLOY_INFO = contractURL + "/verification/setDeployStatus";
+			String USER_AGENT = "Mozilla/5.0";
+			URL http_obj = new URL(UPDATE_DEPLOY_INFO);
+			HttpURLConnection con = (HttpURLConnection) http_obj.openConnection();
+			con.setRequestMethod("POST");
+			con.setDoOutput(true);
+			con.setRequestProperty("Content-Type", "text/plain");
+			con.setRequestProperty("Content-Length", String.valueOf(json.toString().length()));
+			con.setConnectTimeout(50000000);
+			OutputStreamWriter writer = new OutputStreamWriter(con.getOutputStream());
+			writer.write(json.toString());
+			writer.flush();
+			writer.close();
+			con.getResponseCode(); 
 
-			ResultSet qr = statement.executeQuery();
-			String deployStatus = "";
-			while(qr.next()) {
-				System.out.println(qr.getInt("id"));
-				System.out.println(qr.getString("name"));
-				System.out.println(qr.getString("deployStatus"));
-				deployStatus = qr.getString("deployStatus");
-
-			}
-
-			String status = statusUpdate;
-			String name = (String) json.get("name");
-			connection = null;
-			connection = dbm.getConnection();
-			statement = connection.prepareStatement("DELETE FROM DEPLOYING WHERE id = ?;");
-			statement.setInt(1, Integer.valueOf(id));
-			int res = statement.executeUpdate();
-			System.out.println(deployStatus);
-			if(status.equals("DEPLOYED") && deployStatus.equals("DEPLOYING")){
-				statement = connection.prepareStatement("INSERT INTO DEPLOYING values(?,?,?);");
-				statement.setInt(1, Integer.valueOf(id));
-				statement.setString(2,name);
-				statement.setString(3,"DEPLOYED");  
-				int queryResult = statement.executeUpdate();
-				statement.close();
-				connection.close();
-			}else if(status.equals("ERROR") && deployStatus.equals("DEPLOYING")){
-				String DELETE_HELM_REPO = "http://172.16.95.5:30007/api/charts/" + json.get("name") + "/0.1.0";
-				Connection http_Connection = null;
-				http_Connection = dbm.getConnection();
-				String USER_AGENT = "Mozilla/5.0";
-				URL http_obj = new URL(DELETE_HELM_REPO);
-				HttpURLConnection con = (HttpURLConnection) http_obj.openConnection();
-				con.setRequestMethod("DELETE");
-				con.setRequestProperty("User-Agent", USER_AGENT);
-				BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-				String inputLine;
-				StringBuffer response = new StringBuffer();
-				while ((inputLine = in.readLine()) != null) {
-					response.append(inputLine);
-				}
-				in.close();
-				statement = connection.prepareStatement("INSERT INTO DEPLOYING values(?,?,?);");
-				statement.setInt(1, Integer.valueOf(id));
-				statement.setString(2,name);
-				statement.setString(3,"ERROR");  
-				int queryResult = statement.executeUpdate();
-				statement = connection.prepareStatement("DELETE FROM DEPLOYING WHERE id = ?;");
-				statement.setInt(1, Integer.valueOf(id));
-				statement.executeUpdate();
-				statement.close();
-				connection.close();
-			}
-
-			return Response.ok("UPDATED").build();
-
+			return Response.ok("Updated").build();
 
 
 		} catch (Exception e) {
@@ -908,8 +865,8 @@ public class RESTResources {
 			System.out.println(body);
 			JSONObject json = (JSONObject) JSONValue.parse(body);
 
-			String DELETE_HELM_REPO = "http://172.16.95.5:30007/api/charts/" + json.get("name") + "/0.1.0";
-			String DELETE_DEPLOYMENT = "http://172.16.95.5:30008/api/namespaces/foo/releases/" + json.get("name");
+			String DELETE_HELM_REPO = minikubeURL + "/api/charts/" + json.get("name") + "/0.1.0";
+			String DELETE_DEPLOYMENT = minikubeWrapperURL + "/api/namespaces/foo/releases/" + json.get("name");
 			Connection connection = null;
 			connection = dbm.getConnection();
 			String USER_AGENT = "Mozilla/5.0";
@@ -930,7 +887,6 @@ public class RESTResources {
 				}
 				in.close();
 			}catch(Exception e){
-
 			}
 
 			obj = new URL(DELETE_DEPLOYMENT);
@@ -944,11 +900,22 @@ public class RESTResources {
 			}
 			in.close();
 
-			PreparedStatement statement = connection.prepareStatement("DELETE FROM DEPLOYING WHERE id = ?;");
-			statement.setInt(1, versionedModelId);
-			int res = statement.executeUpdate();
-			statement.close();
-			connection.close();
+			System.out.println(json.toString());	
+			json.put("deployStatus", "NOT DEPLOYED");
+			String UPDATE_DEPLOY_INFO = contractURL + "/verification/setDeployStatus";
+			URL http_obj = new URL(UPDATE_DEPLOY_INFO);
+			con = (HttpURLConnection) http_obj.openConnection();
+			con.setRequestMethod("POST");
+			con.setDoOutput(true);
+			con.setRequestProperty("Content-Type", "text/plain");
+			con.setRequestProperty("Content-Length", String.valueOf(json.toString().length()));
+			con.setConnectTimeout(50000000);
+			OutputStreamWriter writer = new OutputStreamWriter(con.getOutputStream());
+			writer.write(json.toString());
+			writer.flush();
+			writer.close();
+			con.getResponseCode(); 
+
 			return Response.ok("DELETED").build();
 
 
