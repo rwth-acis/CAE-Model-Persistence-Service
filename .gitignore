@@ -1,8 +1,9 @@
-/export
+/model_persistence_service/export
 /tmp
 /node-storage
 /startup
 /log
+/model_persistence_service/log
 /lib
 etc/ivy/ivy.jar
 /service
@@ -12,4 +13,14 @@ etc/ivy/ivy.jar
 restMapping.xml
 /out
 /output/
+/model_persistence_service/output/
 /.DS_Store
+.project
+.settings
+.classpath
+
+# Ignore Gradle project-specific cache directory
+.gradle
+
+# Ignore Gradle build output directory
+build
