@@ -38,7 +38,7 @@ public class MetadataDocService {
 
     /**
      * Constructor
-     * @param connection database connection
+     * @param dbm database manager
      * @param logger logger
      */
     public MetadataDocService(DatabaseManager dbm, L2pLogger logger) {
