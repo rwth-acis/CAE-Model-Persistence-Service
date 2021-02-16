@@ -13,7 +13,7 @@ WORKDIR /src
 
 # run the rest as unprivileged user
 USER las2peer
-RUN ./gradlew build --exclude-task test
+RUN chmod +x gradlew && ./gradlew build --exclude-task test
 
 EXPOSE $HTTP_PORT
 EXPOSE $HTTPS_PORT
