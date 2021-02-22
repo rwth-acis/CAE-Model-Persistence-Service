@@ -27,14 +27,12 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 import org.json.simple.parser.ParseException;
-import org.web3j.abi.datatypes.Int;
 import java.net.URL;
 import java.io.InputStreamReader;
 import java.io.BufferedReader;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.OutputStreamWriter;
 
 import i5.cae.semanticCheck.SemanticCheckResponse;
 import i5.cae.simpleModel.SimpleEntityAttribute;
@@ -66,8 +64,8 @@ import i5.las2peer.services.modelPersistenceService.versionedModel.VersionedMode
 public class RESTResources {
 	String contractURL = "http://192.168.178.90:1235";
 	String dockerURL = "host.docker.internal";
-	String minikubeURL = "http://192.168.178.90:30007";
-	String minikubeWrapperURL = "http://192.168.178.90:30008";
+	// String minikubeURL = "http://192.168.178.90:30007";
+	// String minikubeWrapperURL = "http://192.168.178.90:30008";
 
 	private static final String PROJECT_MANAGEMENT_SERVICE = "i5.las2peer.services.projectManagementService.ProjectManagementService@0.1.0";
 
@@ -76,6 +74,8 @@ public class RESTResources {
 	private String semanticCheckService;
 	private String codeGenerationService;
 	private String deploymentUrl;
+	private String clusterHelmRegistryUrl;
+	private String clusterHelmWrapperUrl;
 	private DatabaseManager dbm;
 	private MetadataDocService metadataDocService;
 
@@ -84,6 +84,8 @@ public class RESTResources {
 		this.semanticCheckService = service.getSemanticCheckService();
 		this.codeGenerationService = service.getCodeGenerationService();
 		this.deploymentUrl = service.getDeploymentUrl();
+		this.clusterHelmRegistryUrl = service.getClusterHelmRegistryUrl();
+		this.clusterHelmWrapperUrl = service.getClusterHelmWrapperUrl();
 		this.dbm = service.getDbm();
 		this.metadataDocService = service.getMetadataService();
 	}
@@ -912,8 +914,8 @@ public class RESTResources {
 			String id = (String) json.get("id");
 			String name = (String) json.get("name");
 
-			String DELETE_HELM_REPO = minikubeURL + "/api/charts/" + name + "/0.1.0";
-			String DELETE_DEPLOYMENT = minikubeWrapperURL + "/api/namespaces/foo/releases/" + name;
+			String DELETE_HELM_REPO = clusterHelmRegistryUrl + "/api/charts/" + name + "/0.1.0";
+			String DELETE_DEPLOYMENT = clusterHelmWrapperUrl + "/api/namespaces/foo/releases/" + name;
 			Connection connection = null;
 			connection = dbm.getConnection();
 			String USER_AGENT = "Mozilla/5.0";

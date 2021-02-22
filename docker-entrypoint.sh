@@ -57,6 +57,8 @@ set_in_service_config semanticCheckService ${SEMANTIC_CHECK_SERVICE}
 set_in_service_config codeGenerationService ${CODE_GENERATION_SERVICE}
 set_in_service_config metadataService ${METADATA_SERVICE}
 set_in_service_config deploymentUrl ${DEPLOYMENT_URL}
+set_in_service_config clusterHelmWrapperUrl ${CLUSTER_HELM_WRAPPER_URL}
+set_in_service_config clusterHelmRegistryUrl ${CLUSTER_HELM_REGISTRY_URL}
 
 # configure web connector properties
 
