@@ -1,58 +1,23 @@
 package i5.las2peer.services.modelPersistenceService;
 
-import java.io.Serializable;
-import java.net.HttpURLConnection;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.InternalServerErrorException;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.ParseException;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import i5.cae.semanticCheck.SemanticCheckResponse;
-import i5.cae.simpleModel.SimpleEntityAttribute;
-import i5.cae.simpleModel.SimpleModel;
-import i5.cae.simpleModel.node.SimpleNode;
-import i5.las2peer.api.Context;
 import i5.las2peer.api.ManualDeployment;
 import i5.las2peer.logging.L2pLogger;
 import i5.las2peer.restMapper.RESTService;
 import i5.las2peer.restMapper.annotations.ServicePath;
 import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
-import i5.las2peer.services.modelPersistenceService.exception.CGSInvocationException;
-import i5.las2peer.services.modelPersistenceService.exception.ModelNotFoundException;
-import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
-import i5.las2peer.services.modelPersistenceService.model.Model;
+
 import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
 import io.swagger.annotations.Contact;
 import io.swagger.annotations.Info;
 import io.swagger.annotations.License;
 import io.swagger.annotations.SwaggerDefinition;
-import io.swagger.jaxrs.Reader;
-import io.swagger.models.Swagger;
-import io.swagger.util.Json;
-
 import i5.las2peer.services.modelPersistenceService.modelServices.*;
 import i5.las2peer.services.modelPersistenceService.versionedModel.Commit;
 import i5.las2peer.services.modelPersistenceService.versionedModel.VersionedModel;
@@ -98,6 +63,14 @@ public class ModelPersistenceService extends RESTService {
 		// and credentials
 		dbm = new DatabaseManager(jdbcDriverClassName, jdbcLogin, jdbcPass, jdbcUrl, jdbcSchema);
 		metadataDocService = new MetadataDocService(this.dbm, this.logger);
+
+		Runnable testRunnable = new Runnable(){
+			public void run() {
+				System.out.println("Hello world");
+			}
+		};
+		ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
+		executorService.scheduleAtFixedRate(testRunnable, 0, 5, TimeUnit.SECONDS);
 	}
 
 	@Override

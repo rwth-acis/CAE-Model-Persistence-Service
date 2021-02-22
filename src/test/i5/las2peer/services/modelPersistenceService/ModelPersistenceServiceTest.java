@@ -6,7 +6,6 @@ import static org.junit.Assert.fail;
 import java.io.ByteArrayOutputStream;
 import java.io.FileReader;
 import java.io.PrintStream;
-import java.net.URL;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.util.HashMap;
@@ -119,8 +118,8 @@ public class ModelPersistenceServiceTest {
 		testModel1 = new Model(jsonModel1);
 		testModel1_updated = new Model(jsonModel1_updated);
 		testModel2 = new Model(jsonModel2);
-		testModel1.persist(connection);
-		testModel2.persist(connection);
+		testModel1.persist(connection, false);
+		testModel2.persist(connection, false);
 		connection.commit();
 
 		// start node
@@ -251,7 +250,7 @@ public class ModelPersistenceServiceTest {
 			obj = parser.parse(new FileReader(FILE_NAME));
 			payload = (JSONObject) obj;
 			Model model = new Model(payload.toJSONString());
-			model.persist(connection);
+			model.persist(connection, false);
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail("Exception: " + e);

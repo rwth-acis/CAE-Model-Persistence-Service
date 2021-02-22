@@ -42,13 +42,6 @@ import i5.cae.simpleModel.SimpleModel;
 import i5.cae.simpleModel.node.SimpleNode;
 import i5.las2peer.api.Context;
 import i5.las2peer.api.ServiceException;
-import i5.las2peer.api.execution.InternalServiceException;
-import i5.las2peer.api.execution.ServiceAccessDeniedException;
-import i5.las2peer.api.execution.ServiceInvocationFailedException;
-import i5.las2peer.api.execution.ServiceMethodNotFoundException;
-import i5.las2peer.api.execution.ServiceNotAuthorizedException;
-import i5.las2peer.api.execution.ServiceNotAvailableException;
-import i5.las2peer.api.execution.ServiceNotFoundException;
 import i5.las2peer.api.logging.MonitoringEvent;
 import i5.las2peer.logging.L2pLogger;
 import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
@@ -75,9 +68,9 @@ public class RESTResources {
 	String dockerURL = "host.docker.internal";
 	String minikubeURL = "http://192.168.178.90:30007";
 	String minikubeWrapperURL = "http://192.168.178.90:30008";
-	
+
 	private static final String PROJECT_MANAGEMENT_SERVICE = "i5.las2peer.services.projectManagementService.ProjectManagementService@0.1.0";
-	
+
 	private final ModelPersistenceService service = (ModelPersistenceService) Context.getCurrent().getService();
 	private L2pLogger logger;
 	private String semanticCheckService;
@@ -99,8 +92,7 @@ public class RESTResources {
 	 * 
 	 * Searches for a model in the database by name.
 	 * 
-	 * @param modelId
-	 *            the id of the model
+	 * @param modelId the id of the model
 	 * 
 	 * @return HttpResponse containing the status code of the request and (if
 	 *         successful) the model as a JSON string
@@ -121,7 +113,8 @@ public class RESTResources {
 			connection = dbm.getConnection();
 			model = new Model(modelId, connection);
 		} catch (ModelNotFoundException e) {
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "getModel: did not find model with id " + modelId);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
+					"getModel: did not find model with id " + modelId);
 			return Response.status(404).entity("Model not found!").build();
 		} catch (SQLException e) {
 			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "getModel: exception fetching model: " + e);
@@ -150,8 +143,8 @@ public class RESTResources {
 	 * Retrieves all model names from the database.
 	 * 
 	 * 
-	 * @return HttpResponse containing the status code of the request and (if
-	 *         the database is not empty) the model-list as a JSON array
+	 * @return HttpResponse containing the status code of the request and (if the
+	 *         database is not empty) the model-list as a JSON array
 	 * 
 	 */
 
@@ -186,7 +179,8 @@ public class RESTResources {
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Database error!").build();
 		} catch (Exception e) {
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "getModels: something went seriously wrong: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR,
+					"getModels: something went seriously wrong: " + e);
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Server error!").build();
 		} finally {
@@ -196,7 +190,8 @@ public class RESTResources {
 				logger.printStackTrace(e);
 			}
 		}
-		Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "getModels: created list of models, now converting to JSONObject and returning");
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR,
+				"getModels: created list of models, now converting to JSONObject and returning");
 
 		JSONArray jsonModelList = new JSONArray();
 		jsonModelList.addAll(modelIds);
@@ -218,11 +213,10 @@ public class RESTResources {
 		Connection connection = null;
 		try {
 			connection = dbm.getConnection();
-			String sql = "select `ModelAttributes`.`modelName` from `AttributeToModelAttributes`, `Attribute`, `ModelAttributes`\n" +
-					"where `AttributeToModelAttributes`.`attributeId` = `Attribute`.`attributeId`\n" +
-					"and `AttributeToModelAttributes`.`modelAttributesName` = `ModelAttributes`.`modelName`\n" +
-					"and `Attribute`.`name` = 'type'\n" +
-					"and `Attribute`.`value` = '" + modelType + "';";
+			String sql = "select `ModelAttributes`.`modelName` from `AttributeToModelAttributes`, `Attribute`, `ModelAttributes`\n"
+					+ "where `AttributeToModelAttributes`.`attributeId` = `Attribute`.`attributeId`\n"
+					+ "and `AttributeToModelAttributes`.`modelAttributesName` = `ModelAttributes`.`modelName`\n"
+					+ "and `Attribute`.`name` = 'type'\n" + "and `Attribute`.`value` = '" + modelType + "';";
 			// search for all models
 			PreparedStatement statement = connection.prepareStatement(sql);
 			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "getModels: retrieving all models..!");
@@ -241,7 +235,8 @@ public class RESTResources {
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Database error!").build();
 		} catch (Exception e) {
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "getModels: something went seriously wrong: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR,
+					"getModels: something went seriously wrong: " + e);
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Server error!").build();
 		} finally {
@@ -263,8 +258,7 @@ public class RESTResources {
 	 * 
 	 * Deletes a model.
 	 *
-	 * @param modelId
-	 *            id of the model
+	 * @param modelId id of the model
 	 * 
 	 * @return HttpResponse containing the status code of the request
 	 * 
@@ -278,26 +272,29 @@ public class RESTResources {
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
 	public Response deleteModel(@PathParam("modelId") int modelId) {
 		Connection connection = null;
-		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deleteModel: trying to delete model with id: " + modelId);
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
+				"deleteModel: trying to delete model with id: " + modelId);
 		try {
 			connection = dbm.getConnection();
 			Model model = new Model(modelId, connection);
 
 			// call code generation service
 			if (!codeGenerationService.isEmpty()) {
-				/*try {
-					// TODO: reactivate usage of code generation service
-					//model = callCodeGenerationService("deleteRepositoryOfModel", model, "", null);
-				} catch (CGSInvocationException e) {
-					return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
-				}*/
+				/*
+				 * try { // TODO: reactivate usage of code generation service //model =
+				 * callCodeGenerationService("deleteRepositoryOfModel", model, "", null); }
+				 * catch (CGSInvocationException e) { return
+				 * Response.serverError().entity("Model not valid: " + e.getMessage()).build();
+				 * }
+				 */
 			}
 
 			model.deleteFromDatabase(connection);
 			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deleteModel: deleted model " + modelId);
 			return Response.ok("Model deleted!").build();
 		} catch (ModelNotFoundException e) {
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deleteModel: did not find model with id " + modelId);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
+					"deleteModel: did not find model with id " + modelId);
 			return Response.status(404).entity("Model not found!").build();
 		} catch (SQLException e) {
 			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "deleteModel: exception deleting model: " + e);
@@ -311,9 +308,10 @@ public class RESTResources {
 			}
 		}
 	}
-	
+
 	/**
 	 * Searches for a versioned model with the given id.
+	 * 
 	 * @param versionedModelId Id of the versioned model to search for.
 	 * @return Response with status code (and possibly error message).
 	 */
@@ -321,21 +319,20 @@ public class RESTResources {
 	@Path("/versionedModels/{id}")
 	@ApiOperation(value = "Searches for a versioned model in the database.")
 	@ApiResponses(value = {
-			@ApiResponse(code = HttpURLConnection.HTTP_OK, message="OK, found versioned model with the given it. Return it."),
-			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message="Versioned model with the given id could not be found."),
-			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error.")
-	})
-    public Response getVersionedModelById(@PathParam("id") int versionedModelId) {
+			@ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, found versioned model with the given it. Return it."),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Versioned model with the given id could not be found."),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error.") })
+	public Response getVersionedModelById(@PathParam("id") int versionedModelId) {
 		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
 				"getVersionedModelById: searching for versionedModel with id " + versionedModelId);
-		
+
 		Connection connection = null;
 		try {
 			connection = dbm.getConnection();
-			
+
 			// load versioned model by id
 			VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
-			
+
 			// if no VersionedModelNotFoundException was thrown, then the model exists
 			// return it
 			return Response.ok(versionedModel.toJSONObject().toJSONString()).build();
@@ -348,170 +345,187 @@ public class RESTResources {
 			return Response.serverError().entity("Internal server error.").build();
 		} finally {
 			try {
-			    connection.close();
+				connection.close();
 			} catch (SQLException e) {
 				logger.printStackTrace(e);
 			}
-		}		
+		}
 	}
-	
+
 	/**
 	 * Posts a commit to the versioned model.
-	 * @param versionedModelId Id of the versioned model, where the commit should be added to.
-	 * @param inputCommit Input commit as JSON, also containing the model that should be connected to the commit.
+	 * 
+	 * @param versionedModelId Id of the versioned model, where the commit should be
+	 *                         added to.
+	 * @param inputCommit      Input commit as JSON, also containing the model that
+	 *                         should be connected to the commit.
 	 * @return Response with status code (and possibly error message).
 	 */
 	@POST
 	@Path("/versionedModels/{id}/commits")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@ApiOperation(value = "Posts a commit to the versioned model.")
-	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, added commit to versioned model."),
+	@ApiResponses(value = {
+			@ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, added commit to versioned model."),
 			@ApiResponse(code = HttpURLConnection.HTTP_UNAUTHORIZED, message = "User is not authorized."),
 			@ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST, message = "Parse error."),
 			@ApiResponse(code = HttpURLConnection.HTTP_FORBIDDEN, message = "USer is not allowed to commit to the versioned model."),
-			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error.")
-	})
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error.") })
 	public Response postCommitToVersionedModel(@PathParam("id") int versionedModelId, String inputCommit) {
 		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
 				"postCommitToVersionedModel: posting commit to versioned model with id " + versionedModelId);
-		
+
 		Connection connection = null;
 		try {
 			connection = dbm.getConnection();
-			
+
 			boolean isAnonymous = (boolean) Context.getCurrent().invoke(PROJECT_MANAGEMENT_SERVICE, "isAnonymous");
-			
-			if(isAnonymous) {
+
+			if (isAnonymous) {
 				return Response.status(HttpURLConnection.HTTP_UNAUTHORIZED).entity("User not authorized.").build();
 			} else {
-				boolean hasCommitPermission = (boolean) Context.getCurrent()
-						.invoke(PROJECT_MANAGEMENT_SERVICE, "hasCommitPermission", versionedModelId);
-				
-				if(hasCommitPermission) {
-				    // user has the permission to commit to the versioned model
+				boolean hasCommitPermission = (boolean) Context.getCurrent().invoke(PROJECT_MANAGEMENT_SERVICE,
+						"hasCommitPermission", versionedModelId);
+
+				if (hasCommitPermission) {
+					// user has the permission to commit to the versioned model
 					// there always exists a commit for "uncommited changes"
 					// that one needs to be removed first
 					connection.setAutoCommit(false);
-					
+
 					VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
 					Commit uncommitedChanges = versionedModel.getCommitForUncommitedChanges();
 					uncommitedChanges.delete(connection);
-					
+
 					// now create a new commit
 					Commit commit = new Commit(inputCommit, false);
 					commit.persist(versionedModelId, connection, false);
-					
+
 					// now create new commit for uncommited changes
 					Commit uncommitedChangesNew = new Commit(inputCommit, true);
 					uncommitedChangesNew.persist(versionedModelId, connection, false);
-					
+
 					// reload versionedModel from database
 					versionedModel = new VersionedModel(versionedModelId, connection);
-					
+
 					// get model
 					Model model = commit.getModel();
-					
+
 					// do the semantic check
 					if (!semanticCheckService.isEmpty()) {
 						this.checkModel(model);
 					}
-					
-					// The codegen service and metadatadocservice already require the model to have a "type" attribute
+
+					// The codegen service and metadatadocservice already require the model to have
+					// a "type" attribute
 					// this "type" attribute is included in the request body
 					JSONObject commitJson = (JSONObject) JSONValue.parse(inputCommit);
 					String type = (String) commitJson.get("componentType");
 					String componentName = (String) commitJson.get("componentName");
 					String metadataVersion = (String) commitJson.get("metadataVersion");
-					
-					// given type "frontend" needs to be converted to "frontend-component"
-					if(type.equals("frontend")) type = "frontend-component";
-					// the other types "microservice" and "application" do not need to be converted
-					
-					// these model attributes are not persisted to the database, since model.persist already got called
-					// when the commit got persisted
-					model.getAttributes().add(new EntityAttribute(new SimpleEntityAttribute("syncmetaid", "type", type)));
 
-					model.getAttributes().add(new EntityAttribute("syncmetaid", "versionedModelId", String.valueOf(versionedModelId)));
-					
+					// given type "frontend" needs to be converted to "frontend-component"
+					if (type.equals("frontend"))
+						type = "frontend-component";
+					// the other types "microservice" and "application" do not need to be converted
+
+					// these model attributes are not persisted to the database, since model.persist
+					// already got called
+					// when the commit got persisted
+					model.getAttributes()
+							.add(new EntityAttribute(new SimpleEntityAttribute("syncmetaid", "type", type)));
+
+					model.getAttributes().add(
+							new EntityAttribute("syncmetaid", "versionedModelId", String.valueOf(versionedModelId)));
+
 					model.getAttributes().add(new EntityAttribute("syncmetaid", "componentName", componentName));
-					
+
 					// call code generation service
 					String commitSha = "";
 					if (!codeGenerationService.isEmpty()) {
 						try {
 							// get user input metadata doc if available
 							String metadataDocString = model.getMetadataDoc();
-							
+
 							if (metadataDocString == null)
 								metadataDocString = "";
 
-							Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postModel: invoking code generation service..");
-							
+							Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
+									"postModel: invoking code generation service..");
+
 							// check if it is the first commit or not
-							if(versionedModel.getCommits().size() == 2) {
-								// this is the first commit (there are 2 in total, because of the "uncommited changes" commit)
-								commitSha = callCodeGenerationService("createFromModel", metadataDocString, versionedModel, commit);
+							if (versionedModel.getCommits().size() == 2) {
+								// this is the first commit (there are 2 in total, because of the "uncommited
+								// changes" commit)
+								commitSha = callCodeGenerationService("createFromModel", metadataDocString,
+										versionedModel, commit);
 							} else {
-							    // not the first commit
-								commitSha = callCodeGenerationService("updateRepositoryOfModel", metadataDocString, versionedModel, commit);
+								// not the first commit
+								commitSha = callCodeGenerationService("updateRepositoryOfModel", metadataDocString,
+										versionedModel, commit);
 							}
 						} catch (CGSInvocationException e) {
 							try {
 								connection.rollback();
-							} catch (SQLException e1) {}
+							} catch (SQLException e1) {
+							}
 							return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
 						}
 					}
-					
+
 					// generate metadata swagger doc after model valid in code generation
 					metadataDocService.modelToSwagger(versionedModel.getId(), componentName, model, metadataVersion);
-					
+
 					// now persist the sha given by code generation service
 					commit.persistSha(commitSha, connection);
-					
+
 					// everything went well -> commit database changes
 					connection.commit();
-					
+
 					return Response.ok(commitSha).build();
 				} else {
-					// user does not have the permission to commit to the versioned model, or an error occurred
+					// user does not have the permission to commit to the versioned model, or an
+					// error occurred
 					return Response.status(HttpURLConnection.HTTP_FORBIDDEN)
-							.entity("User is not allowed to commit to the versioned model (or an error occurred).").build();
+							.entity("User is not allowed to commit to the versioned model (or an error occurred).")
+							.build();
 				}
 			}
 		} catch (SQLException e) {
 			try {
 				connection.rollback();
-			} catch (SQLException e1) {}
-	        logger.printStackTrace(e);
-		    return Response.serverError().entity("Internal server error.").build();
+			} catch (SQLException e1) {
+			}
+			logger.printStackTrace(e);
+			return Response.serverError().entity("Internal server error.").build();
 		} catch (ParseException e) {
 			try {
 				connection.rollback();
-			} catch (SQLException e1) {}
+			} catch (SQLException e1) {
+			}
 			logger.printStackTrace(e);
 			return Response.status(HttpURLConnection.HTTP_BAD_REQUEST).entity("Parse error.").build();
 		} catch (Exception e) {
 			try {
 				connection.rollback();
-			} catch (SQLException e1) {}
+			} catch (SQLException e1) {
+			}
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Internal server error: " + e.getMessage()).build();
 		} finally {
 			try {
-			    connection.close();
+				connection.close();
 			} catch (SQLException e) {
 				logger.printStackTrace(e);
 			}
 		}
 	}
-	
+
 	/**
-	 * Get the status / console text of a build. The build is identified by
-	 * using the queue item that is returned when a job is created.
+	 * Get the status / console text of a build. The build is identified by using
+	 * the queue item that is returned when a job is created.
 	 * 
-	 * @param queueItem
-	 *            The queue item of the job
+	 * @param queueItem The queue item of the job
 	 * @return The console text of the job
 	 */
 
@@ -544,11 +558,9 @@ public class RESTResources {
 	 * Requests the code generation service to start a Jenkins job for an
 	 * application model.
 	 * 
-	 * @param versionedModelId
-	 *            id of the versioned model
-	 * @param jobAlias
-	 *            the name/alias of the job to run, i.e. either "Build" or
-	 *            "Docker"
+	 * @param versionedModelId id of the versioned model
+	 * @param jobAlias         the name/alias of the job to run, i.e. either "Build"
+	 *                         or "Docker"
 	 * 
 	 * @return HttpResponse containing the status code of the request
 	 * 
@@ -560,41 +572,49 @@ public class RESTResources {
 	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model will be deployed"),
 			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
-	public Response deployModel(@PathParam("versionedModelId") int versionedModelId, @PathParam("jobAlias") String jobAlias) {
-		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deployModel: trying to deploy versioned model with id: " + versionedModelId);
+	public Response deployModel(@PathParam("versionedModelId") int versionedModelId,
+			@PathParam("jobAlias") String jobAlias) {
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
+				"deployModel: trying to deploy versioned model with id: " + versionedModelId);
 		Model model;
 		Connection connection = null;
 
 		// first parse the updated model and check for correctness of format
 		try {
 			connection = dbm.getConnection();
-			
+
 			// get versioned model first
 			VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
 			ArrayList<Commit> commits = versionedModel.getCommits();
-			if(commits.size() < 2) {
-				return Response.serverError().entity("There does not exist a commit to the versioned model with the given id.").build();
+			if (commits.size() < 2) {
+				return Response.serverError()
+						.entity("There does not exist a commit to the versioned model with the given id.").build();
 			}
-			
-			// get the commit at index 1, because the commit at index 0 is the one for uncommited changes
+
+			// get the commit at index 1, because the commit at index 0 is the one for
+			// uncommited changes
 			Commit latestCommit = commits.get(1);
 			// use the model of the latest commit for the deployment
 			model = latestCommit.getModel();
-			
+
 			// add type attribute "application"
-			model.getAttributes().add(new EntityAttribute(new SimpleEntityAttribute("syncmetaid", "type", "application")));
-			
+			model.getAttributes()
+					.add(new EntityAttribute(new SimpleEntityAttribute("syncmetaid", "type", "application")));
+
 			// add attribute for versionedModelId
-			model.getAttributes().add(new EntityAttribute(new SimpleEntityAttribute("syncmetaid", "versionedModelId", String.valueOf(versionedModelId))));
+			model.getAttributes().add(new EntityAttribute(
+					new SimpleEntityAttribute("syncmetaid", "versionedModelId", String.valueOf(versionedModelId))));
 
 			try {
 
 				// only create temp repository once, i.e. before the "Build"
 				// job is started in Jenkins
 				if (jobAlias.equals("Build")) {
-					Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deployModel: invoking code generation service..");
+					Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
+							"deployModel: invoking code generation service..");
 					// TODO: reactivate usage of code generation service
-					// TODO: EDIT: is reactivated now, check if everything works, then TODO can be removed
+					// TODO: EDIT: is reactivated now, check if everything works, then TODO can be
+					// removed
 					callCodeGenerationService("prepareDeploymentApplicationModel", "", null, latestCommit);
 				}
 
@@ -604,7 +624,7 @@ public class RESTResources {
 						jobAlias);
 
 				// safe deployment time and url
-				if(!deploymentUrl.isEmpty())
+				if (!deploymentUrl.isEmpty())
 					metadataDocService.updateDeploymentDetails(model, deploymentUrl);
 
 				return Response.ok(answer).build();
@@ -612,7 +632,8 @@ public class RESTResources {
 				return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
 			}
 		} catch (Exception e) {
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "updateModel: something went seriously wrong: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR,
+					"updateModel: something went seriously wrong: " + e);
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Internal server error!").build();
 		} // always close connections
@@ -624,16 +645,15 @@ public class RESTResources {
 			}
 		}
 	}
-/**
+
+	/**
 	 * 
 	 * Requests the code generation service to start a Jenkins job for an
 	 * application model.
 	 * 
-	 * @param versionedModelId
-	 *            id of the versioned model
-	 * @param jobAlias
-	 *            the name/alias of the job to run, i.e. either "Build" or
-	 *            "Docker"
+	 * @param versionedModelId id of the versioned model
+	 * @param jobAlias         the name/alias of the job to run, i.e. either "Build"
+	 *                         or "Docker"
 	 * 
 	 * @return HttpResponse containing the status code of the request
 	 * 
@@ -644,65 +664,55 @@ public class RESTResources {
 	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model will be deployed"),
 			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
-	public Response myDeployModel(@PathParam("versionedModelId") int versionedModelId, @PathParam("jobAlias") String jobAlias, String body) {
-		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deployModel: trying to deploy versioned model with id: " + versionedModelId);
+	public Response myDeployModel(@PathParam("versionedModelId") int versionedModelId,
+			@PathParam("jobAlias") String jobAlias, String body) {
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
+				"deployModel: trying to deploy versioned model with id: " + versionedModelId);
 		Model model;
 		Connection connection = null;
-		System.out.println("++++++++++++++++++++++++++++++++++++++++++++++");
-
 
 		// first parse the updated model and check for correctness of format
 		try {
-			System.out.println(body);
-			JSONObject json = (JSONObject)  JSONValue.parse(body);
-			System.out.println(json.toString());
+			JSONObject json = (JSONObject) JSONValue.parse(body);
 			String name = (String) json.get("name");
-			System.out.println(name);
-			
+			String id = (String) json.get("id");
 			connection = dbm.getConnection();
-			if(jobAlias.equals("Build")){
-				String SAVE_DEPLOY_INFO = contractURL + "/verification/setDeployStatus";
-				String USER_AGENT = "Mozilla/5.0";
-				URL http_obj = new URL(SAVE_DEPLOY_INFO);
-				HttpURLConnection con = (HttpURLConnection) http_obj.openConnection();
-				con.setRequestMethod("POST");
-				con.setDoOutput(true);
-				con.setRequestProperty("Content-Type", "text/plain");
-				con.setRequestProperty("Content-Length", String.valueOf(body.length()));
-				con.setConnectTimeout(50000000);
-				OutputStreamWriter writer = new OutputStreamWriter(con.getOutputStream());
-				writer.write(body);
-				writer.flush();
-				writer.close();
-				con.getResponseCode(); 
-			}
-			
 			VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
 			ArrayList<Commit> commits = versionedModel.getCommits();
-			if(commits.size() < 2) {
-				return Response.serverError().entity("There does not exist a commit to the versioned model with the given id.").build();
+			if (commits.size() < 2) {
+
+				return Response.serverError()
+						.entity("There does not exist a commit to the versioned model with the given id.").build();
 			}
-			
-			// get the commit at index 1, because the commit at index 0 is the one for uncommited changes
+
+			// get the commit at index 1, because the commit at index 0 is the one for
+			// uncommited changes
 			Commit latestCommit = commits.get(1);
 			// use the model of the latest commit for the deployment
 			model = latestCommit.getModel();
-			
+
 			// add type attribute "application"
-			model.getAttributes().add(new EntityAttribute(new SimpleEntityAttribute("syncmetaid", "type", "application")));
-			
+			model.getAttributes()
+					.add(new EntityAttribute(new SimpleEntityAttribute("syncmetaid", "type", "application")));
+
 			// add attribute for versionedModelId
-			model.getAttributes().add(new EntityAttribute(new SimpleEntityAttribute("syncmetaid", "versionedModelId", String.valueOf(versionedModelId))));
+			model.getAttributes().add(new EntityAttribute(
+					new SimpleEntityAttribute("syncmetaid", "versionedModelId", String.valueOf(versionedModelId))));
 
 			try {
 
 				// only create temp repository once, i.e. before the "Build"
 				// job is started in Jenkins
 				if (jobAlias.equals("Build")) {
-					Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "deployModel: invoking code generation service..");
+					Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
+							"deployModel: invoking code generation service..");
 					// TODO: reactivate usage of code generation service
-					// TODO: EDIT: is reactivated now, check if everything works, then TODO can be removed
+					// TODO: EDIT: is reactivated now, check if everything works, then TODO can be
+					// removed
 					callCodeGenerationService("prepareDeploymentApplicationModel", "", null, latestCommit);
+
+					updateDeploymentStatus("DEPLOYING", id, name);
+
 				}
 
 				// start the jenkins job by the code generation service
@@ -711,15 +721,16 @@ public class RESTResources {
 						jobAlias, body);
 
 				// safe deployment time and url
-				if(!deploymentUrl.isEmpty())
+				if (!deploymentUrl.isEmpty())
 					metadataDocService.updateDeploymentDetails(model, deploymentUrl);
-					connection.close();
+				connection.close();
 				return Response.ok(answer).build();
 			} catch (CGSInvocationException e) {
 				return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
 			}
 		} catch (Exception e) {
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "updateModel: something went seriously wrong: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR,
+					"updateModel: something went seriously wrong: " + e);
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Internal server error!").build();
 		} // always close connections
@@ -732,106 +743,118 @@ public class RESTResources {
 		}
 	}
 
-/**
+	/**
 	 * 
 	 * Requests the code generation service to start a Jenkins job for an
 	 * application model.
 	 * 
-	 * @param versionedModelId
-	 *            id of the versioned model
-	 * @param jobAlias
-	 *            the name/alias of the job to run, i.e. either "Build" or
-	 *            "Docker"
+	 * @param versionedModelId id of the versioned model
+	 * @param jobAlias         the name/alias of the job to run, i.e. either "Build"
+	 *                         or "Docker"
 	 * 
 	 * @return HttpResponse containing the status code of the request
 	 * 
 	 */
 	@POST
-	@Path("/checkDeployStatus/{versionedModelId}")
-	@Produces({"text/json"})
-	public Response checkDeployStatus(@PathParam("versionedModelId") int versionedModelId, String body) {
+	@Path("/checkDeployStatus")
+	@Produces({ "text/json" })
+	public Response checkDeployStatus(String body) {
 
 		try {
-			System.out.println(body);
-			JSONObject json = (JSONObject)  JSONValue.parse(body);
-			System.out.println("++_+_+_+_+_+_+checkstatus_+_+_+++_+_+_++");
-			String GET_DEPLOY_INFO = contractURL + "/verification/getDeployStatus";
-			String USER_AGENT = "Mozilla/5.0";
-			URL http_obj = new URL(GET_DEPLOY_INFO);
-			HttpURLConnection con = (HttpURLConnection) http_obj.openConnection();
-			con.setRequestMethod("POST");
-			con.setDoOutput(true);
-			con.setDoInput(true);
-			con.setRequestProperty("Content-Type", "text/plain");
-			con.setRequestProperty("Content-Length", String.valueOf(body.length()));
-			con.setConnectTimeout(50000000);
-			OutputStreamWriter writer = new OutputStreamWriter(con.getOutputStream());
-			writer.write(body);
-			writer.flush();
-			writer.close();
-			con.getResponseCode();
-			String response = "";
-			BufferedReader reader = new BufferedReader(new InputStreamReader(con.getInputStream()));
-			for (String line; (line = reader.readLine()) != null;) {
-				response += line;
-			}
-			reader.close();
-			return Response.ok(response).build();
+			System.out.println("BEGIN");
 
+			// Runnable testRunnable = new Runnable(){
+			// 	public void run() {
+			// 		System.out.println("Hello world");
+			// 	}
+			// };
+			// ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
+			// executorService.scheduleAtFixedRate(testRunnable, 0, 5, TimeUnit.SECONDS);
+			// JSONObject json = (JSONObject) JSONValue.parse(body);
+			// String id = (String) json.get("id");
+			// Connection connection = null;
+			// connection = dbm.getConnection();
+			// PreparedStatement statement = connection.prepareStatement("SELECT * FROM DEPLOYING WHERE id = ?;");
+			// statement.setString(1, id);
 
+			// ResultSet queryResult = statement.executeQuery();
+			String deployStatus = "";
+			// while (queryResult.next()) {
+			// 	deployStatus = queryResult.getString("deployStatus");
+			// }
 
-		} catch (Exception e) {
+			// statement.close();
+			// connection.close();
+			return Response.ok(deployStatus).build();
+
+		}
+		// try {
+		// System.out.println(body);
+		// JSONObject json = (JSONObject) JSONValue.parse(body);
+		// System.out.println("++_+_+_+_+_+_+checkstatus_+_+_+++_+_+_++");
+		// String GET_DEPLOY_INFO = contractURL + "/verification/getDeployStatus";
+		// String USER_AGENT = "Mozilla/5.0";
+		// URL http_obj = new URL(GET_DEPLOY_INFO);
+		// HttpURLConnection con = (HttpURLConnection) http_obj.openConnection();
+		// con.setRequestMethod("POST");
+		// con.setDoOutput(true);
+		// con.setDoInput(true);
+		// con.setRequestProperty("Content-Type", "text/plain");
+		// con.setRequestProperty("Content-Length", String.valueOf(body.length()));
+		// con.setConnectTimeout(50000000);
+		// OutputStreamWriter writer = new OutputStreamWriter(con.getOutputStream());
+		// writer.write(body);
+		// writer.flush();
+		// writer.close();
+		// con.getResponseCode();
+		// String response = "";
+		// BufferedReader reader = new BufferedReader(new
+		// InputStreamReader(con.getInputStream()));
+		// for (String line; (line = reader.readLine()) != null;) {
+		// response += line;
+		// }
+		// reader.close();
+		// return Response.ok(response).build();
+
+		// }
+		catch (Exception e) {
 			logger.printStackTrace(e);
-			return Response.serverError().entity("Internal server error!").build();
+			return Response.serverError().entity("Internal server error, can't check deploy status!").build();
 
 		}
 	}
 
-/**
+	/**
 	 * 
 	 * Requests the code generation service to start a Jenkins job for an
 	 * application model.
 	 * 
-	 * @param versionedModelId
-	 *            id of the versioned model
-	 * @param jobAlias
-	 *            the name/alias of the job to run, i.e. either "Build" or
-	 *            "Docker"
+	 * @param versionedModelId id of the versioned model
+	 * @param jobAlias         the name/alias of the job to run, i.e. either "Build"
+	 *                         or "Docker"
 	 * 
 	 * @return HttpResponse containing the status code of the request
 	 * 
 	 */
 	@POST
-	@Path("/updateDeployStatus/{statusUpdate}")
+	@Path("/updateDeployStatus")
 	@ApiOperation(value = "Deploys an application model.", notes = "Deploys an application model.")
 	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model will be deployed"),
 			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
-	public Response updateDeployStatus(@PathParam("statusUpdate") String statusUpdate, String body) {
+	public Response updateDeployStatus(String body) {
 
 		try {
-			System.out.println("++_+_+_+_+uuuppddaaaatteeee+_+++_+_+_++");
 			System.out.println(body);
 			JSONObject json = (JSONObject) JSONValue.parse(body);
-			System.out.println(json.toString());	
-			json.put("deployStatus", statusUpdate);
-			String UPDATE_DEPLOY_INFO = contractURL + "/verification/setDeployStatus";
-			String USER_AGENT = "Mozilla/5.0";
-			URL http_obj = new URL(UPDATE_DEPLOY_INFO);
-			HttpURLConnection con = (HttpURLConnection) http_obj.openConnection();
-			con.setRequestMethod("POST");
-			con.setDoOutput(true);
-			con.setRequestProperty("Content-Type", "text/plain");
-			con.setRequestProperty("Content-Length", String.valueOf(json.toString().length()));
-			con.setConnectTimeout(50000000);
-			OutputStreamWriter writer = new OutputStreamWriter(con.getOutputStream());
-			writer.write(json.toString());
-			writer.flush();
-			writer.close();
-			con.getResponseCode(); 
+			String statusUpdate = (String) json.get("statusUpdate");
+			System.out.println(statusUpdate);
+			String id = (String) json.get("id");
+			String name = (String) json.get("name");
+
+			updateDeploymentStatus(statusUpdate, id, name);
 
 			return Response.ok("Updated").build();
-
 
 		} catch (Exception e) {
 			logger.printStackTrace(e);
@@ -839,34 +862,58 @@ public class RESTResources {
 
 		}
 	}
-/**
+
+	private void updateDeploymentStatus(String statusUpdate, String id, String name) {
+		try {
+			// delete status
+			Connection connection = null;
+			connection = dbm.getConnection();
+			PreparedStatement statement = connection.prepareStatement("DELETE FROM DEPLOYING WHERE id = ?;");
+			statement.setString(1, id);
+			statement.executeUpdate();
+			// update status
+			statement = connection.prepareStatement("INSERT INTO DEPLOYING values(?,?,?);");
+			statement.setString(1, id);
+			statement.setString(2, name);
+			statement.setString(3, statusUpdate);
+			statement.executeUpdate();
+
+			statement.close();
+			connection.close();
+		} catch (Exception e) {
+			System.out.println("Error updating");
+		}
+
+	}
+
+	/**
 	 * 
 	 * Requests the code generation service to start a Jenkins job for an
 	 * application model.
 	 * 
-	 * @param versionedModelId
-	 *            id of the versioned model
-	 * @param jobAlias
-	 *            the name/alias of the job to run, i.e. either "Build" or
-	 *            "Docker"
+	 * @param versionedModelId id of the versioned model
+	 * @param jobAlias         the name/alias of the job to run, i.e. either "Build"
+	 *                         or "Docker"
 	 * 
 	 * @return HttpResponse containing the status code of the request
 	 * 
 	 */
 	@POST
-	@Path("/deleteDeployment/{versionedModelId}")
+	@Path("/deleteDeployment")
 	@ApiOperation(value = "Deploys an application model.", notes = "Deploys an application model.")
 	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model will be deployed"),
 			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
-	public Response deleteDeployment(@PathParam("versionedModelId") int versionedModelId, String body) {
+	public Response deleteDeployment(String body) {
 
 		try {
 			System.out.println(body);
 			JSONObject json = (JSONObject) JSONValue.parse(body);
+			String id = (String) json.get("id");
+			String name = (String) json.get("name");
 
-			String DELETE_HELM_REPO = minikubeURL + "/api/charts/" + json.get("name") + "/0.1.0";
-			String DELETE_DEPLOYMENT = minikubeWrapperURL + "/api/namespaces/foo/releases/" + json.get("name");
+			String DELETE_HELM_REPO = minikubeURL + "/api/charts/" + name + "/0.1.0";
+			String DELETE_DEPLOYMENT = minikubeWrapperURL + "/api/namespaces/foo/releases/" + name;
 			Connection connection = null;
 			connection = dbm.getConnection();
 			String USER_AGENT = "Mozilla/5.0";
@@ -875,50 +922,42 @@ public class RESTResources {
 			BufferedReader in = null;
 			String inputLine = null;
 			StringBuffer response = null;
-			try{
-				 obj = new URL(DELETE_HELM_REPO);
-				 con = (HttpURLConnection) obj.openConnection();
+			// Delete helm chart from helm repo
+			try {
+				obj = new URL(DELETE_HELM_REPO);
+				con = (HttpURLConnection) obj.openConnection();
 				con.setRequestMethod("DELETE");
 				con.setRequestProperty("User-Agent", USER_AGENT);
-				 in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-				 response = new StringBuffer();
+				in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+				response = new StringBuffer();
 				while ((inputLine = in.readLine()) != null) {
 					response.append(inputLine);
 				}
 				in.close();
-			}catch(Exception e){
+			} catch (Exception e) {
+				System.out.println("Could not delete helm chart from repo");
+				System.out.println(e);
+
 			}
-
-			obj = new URL(DELETE_DEPLOYMENT);
-			con = (HttpURLConnection) obj.openConnection();
-			con.setRequestMethod("DELETE");
-			con.setRequestProperty("User-Agent", USER_AGENT);
-			in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-			response = new StringBuffer();
-			while ((inputLine = in.readLine()) != null) {
-				response.append(inputLine);
+			// Delete deployment from cluster using helm-wrapper
+			try {
+				obj = new URL(DELETE_DEPLOYMENT);
+				con = (HttpURLConnection) obj.openConnection();
+				con.setRequestMethod("DELETE");
+				con.setRequestProperty("User-Agent", USER_AGENT);
+				in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+				response = new StringBuffer();
+				while ((inputLine = in.readLine()) != null) {
+					response.append(inputLine);
+				}
+				in.close();
+			} catch (Exception e) {
+				System.out.println("Could not delete deployment from cluster");
+				System.out.println(e);
 			}
-			in.close();
+			updateDeploymentStatus("NOT DEPLOYED", id, name);
 
-			System.out.println(json.toString());	
-			json.put("deployStatus", "NOT DEPLOYED");
-			String UPDATE_DEPLOY_INFO = contractURL + "/verification/setDeployStatus";
-			URL http_obj = new URL(UPDATE_DEPLOY_INFO);
-			con = (HttpURLConnection) http_obj.openConnection();
-			con.setRequestMethod("POST");
-			con.setDoOutput(true);
-			con.setRequestProperty("Content-Type", "text/plain");
-			con.setRequestProperty("Content-Length", String.valueOf(json.toString().length()));
-			con.setConnectTimeout(50000000);
-			OutputStreamWriter writer = new OutputStreamWriter(con.getOutputStream());
-			writer.write(json.toString());
-			writer.flush();
-			writer.close();
-			con.getResponseCode(); 
-
-			return Response.ok("DELETED").build();
-
-
+			return Response.ok("DELETED deployment").build();
 
 		} catch (Exception e) {
 			logger.printStackTrace(e);
@@ -939,8 +978,7 @@ public class RESTResources {
 	 * 
 	 * TODO: Not tested..
 	 * 
-	 * @param modelId
-	 *            the id of the model to be loaded.
+	 * @param modelId the id of the model to be loaded.
 	 * 
 	 * @return HttpResponse containing the status code of the request and the
 	 *         communication view model as a JSON string
@@ -964,7 +1002,8 @@ public class RESTResources {
 		} catch (SQLException e) {
 			// model might not exist
 			logger.printStackTrace(e);
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "getCAECommunicationModel: model " + modelId + " not found");
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR,
+					"getCAECommunicationModel: model " + modelId + " not found");
 			return Response.status(404).entity("Model " + modelId + " does not exist!").build();
 		} finally {
 			try {
@@ -990,8 +1029,7 @@ public class RESTResources {
 					int subModelId = Integer.valueOf(node.getAttributes().get(0).getValue());
 					try {
 						connection = dbm.getConnection();
-						modelsToSend[modelsToSendIndex] = new Model(subModelId, connection)
-								.getMinifiedRepresentation();
+						modelsToSend[modelsToSendIndex] = new Model(subModelId, connection).getMinifiedRepresentation();
 					} catch (SQLException e) {
 						// model might not exist
 						logger.printStackTrace(e);
@@ -1020,8 +1058,9 @@ public class RESTResources {
 							"getCAECommunicationModel: Got communication model from code generation service..");
 
 					Model returnModel = new Model(communicationModel);
-					Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "getCAECommunicationModel: Created model " + modelId
-							+ "from simple model, now converting to JSONObject and returning");
+					Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
+							"getCAECommunicationModel: Created model " + modelId
+									+ "from simple model, now converting to JSONObject and returning");
 
 					JSONObject jsonModel = returnModel.toJSONObject();
 					return Response.ok(jsonModel.toJSONString()).build();
@@ -1040,115 +1079,122 @@ public class RESTResources {
 
 	/**
 	 * 
-	 * Calls the code generation service to see if the model is a valid CAE
-	 * model. Also implements a bit of CAE logic by checking if the code
-	 * generation service needs additional models (in case of an application
-	 * model) and serves them automatically, such that the rest of this service
-	 * does not have to deal with this "special case".
+	 * Calls the code generation service to see if the model is a valid CAE model.
+	 * Also implements a bit of CAE logic by checking if the code generation service
+	 * needs additional models (in case of an application model) and serves them
+	 * automatically, such that the rest of this service does not have to deal with
+	 * this "special case".
 	 * 
-	 * @param methodName
-	 *            the method name of the code generation service
+	 * @param methodName     the method name of the code generation service
 	 * @param metadataDoc
 	 * @param versionedModel The versioned model where the given model belongs to.
-	 * @param commit Commit where the code generation should be called with.
+	 * @param commit         Commit where the code generation should be called with.
 	 * @return Commit sha identifier
 	 * 
-	 * @throws CGSInvocationException
-	 *             if something went wrong invoking the service
+	 * @throws CGSInvocationException if something went wrong invoking the service
 	 * 
 	 */
-	private String callCodeGenerationService(String methodName, String metadataDoc, VersionedModel versionedModel, Commit commit) throws CGSInvocationException {
+	private String callCodeGenerationService(String methodName, String metadataDoc, VersionedModel versionedModel,
+			Commit commit) throws CGSInvocationException {
 		Model model = commit.getModel();
-		
-		
+
 		if (metadataDoc == null)
 			metadataDoc = "";
-		
+
 		Connection connection = null;
-		
+
 		// create an ArrayList to store the models
 		ArrayList<SimpleModel> modelsToSendList = new ArrayList<>();
 		HashMap<String, String> extDependenciesToSend = new HashMap<>();
-		
+
 		SimpleModel simpleModel = (SimpleModel) model.getMinifiedRepresentation();
 		boolean isApplication = false;
-		
-	    String modelType = null;
-		for(EntityAttribute a : model.getAttributes()) {
-			if(a.getName().equals("type")) {
+
+		String modelType = null;
+		for (EntityAttribute a : model.getAttributes()) {
+			if (a.getName().equals("type")) {
 				modelType = a.getValue();
 				break;
 			}
 		}
-		
+
 		if (modelType.equals("application")) {
 			isApplication = true;
 		}
 
 		if (isApplication) {
-			// If we call the code generation service with an application to be generated, then we also need
+			// If we call the code generation service with an application to be generated,
+			// then we also need
 			// to send the models of the components (frontend components and microservices).
-			// The "simpleModel" contains nodes, which can either be frontend components, microservices or 
-			// external dependencies. Since we do not have models for external dependencies, we cannot send them for
+			// The "simpleModel" contains nodes, which can either be frontend components,
+			// microservices or
+			// external dependencies. Since we do not have models for external dependencies,
+			// we cannot send them for
 			// external dependencies.
-			
+
 			// first item is always the "application" model itself
 			modelsToSendList.add(simpleModel);
-			
+
 			// iterate through the nodes and add corresponding models to
 			// array
 			for (SimpleNode node : simpleModel.getNodes()) {
-				// CAE-Frontend sends some attributes which contain the information we need 
+				// CAE-Frontend sends some attributes which contain the information we need
 				// about the components that the application consists of
-				
-				// nodes can either be frontend components, microservices or external dependencies
+
+				// nodes can either be frontend components, microservices or external
+				// dependencies
 				// frontend components and microservice contain a versionedModelId attribute
 				// external dependencies contain a gitHubURL attribute
-				
+
 				// the first information that we need is the versioned model id of the component
 				String versionedModelIdStr = null;
 				String gitHubURL = null;
 				String extDependencyType = null;
-				// besides the versioned model id, we also need the version of the component which got
-				// selected, because different versions of the component can be selected, which allows 
+				// besides the versioned model id, we also need the version of the component
+				// which got
+				// selected, because different versions of the component can be selected, which
+				// allows
 				// to choose older versions to be included in an application
 				String selectedComponentVersion = null;
 				// iterate through attributes of the node (=component)
-				for(SimpleEntityAttribute a : node.getAttributes()) {
-					if(a.getName().equals("versionedModelId")) {
+				for (SimpleEntityAttribute a : node.getAttributes()) {
+					if (a.getName().equals("versionedModelId")) {
 						versionedModelIdStr = a.getValue();
-					} else if(a.getName().equals("version")) {
+					} else if (a.getName().equals("version")) {
 						selectedComponentVersion = a.getValue();
-					} else if(a.getName().equals("gitHubURL")) {
+					} else if (a.getName().equals("gitHubURL")) {
 						gitHubURL = a.getValue();
-					} else if(a.getName().equals("type")) {
+					} else if (a.getName().equals("type")) {
 						extDependencyType = a.getValue();
 					}
 				}
-				
-				if(versionedModelIdStr == null && gitHubURL == null) {
-					throw new CGSInvocationException("There exists a node in the application, which does not contain a versionedModelId or gitHubURL.");
+
+				if (versionedModelIdStr == null && gitHubURL == null) {
+					throw new CGSInvocationException(
+							"There exists a node in the application, which does not contain a versionedModelId or gitHubURL.");
 				}
-				
-				// it should not be the case, that the selected component version cannot be found in the attributes
-				if(selectedComponentVersion == null) {
-				    throw new CGSInvocationException("There exists a component which is part of the application, where no 'version' attribute is given.");
+
+				// it should not be the case, that the selected component version cannot be
+				// found in the attributes
+				if (selectedComponentVersion == null) {
+					throw new CGSInvocationException(
+							"There exists a component which is part of the application, where no 'version' attribute is given.");
 				}
-				
-				if(gitHubURL != null) {
+
+				if (gitHubURL != null) {
 					// this is an external dependency
 					extDependenciesToSend.put(extDependencyType + ":" + gitHubURL, selectedComponentVersion);
-					
+
 					continue;
 				}
-				
+
 				// this is a frontend component or microservice
-				
-				
+
 				// convert versioned model id to int
 				int versionedModelId = Integer.parseInt(versionedModelIdStr);
-				
-				// since we now got the id of the versioned model which belongs to the component,
+
+				// since we now got the id of the versioned model which belongs to the
+				// component,
 				// we are able to load the versioned model from the database
 				VersionedModel v;
 				try {
@@ -1163,89 +1209,100 @@ public class RESTResources {
 						logger.printStackTrace(e);
 					}
 				}
-				
+
 				// get the commits of the versioned model
 				ArrayList<Commit> commits = v.getCommits();
-				if(commits.size() < 2) throw new CGSInvocationException("Application contains versioned model without commit.");
-				
-				
+				if (commits.size() < 2)
+					throw new CGSInvocationException("Application contains versioned model without commit.");
+
 				Model m = null;
 				String selectedCommitSha = "";
-				// either we should use the latest version of the component, or another version (which belongs to a 
+				// either we should use the latest version of the component, or another version
+				// (which belongs to a
 				// version tag of a commit of the versioned model) is given
-				if(selectedComponentVersion.equals("Latest")) {
+				if (selectedComponentVersion.equals("Latest")) {
 					// get latest commit
-					// NOTE: Currently, only commits with the commitType COMMIT_TYPE_MANUAL include a model and 
+					// NOTE: Currently, only commits with the commitType COMMIT_TYPE_MANUAL include
+					// a model and
 					// commits with commitType COMMIT_TYPE_AUTO do not include a model.
-					// The code generation needs a model, thus when the first commit is a code commit without a model,
+					// The code generation needs a model, thus when the first commit is a code
+					// commit without a model,
 					// we need to add the latest model to it.
-					
+
 					// get first commit
 					Commit firstCommit = commits.get(1); // the one at index 0 is the "uncommited changes" commit
-					if(firstCommit.getCommitType() == Commit.COMMIT_TYPE_MANUAL) {
+					if (firstCommit.getCommitType() == Commit.COMMIT_TYPE_MANUAL) {
 						// everything is fine, we can just use the model of this commit
 						m = firstCommit.getModel();
 						selectedCommitSha = firstCommit.getSha();
 					} else {
-						// the first commit does not include a model, so we need to find the latest commit with a model
-						// but we use the commit sha identifier of the first commit (otherwise the code changes are not
+						// the first commit does not include a model, so we need to find the latest
+						// commit with a model
+						// but we use the commit sha identifier of the first commit (otherwise the code
+						// changes are not
 						// part of the generated code later)
 						selectedCommitSha = firstCommit.getSha();
-						
+
 						// get first "manual-commit"
-						// start with index 2, because index 1 is the first commit which is no "manual-commit"
-						for(int i = 2; i < commits.size(); i++) {
-							if(commits.get(i).getCommitType() == Commit.COMMIT_TYPE_MANUAL) {
-							    m = commits.get(i).getModel();
-							    break;
+						// start with index 2, because index 1 is the first commit which is no
+						// "manual-commit"
+						for (int i = 2; i < commits.size(); i++) {
+							if (commits.get(i).getCommitType() == Commit.COMMIT_TYPE_MANUAL) {
+								m = commits.get(i).getModel();
+								break;
 							}
 						}
 					}
-					
-					
+
 				} else {
 					// we want to get the model with a specific version
 					boolean reachedTag = false;
-					for(int i = 1; i < commits.size(); i++) {
-					    Commit c = commits.get(i);
-						if(c.getVersionTag() != null || reachedTag) {
-							if(reachedTag || c.getVersionTag().equals(selectedComponentVersion)) {
+					for (int i = 1; i < commits.size(); i++) {
+						Commit c = commits.get(i);
+						if (c.getVersionTag() != null || reachedTag) {
+							if (reachedTag || c.getVersionTag().equals(selectedComponentVersion)) {
 								// we reached the commit with the tag which we are searching for
 								reachedTag = true;
 								// only set commit sha of the first commit which matches the tag
 								// after that do not change it, otherwise also the code of the "manual" commit
 								// gets used
-								if(selectedCommitSha.isEmpty()) {
-								    selectedCommitSha = c.getSha();
+								if (selectedCommitSha.isEmpty()) {
+									selectedCommitSha = c.getSha();
 								}
 								// check if the commit is of type "manual-commit"
-								if(c.getCommitType() == Commit.COMMIT_TYPE_MANUAL) {
+								if (c.getCommitType() == Commit.COMMIT_TYPE_MANUAL) {
 									// it is a "manual-commit" so we can use the model of this commit
 									m = c.getModel();
 									break;
 								}
-								// otherwise, if the commit is a "auto-commit", we wait for the next "manual-commit"
+								// otherwise, if the commit is a "auto-commit", we wait for the next
+								// "manual-commit"
 							}
 						}
 					}
 				}
-				
+
 				// safety checks
-				if(m == null) throw new CGSInvocationException("Tried to get model of a component, but it is null.");
-				if(selectedCommitSha == null) throw new CGSInvocationException("Selected a commit where the sha identifier is null.");
-				
-				// now we add the sha of the selected commit (the latest commit or the one matching a specific version)
+				if (m == null)
+					throw new CGSInvocationException("Tried to get model of a component, but it is null.");
+				if (selectedCommitSha == null)
+					throw new CGSInvocationException("Selected a commit where the sha identifier is null.");
+
+				// now we add the sha of the selected commit (the latest commit or the one
+				// matching a specific version)
 				// to the model attributes
-				// when the application code gets generated, then we can easily find the commit again
+				// when the application code gets generated, then we can easily find the commit
+				// again
 				m.getAttributes().add(new EntityAttribute("commitSha", "commitSha", selectedCommitSha));
-				
-				
+
 				String type = "";
-				if(node.getType().equals("Frontend Component")) type = "frontend-component";
-				else if(node.getType().equals("Microservice")) type = "microservice";
-				
+				if (node.getType().equals("Frontend Component"))
+					type = "frontend-component";
+				else if (node.getType().equals("Microservice"))
+					type = "microservice";
+
 				m.getAttributes().add(new EntityAttribute("syncmetaid", "type", type));
-				
+
 				logger.info("Attributes: " + node.getAttributes().toString());
 
 				try {
@@ -1253,8 +1310,10 @@ public class RESTResources {
 					logger.info("Modelname: " + m.getId());
 					SimpleModel s = (SimpleModel) m.getMinifiedRepresentation();
 					// s now has the id of the model as id, not the versioned model id
-					// thus we create a new SimpleModel and use the versioned model id as the model id
-					SimpleModel s2 = new SimpleModel(String.valueOf(versionedModelId), s.getNodes(), s.getEdges(), s.getAttributes());
+					// thus we create a new SimpleModel and use the versioned model id as the model
+					// id
+					SimpleModel s2 = new SimpleModel(String.valueOf(versionedModelId), s.getNodes(), s.getEdges(),
+							s.getAttributes());
 					modelsToSendList.add(s2);
 				} catch (SQLException e) {
 					// model might not exist
@@ -1270,32 +1329,32 @@ public class RESTResources {
 			}
 		} else {
 			SimpleModel oldModel = null;
-			
+
 			// check if there exists an old model
 			int commitCount = versionedModel.getCommits().size();
-			if(commitCount == 2) {
+			if (commitCount == 2) {
 				// there only exists one commit and the "uncommited changes" commit
 				modelsToSendList.add(simpleModel);
 			} else {
 				// there exists an old commit
 				modelsToSendList.add(simpleModel);
-				
+
 				Model old = null;
-				for(int i = 2; i < versionedModel.getCommits().size(); i++) {
-					if(versionedModel.getCommits().get(i).getCommitType() == Commit.COMMIT_TYPE_MANUAL) {
+				for (int i = 2; i < versionedModel.getCommits().size(); i++) {
+					if (versionedModel.getCommits().get(i).getCommitType() == Commit.COMMIT_TYPE_MANUAL) {
 						old = versionedModel.getCommits().get(i).getModel();
 						break;
 					}
 				}
 				// the old model does not contain attributes for type and versionedModelId
-				old.getAttributes().add(new EntityAttribute("syncmetaid", "versionedModelId", String.valueOf(versionedModel.getId())));
-				
+				old.getAttributes().add(
+						new EntityAttribute("syncmetaid", "versionedModelId", String.valueOf(versionedModel.getId())));
+
 				oldModel = (SimpleModel) old.getMinifiedRepresentation();
-				
+
 				modelsToSendList.add(oldModel);
 			}
 		}
-
 
 		// actual invocation
 		try {
@@ -1306,15 +1365,18 @@ public class RESTResources {
 			} else {
 				// method is either updateRepositoryOfModel or createFromModel
 				String versionTag = commit.getVersionTag();
-				if(versionTag == null) versionTag = "";
-				Serializable[] payload = { commit.getMessage(), versionTag, metadataDoc, modelsToSendList, (Serializable) extDependenciesToSend };
+				if (versionTag == null)
+					versionTag = "";
+				Serializable[] payload = { commit.getMessage(), versionTag, metadataDoc, modelsToSendList,
+						(Serializable) extDependenciesToSend };
 				answer = (String) Context.getCurrent().invoke(codeGenerationService, methodName, payload);
 			}
 
 			if (!answer.startsWith("done")) {
 				throw new CGSInvocationException(answer);
 			}
-			if(answer.startsWith("done:")) return answer.split("done:")[1];
+			if (answer.startsWith("done:"))
+				return answer.split("done:")[1];
 			return "";
 		} catch (Exception e) {
 			logger.printStackTrace(e);
@@ -1322,18 +1384,15 @@ public class RESTResources {
 		}
 	}
 
-
 	////////////////////////////////////////////////////////////////////////////////////////
 	// Methods for Semantic Check
 	////////////////////////////////////////////////////////////////////////////////////////
 
 	/**
 	 * 
-	 * Performs the semantic check (if specified) on the model, without storing
-	 * it
+	 * Performs the semantic check (if specified) on the model, without storing it
 	 * 
-	 * @param inputModel
-	 *            the model as a JSON string
+	 * @param inputModel the model as a JSON string
 	 * 
 	 * @return HttpResponse status of the check
 	 * 
@@ -1352,10 +1411,12 @@ public class RESTResources {
 		try {
 			model = new Model(inputModel);
 		} catch (ParseException e) {
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "semantic check: exception parsing JSON input: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR,
+					"semantic check: exception parsing JSON input: " + e);
 			return Response.serverError().entity("JSON parsing exception, file not valid!").build();
 		} catch (Exception e) {
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR, "semantic check: something went seriously wrong: " + e);
+			Context.get().monitorEvent(MonitoringEvent.SERVICE_ERROR,
+					"semantic check: something went seriously wrong: " + e);
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Internal server error!").build();
 		}
@@ -1426,8 +1487,8 @@ public class RESTResources {
 
 	/**
 	 * 
-	 * Returns the API documentation for a specific annotated top level resource
-	 * for purposes of the Swagger documentation.
+	 * Returns the API documentation for a specific annotated top level resource for
+	 * purposes of the Swagger documentation.
 	 * 
 	 * Note: If you do not intend to use Swagger for the documentation of your
 	 * Service API, this method may be removed.
@@ -1454,7 +1515,7 @@ public class RESTResources {
 		}
 	}
 
-	/***********METADATA DOCS*************** */
+	/*********** METADATA DOCS*************** */
 
 	/**
 	 * Get all element to element connections in the database
@@ -1554,8 +1615,10 @@ public class RESTResources {
 			@ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST, message = "Input model was not valid"),
 			@ApiResponse(code = HttpURLConnection.HTTP_CONFLICT, message = "Tried to save a model that already had a name and thus was not new"),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
-	public Response postDoc(String inputJsonString, @PathParam("version") String version, @PathParam("versionedModelId") int versionedModelId) {
-		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postDoc called with version " + version + " and versionedModelId " + versionedModelId);
+	public Response postDoc(String inputJsonString, @PathParam("version") String version,
+			@PathParam("versionedModelId") int versionedModelId) {
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
+				"postDoc called with version " + version + " and versionedModelId " + versionedModelId);
 
 		ObjectMapper mapper = new ObjectMapper();
 		try {
@@ -1571,8 +1634,7 @@ public class RESTResources {
 	 * 
 	 * Deletes a model.
 	 * 
-	 * @param modelName
-	 *            a string containing the model name
+	 * @param modelName a string containing the model name
 	 * 
 	 * @return HttpResponse containing the status code of the request
 	 * 
