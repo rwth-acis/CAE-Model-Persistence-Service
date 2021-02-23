@@ -1,0 +1,2 @@
+rootProject.name = 'CAE-Model-Persistence-Service'
+include('model_persistence_service')
