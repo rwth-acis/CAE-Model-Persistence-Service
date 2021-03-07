@@ -1,4 +1,4 @@
-FROM openjdk:8-jdk-alpine
+FROM openjdk:14-jdk-alpine
 
 ENV HTTP_PORT=8080
 ENV HTTPS_PORT=8443
@@ -14,7 +14,7 @@ RUN git clone https://github.com/ettore26/wait-for-command
 
 # run the rest as unprivileged user
 USER las2peer
-RUN ant jar
+RUN chmod +x gradlew && ./gradlew build --exclude-task test
 
 EXPOSE $HTTP_PORT
 EXPOSE $HTTPS_PORT

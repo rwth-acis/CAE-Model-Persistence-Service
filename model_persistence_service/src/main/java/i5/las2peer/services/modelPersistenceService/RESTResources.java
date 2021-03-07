@@ -1636,7 +1636,7 @@ public class RESTResources {
 	 * 
 	 * Deletes a model.
 	 * 
-	 * @param modelName a string containing the model name
+	 * @param id a string containing the id
 	 * 
 	 * @return HttpResponse containing the status code of the request
 	 * 
