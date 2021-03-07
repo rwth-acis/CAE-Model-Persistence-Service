@@ -163,6 +163,7 @@ if [ -n "$LAS2PEER_ETH_HOST" ]; then
         --node-id-seed $NODE_ID_SEED \
         --ethereum-mnemonic "$(selectMnemonic)" \
         $(echo $ADDITIONAL_LAUNCHER_ARGS) \
+        startService\("'""${SERVICE}""'", "'""${SERVICE_PASSPHRASE}""'"\) \
         startWebConnector \
         "node=getNodeAsEthereumNode()" "registry=node.getRegistryClient()" "n=getNodeAsEthereumNode()" "r=n.getRegistryClient()" \
         $(echo $ADDITIONAL_PROMPT_CMDS) \
@@ -170,12 +171,13 @@ if [ -n "$LAS2PEER_ETH_HOST" ]; then
 else
     echo ... using non-ethereum boot procedure:
     java $(echo $ADDITIONAL_JAVA_ARGS) \
-        -cp "core/src/main/resources/:core/export/jars/*:restmapper/export/jars/*:webconnector/export/jars/*:core/lib/*:restmapper/lib/*:webconnector/lib/*" i5.las2peer.tools.L2pNodeLauncher \
+        -cp "lib/*" i5.las2peer.tools.L2pNodeLauncher \
         --service-directory service \
         --port $LAS2PEER_PORT \
         $([ -n "$LAS2PEER_BOOTSTRAP" ] && echo "--bootstrap $LAS2PEER_BOOTSTRAP") \
         --node-id-seed $NODE_ID_SEED \
         $(echo $ADDITIONAL_LAUNCHER_ARGS) \
+        startService\("'""${SERVICE}""'", "'""${SERVICE_PASSPHRASE}""'"\) \
         startWebConnector \
         $(echo $ADDITIONAL_PROMPT_CMDS) \
         interactive
