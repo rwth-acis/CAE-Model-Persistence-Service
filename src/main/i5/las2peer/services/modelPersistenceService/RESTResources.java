@@ -772,21 +772,21 @@ public class RESTResources {
 			// };
 			// ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
 			// executorService.scheduleAtFixedRate(testRunnable, 0, 5, TimeUnit.SECONDS);
-			// JSONObject json = (JSONObject) JSONValue.parse(body);
-			// String id = (String) json.get("id");
-			// Connection connection = null;
-			// connection = dbm.getConnection();
-			// PreparedStatement statement = connection.prepareStatement("SELECT * FROM DEPLOYING WHERE id = ?;");
-			// statement.setString(1, id);
+			JSONObject json = (JSONObject) JSONValue.parse(body);
+			String id = (String) json.get("id");
+			Connection connection = null;
+			connection = dbm.getConnection();
+			PreparedStatement statement = connection.prepareStatement("SELECT * FROM DEPLOYING WHERE id = ?;");
+			statement.setString(1, id);
 
-			// ResultSet queryResult = statement.executeQuery();
+			ResultSet queryResult = statement.executeQuery();
 			String deployStatus = "";
-			// while (queryResult.next()) {
-			// 	deployStatus = queryResult.getString("deployStatus");
-			// }
+			while (queryResult.next()) {
+				deployStatus = queryResult.getString("deployStatus");
+			}
 
-			// statement.close();
-			// connection.close();
+			statement.close();
+			connection.close();
 			return Response.ok(deployStatus).build();
 
 		}
