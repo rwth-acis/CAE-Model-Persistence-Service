@@ -567,6 +567,7 @@ public class RESTResources {
 	 * @return HttpResponse containing the status code of the request
 	 * 
 	 */
+	@Deprecated
 	@GET
 	@Path("/deploy/{versionedModelId}/{jobAlias}")
 	@Consumes(MediaType.TEXT_PLAIN)
@@ -651,7 +652,8 @@ public class RESTResources {
 	/**
 	 * 
 	 * Requests the code generation service to start a Jenkins job for an
-	 * application model.
+	 * application model. Uses passed body containing build information for 
+	 * jenkins.
 	 * 
 	 * @param versionedModelId id of the versioned model
 	 * @param jobAlias         the name/alias of the job to run, i.e. either "Build"
@@ -712,9 +714,6 @@ public class RESTResources {
 					// TODO: EDIT: is reactivated now, check if everything works, then TODO can be
 					// removed
 					callCodeGenerationService("prepareDeploymentApplicationModel", "", null, latestCommit);
-
-					updateDeploymentStatus("DEPLOYING", id, name);
-
 				}
 
 				// start the jenkins job by the code generation service
@@ -742,229 +741,6 @@ public class RESTResources {
 			} catch (SQLException e) {
 				logger.printStackTrace(e);
 			}
-		}
-	}
-
-	/**
-	 * 
-	 * Requests the code generation service to start a Jenkins job for an
-	 * application model.
-	 * 
-	 * @param versionedModelId id of the versioned model
-	 * @param jobAlias         the name/alias of the job to run, i.e. either "Build"
-	 *                         or "Docker"
-	 * 
-	 * @return HttpResponse containing the status code of the request
-	 * 
-	 */
-	@POST
-	@Path("/checkDeployStatus")
-	@Produces({ "text/json" })
-	public Response checkDeployStatus(String body) {
-
-		try {
-			System.out.println("BEGIN");
-
-			// Runnable testRunnable = new Runnable(){
-			// 	public void run() {
-			// 		System.out.println("Hello world");
-			// 	}
-			// };
-			// ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
-			// executorService.scheduleAtFixedRate(testRunnable, 0, 5, TimeUnit.SECONDS);
-			JSONObject json = (JSONObject) JSONValue.parse(body);
-			String id = (String) json.get("id");
-			Connection connection = null;
-			connection = dbm.getConnection();
-			PreparedStatement statement = connection.prepareStatement("SELECT * FROM DEPLOYING WHERE id = ?;");
-			statement.setString(1, id);
-
-			ResultSet queryResult = statement.executeQuery();
-			String deployStatus = "";
-			while (queryResult.next()) {
-				deployStatus = queryResult.getString("deployStatus");
-			}
-
-			statement.close();
-			connection.close();
-			return Response.ok(deployStatus).build();
-
-		}
-		// try {
-		// System.out.println(body);
-		// JSONObject json = (JSONObject) JSONValue.parse(body);
-		// System.out.println("++_+_+_+_+_+_+checkstatus_+_+_+++_+_+_++");
-		// String GET_DEPLOY_INFO = contractURL + "/verification/getDeployStatus";
-		// String USER_AGENT = "Mozilla/5.0";
-		// URL http_obj = new URL(GET_DEPLOY_INFO);
-		// HttpURLConnection con = (HttpURLConnection) http_obj.openConnection();
-		// con.setRequestMethod("POST");
-		// con.setDoOutput(true);
-		// con.setDoInput(true);
-		// con.setRequestProperty("Content-Type", "text/plain");
-		// con.setRequestProperty("Content-Length", String.valueOf(body.length()));
-		// con.setConnectTimeout(50000000);
-		// OutputStreamWriter writer = new OutputStreamWriter(con.getOutputStream());
-		// writer.write(body);
-		// writer.flush();
-		// writer.close();
-		// con.getResponseCode();
-		// String response = "";
-		// BufferedReader reader = new BufferedReader(new
-		// InputStreamReader(con.getInputStream()));
-		// for (String line; (line = reader.readLine()) != null;) {
-		// response += line;
-		// }
-		// reader.close();
-		// return Response.ok(response).build();
-
-		// }
-		catch (Exception e) {
-			logger.printStackTrace(e);
-			return Response.serverError().entity("Internal server error, can't check deploy status!").build();
-
-		}
-	}
-
-	/**
-	 * 
-	 * Requests the code generation service to start a Jenkins job for an
-	 * application model.
-	 * 
-	 * @param versionedModelId id of the versioned model
-	 * @param jobAlias         the name/alias of the job to run, i.e. either "Build"
-	 *                         or "Docker"
-	 * 
-	 * @return HttpResponse containing the status code of the request
-	 * 
-	 */
-	@POST
-	@Path("/updateDeployStatus")
-	@ApiOperation(value = "Deploys an application model.", notes = "Deploys an application model.")
-	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model will be deployed"),
-			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
-			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
-	public Response updateDeployStatus(String body) {
-
-		try {
-			System.out.println(body);
-			JSONObject json = (JSONObject) JSONValue.parse(body);
-			String statusUpdate = (String) json.get("statusUpdate");
-			System.out.println(statusUpdate);
-			String id = (String) json.get("id");
-			String name = (String) json.get("name");
-
-			updateDeploymentStatus(statusUpdate, id, name);
-
-			return Response.ok("Updated").build();
-
-		} catch (Exception e) {
-			logger.printStackTrace(e);
-			return Response.serverError().entity("NOT UPDATED!").build();
-
-		}
-	}
-
-	private void updateDeploymentStatus(String statusUpdate, String id, String name) {
-		try {
-			// delete status
-			Connection connection = null;
-			connection = dbm.getConnection();
-			PreparedStatement statement = connection.prepareStatement("DELETE FROM DEPLOYING WHERE id = ?;");
-			statement.setString(1, id);
-			statement.executeUpdate();
-			// update status
-			statement = connection.prepareStatement("INSERT INTO DEPLOYING values(?,?,?);");
-			statement.setString(1, id);
-			statement.setString(2, name);
-			statement.setString(3, statusUpdate);
-			statement.executeUpdate();
-
-			statement.close();
-			connection.close();
-		} catch (Exception e) {
-			System.out.println("Error updating");
-		}
-
-	}
-
-	/**
-	 * 
-	 * Requests the code generation service to start a Jenkins job for an
-	 * application model.
-	 * 
-	 * @param versionedModelId id of the versioned model
-	 * @param jobAlias         the name/alias of the job to run, i.e. either "Build"
-	 *                         or "Docker"
-	 * 
-	 * @return HttpResponse containing the status code of the request
-	 * 
-	 */
-	@POST
-	@Path("/deleteDeployment")
-	@ApiOperation(value = "Deploys an application model.", notes = "Deploys an application model.")
-	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, model will be deployed"),
-			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Model does not exist"),
-			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error") })
-	public Response deleteDeployment(String body) {
-
-		try {
-			System.out.println(body);
-			JSONObject json = (JSONObject) JSONValue.parse(body);
-			String id = (String) json.get("id");
-			String name = (String) json.get("name");
-
-			String DELETE_HELM_REPO = clusterHelmRegistryUrl + "/api/charts/" + name + "/0.1.0";
-			String DELETE_DEPLOYMENT = clusterHelmWrapperUrl + "/api/namespaces/foo/releases/" + name;
-			Connection connection = null;
-			connection = dbm.getConnection();
-			String USER_AGENT = "Mozilla/5.0";
-			URL obj = null;
-			HttpURLConnection con = null;
-			BufferedReader in = null;
-			String inputLine = null;
-			StringBuffer response = null;
-			// Delete helm chart from helm repo
-			try {
-				obj = new URL(DELETE_HELM_REPO);
-				con = (HttpURLConnection) obj.openConnection();
-				con.setRequestMethod("DELETE");
-				con.setRequestProperty("User-Agent", USER_AGENT);
-				in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-				response = new StringBuffer();
-				while ((inputLine = in.readLine()) != null) {
-					response.append(inputLine);
-				}
-				in.close();
-			} catch (Exception e) {
-				System.out.println("Could not delete helm chart from repo");
-				System.out.println(e);
-
-			}
-			// Delete deployment from cluster using helm-wrapper
-			try {
-				obj = new URL(DELETE_DEPLOYMENT);
-				con = (HttpURLConnection) obj.openConnection();
-				con.setRequestMethod("DELETE");
-				con.setRequestProperty("User-Agent", USER_AGENT);
-				in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-				response = new StringBuffer();
-				while ((inputLine = in.readLine()) != null) {
-					response.append(inputLine);
-				}
-				in.close();
-			} catch (Exception e) {
-				System.out.println("Could not delete deployment from cluster");
-				System.out.println(e);
-			}
-			updateDeploymentStatus("NOT DEPLOYED", id, name);
-
-			return Response.ok("DELETED deployment").build();
-
-		} catch (Exception e) {
-			logger.printStackTrace(e);
-			return Response.serverError().entity("NOT UPDATED!").build();
-
 		}
 	}
 

@@ -3,20 +3,12 @@ package i5.las2peer.services.modelPersistenceService;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import i5.las2peer.api.ManualDeployment;
 import i5.las2peer.logging.L2pLogger;
 import i5.las2peer.restMapper.RESTService;
 import i5.las2peer.restMapper.annotations.ServicePath;
 import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
-import java.net.URL;
-import java.io.InputStreamReader;
-import java.io.BufferedReader;
-import java.net.HttpURLConnection;
-import javax.ws.rs.core.Response;
 
 import io.swagger.annotations.Api;
 import io.swagger.annotations.Contact;
@@ -70,14 +62,6 @@ public class ModelPersistenceService extends RESTService {
 		// and credentials
 		dbm = new DatabaseManager(jdbcDriverClassName, jdbcLogin, jdbcPass, jdbcUrl, jdbcSchema);
 		metadataDocService = new MetadataDocService(this.dbm, this.logger);
-
-		Runnable testRunnable = new Runnable() {
-			public void run() {
-				System.out.println("Hello world");
-			}
-		};
-		ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
-		executorService.scheduleAtFixedRate(testRunnable, 0, 5, TimeUnit.SECONDS);
 	}
 
 	@Override
