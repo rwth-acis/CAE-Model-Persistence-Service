@@ -44,8 +44,6 @@ public class ModelPersistenceService extends RESTService {
 	private String semanticCheckService = "";
 	private String codeGenerationService = "";
 	private String deploymentUrl = "";
-	private String clusterHelmWrapperUrl = "";
-	private String clusterHelmRegistryUrl = "";
 	private DatabaseManager dbm;
 
 	private MetadataDocService metadataDocService;
@@ -81,13 +79,6 @@ public class ModelPersistenceService extends RESTService {
 		return deploymentUrl;
 	}
 
-	public String getClusterHelmRegistryUrl() {
-		return clusterHelmRegistryUrl;
-	}
-
-	public String getClusterHelmWrapperUrl() {
-		return clusterHelmWrapperUrl;
-	}
 
 	public DatabaseManager getDbm() {
 		return dbm;

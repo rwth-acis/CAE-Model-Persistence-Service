@@ -62,10 +62,6 @@ import i5.las2peer.services.modelPersistenceService.versionedModel.VersionedMode
 
 @Path("/")
 public class RESTResources {
-	String contractURL = "http://192.168.178.90:1235";
-	String dockerURL = "host.docker.internal";
-	// String minikubeURL = "http://192.168.178.90:30007";
-	// String minikubeWrapperURL = "http://192.168.178.90:30008";
 
 	private static final String PROJECT_MANAGEMENT_SERVICE = "i5.las2peer.services.projectManagementService.ProjectManagementService@0.1.0";
 
@@ -74,8 +70,6 @@ public class RESTResources {
 	private String semanticCheckService;
 	private String codeGenerationService;
 	private String deploymentUrl;
-	private String clusterHelmRegistryUrl;
-	private String clusterHelmWrapperUrl;
 	private DatabaseManager dbm;
 	private MetadataDocService metadataDocService;
 
@@ -84,8 +78,6 @@ public class RESTResources {
 		this.semanticCheckService = service.getSemanticCheckService();
 		this.codeGenerationService = service.getCodeGenerationService();
 		this.deploymentUrl = service.getDeploymentUrl();
-		this.clusterHelmRegistryUrl = service.getClusterHelmRegistryUrl();
-		this.clusterHelmWrapperUrl = service.getClusterHelmWrapperUrl();
 		this.dbm = service.getDbm();
 		this.metadataDocService = service.getMetadataService();
 	}
