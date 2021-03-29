@@ -1049,10 +1049,25 @@ public class RESTResources {
         // user is project member
         // create new component
         Component component;
+        Connection connection = null;
 		try {
 			component = new Component(inputComponent);
+			connection = this.dbm.getConnection();
+			component.createEmptyVersionedModel(connection);
+			
+			// TODO: create Requirements Bazaar category (if possible, we need the access token for this)
+			
 		} catch (ParseException e) {
 			return Response.status(HttpURLConnection.HTTP_BAD_REQUEST).build();
+		} catch (SQLException e) {
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
+		} finally {
+			if(connection != null)
+				try {
+					connection.close();
+				} catch (SQLException e) {
+					return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
+				}
 		}
         
 		try {
