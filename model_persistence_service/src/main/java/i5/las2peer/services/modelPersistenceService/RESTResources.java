@@ -1095,6 +1095,89 @@ public class RESTResources {
 			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
 		}
 	}
+	
+	/**
+	 * Removes the component with the given name from the project with the given name.
+	 * Therefore, the user sending the request needs to be a member of the project.
+	 * Access token needs to be sent in the method body.
+	 * 
+	 * If the component is not used somewhere else anymore (e.g. as a dependency), then it gets removed 
+	 * from the CAE.
+	 * @param projectName Name of the project where the component should be removed from.
+	 * @param componentName Name of the component which should be removed from the project.
+	 * @return Response with status code (and possibly error message).
+	 */
+	@DELETE
+	@Path("/projects/{projectName}/components/{componentName}")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Removes a component from a project.")
+	@ApiResponses(value = {
+			@ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, removed component from project."),
+			@ApiResponse(code = HttpURLConnection.HTTP_UNAUTHORIZED, message = "User not authorized."),
+			@ApiResponse(code = HttpURLConnection.HTTP_FORBIDDEN, message = "User is not member of the project and thus not allowed to remove components from it."),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Project with the given name or component to remove from project could not be found."),
+			@ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST, message = "Access token missing."),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error.")
+	})
+	public Response removeProjectComponent(@PathParam("projectName") String projectName, 
+			@PathParam("componentName") String componentName, String body) {
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
+				"removeProjectComponent: trying to remove component with name " + componentName +
+				" from project with name " + projectName);
+		
+		// check if calling agent is member of the project
+        boolean hasAccess;
+		try {
+			hasAccess = (boolean) Context.get().invoke(ModelPersistenceService.PROJECT_SERVICE, "hasAccessToProject", "CAE", projectName);
+		} catch (ServiceNotFoundException | ServiceNotAvailableException | InternalServiceException
+				| ServiceMethodNotFoundException | ServiceInvocationFailedException | ServiceAccessDeniedException
+				| ServiceNotAuthorizedException e) {
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).entity("Problem checking access to project.").build();
+		}
+        if(!hasAccess) {
+        	return Response.status(HttpURLConnection.HTTP_FORBIDDEN).build();
+        }
+        
+		try {
+			// get current metadata
+			JSONObject oldMetadata = (JSONObject) Context.get().invoke(ModelPersistenceService.PROJECT_SERVICE, "getProjectMetadataRMI", "CAE", projectName);
+			JSONObject newMetadata = (JSONObject) JSONValue.parse(oldMetadata.toJSONString());
+	     	JSONArray components = (JSONArray) newMetadata.get("components");
+	     	Object toRemove = null;
+	     	for(Object o : components) {
+	     		JSONObject component = (JSONObject) o;
+	     		if(component.get("name").equals(componentName)) {
+	     			toRemove = o;
+	     			break;
+	     		}
+	     	}
+	     	if(toRemove == null) {
+	     		return Response.status(HttpURLConnection.HTTP_NOT_FOUND)
+	    			.entity("Component with the given name could not be found in the project.").build();
+	     	}
+	     	
+	     	// remove component & then send updated metadata to project service
+	     	components.remove(toRemove);
+	     	
+	     	// TODO: delete Requirements Bazaar category
+	     	
+	     	JSONObject o = new JSONObject();
+			o.put("projectName", projectName);
+			o.put("oldMetadata", oldMetadata);
+			o.put("newMetadata", newMetadata);
+	     	boolean success = (boolean) Context.get().invoke(ModelPersistenceService.PROJECT_SERVICE, "changeMetadataRMI", "CAE", o.toJSONString());
+	        if(success) {
+	            return Response.status(HttpURLConnection.HTTP_OK).build();
+	        } else {
+	        	return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR)
+	        			.entity("Request to project service was not successful.").build();
+	        }
+		} catch (ServiceNotFoundException | ServiceNotAvailableException | InternalServiceException
+				| ServiceMethodNotFoundException | ServiceInvocationFailedException | ServiceAccessDeniedException
+				| ServiceNotAuthorizedException e) {
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
+		}
+	}
 
 
 	////////////////////////////////////////////////////////////////////////////////////////
