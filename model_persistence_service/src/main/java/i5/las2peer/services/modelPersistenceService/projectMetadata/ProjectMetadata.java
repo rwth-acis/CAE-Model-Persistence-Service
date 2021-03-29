@@ -4,9 +4,16 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
+
+import i5.las2peer.api.Context;
+import i5.las2peer.api.security.AgentAccessDeniedException;
+import i5.las2peer.api.security.AgentNotFoundException;
+import i5.las2peer.api.security.AgentOperationFailedException;
+import i5.las2peer.api.security.UserAgent;
 
 public class ProjectMetadata {
 
@@ -73,7 +80,23 @@ public class ProjectMetadata {
 		}
 		jsonMetadata.put("roles", jsonRoles);
 		
-		jsonMetadata.put("mapUserRole", this.mapUserRole);
+		JSONArray jsonUserRole = new JSONArray();
+		for(Map.Entry<String, String> entry : this.mapUserRole.entrySet()) {
+			String agentId = entry.getKey();
+			String roleName = entry.getValue();
+			String loginName = "";
+			try {
+				loginName = ((UserAgent) Context.get().requestAgent(agentId)).getLoginName();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			JSONObject o = new JSONObject();
+			o.put("agentId", agentId);
+			o.put("loginName", loginName);
+			o.put("roleName", roleName);
+			jsonUserRole.add(o);
+		}
+		jsonMetadata.put("mapUserRole", jsonUserRole);
 		
 		JSONArray jsonComponents = new JSONArray();
 		for(Component component : components) {

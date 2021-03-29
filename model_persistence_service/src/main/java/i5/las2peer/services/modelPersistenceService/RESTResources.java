@@ -61,6 +61,7 @@ import io.swagger.util.Json;
 import i5.las2peer.services.modelPersistenceService.model.metadata.MetadataDoc;
 
 import i5.las2peer.services.modelPersistenceService.modelServices.*;
+import i5.las2peer.services.modelPersistenceService.projectMetadata.Component;
 import i5.las2peer.services.modelPersistenceService.versionedModel.Commit;
 import i5.las2peer.services.modelPersistenceService.versionedModel.VersionedModel;
 
@@ -1008,6 +1009,75 @@ public class RESTResources {
 		} catch (Exception e) {
 			logger.printStackTrace(e);
 			throw new CGSInvocationException(e.getMessage());
+		}
+	}
+	
+	/**
+	 * Adds a component to a project.
+	 * @param projectName Name of the project where a component should be added to.
+	 * @param inputComponent JSON representation of the component to add to the project (must contain access token of user).
+	 * @return Response with status code (and possibly an error description).
+	 */
+	@POST
+	@Path("/projects/{projectName}/components")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Adds component to project.")
+	@ApiResponses(value = {
+			@ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, added component to the project."),
+			@ApiResponse(code = HttpURLConnection.HTTP_UNAUTHORIZED, message = "User not authorized to add component to project."),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Project with the given id could not be found."),
+			@ApiResponse(code = HttpURLConnection.HTTP_FORBIDDEN, message = "User needs to be member of the project to add components to it."),
+			@ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST, message = "Given component is not well formatted or attributes are missing."),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error.")
+	})
+	public Response postProjectComponent(@PathParam("projectName") String projectName, String inputComponent) {
+        Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postProjectComponent: trying to add component to project");
+        
+        // check if calling agent is member of the project
+        boolean hasAccess;
+		try {
+			hasAccess = (boolean) Context.get().invoke(ModelPersistenceService.PROJECT_SERVICE, "hasAccessToProject", "CAE", projectName);
+		} catch (ServiceNotFoundException | ServiceNotAvailableException | InternalServiceException
+				| ServiceMethodNotFoundException | ServiceInvocationFailedException | ServiceAccessDeniedException
+				| ServiceNotAuthorizedException e) {
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).entity("Problem checking access to project.").build();
+		}
+        if(!hasAccess) {
+        	return Response.status(HttpURLConnection.HTTP_FORBIDDEN).build();
+        }
+        
+        // user is project member
+        // create new component
+        Component component;
+		try {
+			component = new Component(inputComponent);
+		} catch (ParseException e) {
+			return Response.status(HttpURLConnection.HTTP_BAD_REQUEST).build();
+		}
+        
+		try {
+			// get current metadata
+			JSONObject oldMetadata = (JSONObject) Context.get().invoke(ModelPersistenceService.PROJECT_SERVICE, "getProjectMetadataRMI", "CAE", projectName);
+			JSONObject newMetadata = (JSONObject) JSONValue.parse(oldMetadata.toJSONString());
+			// update project metadata
+	        JSONArray components = (JSONArray) newMetadata.get("components");
+	        components.add(component.toJSONObject());
+	        // send update metadata back to project service
+	        JSONObject o = new JSONObject();
+			o.put("projectName", projectName);
+			o.put("oldMetadata", oldMetadata);
+			o.put("newMetadata", newMetadata);
+	        boolean success = (boolean) Context.get().invoke(ModelPersistenceService.PROJECT_SERVICE, "changeMetadataRMI", "CAE", o.toJSONString());
+	        if(success) {
+	            return Response.status(HttpURLConnection.HTTP_OK).build();
+	        } else {
+	        	return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR)
+	        			.entity("Request to project service was not successful.").build();
+	        }
+		} catch (ServiceNotFoundException | ServiceNotAvailableException | InternalServiceException
+				| ServiceMethodNotFoundException | ServiceInvocationFailedException | ServiceAccessDeniedException
+				| ServiceNotAuthorizedException e) {
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
 		}
 	}
 

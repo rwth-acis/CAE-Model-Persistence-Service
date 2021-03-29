@@ -44,7 +44,7 @@ import i5.las2peer.services.modelPersistenceService.versionedModel.VersionedMode
 @ManualDeployment
 public class ModelPersistenceService extends RESTService {
 	
-	private static final String PROJECT_SERVICE = "i5.las2peer.services.projectService.ProjectService";
+	public static final String PROJECT_SERVICE = "i5.las2peer.services.projectService.ProjectService";
 
 	/*
 	 * Database configuration
