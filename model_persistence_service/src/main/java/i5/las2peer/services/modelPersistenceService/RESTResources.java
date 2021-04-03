@@ -62,6 +62,7 @@ import i5.las2peer.services.modelPersistenceService.model.metadata.MetadataDoc;
 
 import i5.las2peer.services.modelPersistenceService.modelServices.*;
 import i5.las2peer.services.modelPersistenceService.projectMetadata.Component;
+import i5.las2peer.services.modelPersistenceService.projectMetadata.PredefinedRoles;
 import i5.las2peer.services.modelPersistenceService.versionedModel.Commit;
 import i5.las2peer.services.modelPersistenceService.versionedModel.VersionedModel;
 
@@ -1177,6 +1178,23 @@ public class RESTResources {
 				| ServiceNotAuthorizedException e) {
 			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
 		}
+	}
+	
+	/**
+	 * Returns the widget config which allows to view every widget.
+	 * This is used when a new role gets added to a project. Then it gets
+	 * this widget config initially.
+	 * @return Widget config which allows to view every widget.
+	 */
+	@GET
+	@Path("/widgetConfigAll") 
+	@Produces(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Returns the widget config that allows to view every widget.")
+	@ApiResponses(value = {
+			@ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, sending widget config.")
+	})
+	public Response getDefaultWidgetConfig() {
+		return Response.status(HttpURLConnection.HTTP_OK).entity(PredefinedRoles.VIEW_ALL).build();
 	}
 
 
