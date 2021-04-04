@@ -368,131 +368,171 @@ public class RESTResources {
 		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
 				"postCommitToVersionedModel: posting commit to versioned model with id " + versionedModelId);
 		
+		JSONObject body = (JSONObject) JSONValue.parse(inputCommit);
+		String projectName = (String) body.get("projectName");
+		
+		// request project from project service to check if the versioned model belongs to the project
+		JSONObject projectMetadataJSON;
+		try {
+			projectMetadataJSON = (JSONObject) Context.get()
+					.invoke(ModelPersistenceService.PROJECT_SERVICE, "getProjectMetadataRMI", "CAE", projectName);
+		} catch (ServiceNotFoundException | ServiceNotAvailableException | InternalServiceException
+				| ServiceMethodNotFoundException | ServiceInvocationFailedException | ServiceAccessDeniedException
+				| ServiceNotAuthorizedException e) {
+			return Response.serverError().entity("Internal server error: " + e.getMessage()).build();
+		}
+		
+		JSONArray componentsJSON = (JSONArray) projectMetadataJSON.get("components");
+		boolean included = false;
+		for(Object o : componentsJSON) {
+			JSONObject componentJSON = (JSONObject) o;
+			int compVersionedModelId = ((Long) componentJSON.get("versionedModelId")).intValue();
+			if(compVersionedModelId == versionedModelId) {
+				included = true;
+				break;
+			}
+		}
+		
+		if(!included) {
+			return Response.status(HttpURLConnection.HTTP_BAD_REQUEST)
+					.entity("The versioned model does not belong to the given project.").build();
+		}
+		
+		// check if user is a project member
+		boolean projectMember;
+		try {
+			projectMember = (boolean) Context.get().invoke(ModelPersistenceService.PROJECT_SERVICE, "hasAccessToProject", "CAE", projectName);
+		} catch (ServiceNotFoundException | ServiceNotAvailableException | InternalServiceException
+				| ServiceMethodNotFoundException | ServiceInvocationFailedException | ServiceAccessDeniedException
+				| ServiceNotAuthorizedException e) {
+			return Response.serverError().entity("Internal server error: " + e.getMessage()).build();
+		}
+		
+		if(!projectMember) {
+			// user does not have the permission to commit to the versioned model, or an error occurred
+			return Response.status(HttpURLConnection.HTTP_FORBIDDEN)
+					.entity("User is not allowed to commit to the versioned model (or an error occurred).").build();
+		}
+		
+		// now we know, that the user is a project member and has the permission to commit to the versioned model
+		
 		Connection connection = null;
 		try {
 			connection = dbm.getConnection();
-			
-			boolean isAnonymous = (boolean) Context.getCurrent().invoke(PROJECT_MANAGEMENT_SERVICE, "isAnonymous");
-			
-			if(isAnonymous) {
-				return Response.status(HttpURLConnection.HTTP_UNAUTHORIZED).entity("User not authorized.").build();
-			} else {
-				boolean hasCommitPermission = (boolean) Context.getCurrent()
-						.invoke(PROJECT_MANAGEMENT_SERVICE, "hasCommitPermission", versionedModelId);
-				
-				if(hasCommitPermission) {
-				    // user has the permission to commit to the versioned model
-					// there always exists a commit for "uncommited changes"
-					// that one needs to be removed first
-					connection.setAutoCommit(false);
-					
-					VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
-					Commit uncommitedChanges = versionedModel.getCommitForUncommitedChanges();
-					uncommitedChanges.delete(connection);
-					
-					// now create a new commit
-					Commit commit = new Commit(inputCommit, false);
-					commit.persist(versionedModelId, connection, false);
-					
-					// now create new commit for uncommited changes
-					Commit uncommitedChangesNew = new Commit(inputCommit, true);
-					uncommitedChangesNew.persist(versionedModelId, connection, false);
-					
-					// reload versionedModel from database
-					versionedModel = new VersionedModel(versionedModelId, connection);
-					
-					// get model
-					Model model = commit.getModel();
-					
-					// do the semantic check
-					if (!semanticCheckService.isEmpty()) {
-						this.checkModel(model);
-					}
-					
-					// The codegen service and metadatadocservice already require the model to have a "type" attribute
-					// this "type" attribute is included in the request body
-					JSONObject commitJson = (JSONObject) JSONValue.parse(inputCommit);
-					String type = (String) commitJson.get("componentType");
-					String componentName = (String) commitJson.get("componentName");
-					String metadataVersion = (String) commitJson.get("metadataVersion");
-					
-					// given type "frontend" needs to be converted to "frontend-component"
-					if(type.equals("frontend")) type = "frontend-component";
-					// the other types "microservice" and "application" do not need to be converted
-					
-					// these model attributes are not persisted to the database, since model.persist already got called
-					// when the commit got persisted
-					model.getAttributes().add(new EntityAttribute(new SimpleEntityAttribute("syncmetaid", "type", type)));
 
-					model.getAttributes().add(new EntityAttribute("syncmetaid", "versionedModelId", String.valueOf(versionedModelId)));
-					
-					model.getAttributes().add(new EntityAttribute("syncmetaid", "componentName", componentName));
-					
-					// call code generation service
-					String commitSha = "";
-					if (!codeGenerationService.isEmpty()) {
-						try {
-							// get user input metadata doc if available
-							String metadataDocString = model.getMetadataDoc();
-							
-							if (metadataDocString == null)
-								metadataDocString = "";
+			// there always exists a commit for "uncommited changes"
+			// that one needs to be removed first
+			connection.setAutoCommit(false);
 
-							Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postModel: invoking code generation service..");
-							
-							// check if it is the first commit or not
-							if(versionedModel.getCommits().size() == 2) {
-								// this is the first commit (there are 2 in total, because of the "uncommited changes" commit)
-								commitSha = callCodeGenerationService("createFromModel", metadataDocString, versionedModel, commit);
-							} else {
-							    // not the first commit
-								commitSha = callCodeGenerationService("updateRepositoryOfModel", metadataDocString, versionedModel, commit);
-							}
-						} catch (CGSInvocationException e) {
-							try {
-								connection.rollback();
-							} catch (SQLException e1) {}
-							return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
-						}
+			VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
+			Commit uncommitedChanges = versionedModel.getCommitForUncommitedChanges();
+			uncommitedChanges.delete(connection);
+
+			// now create a new commit
+			Commit commit = new Commit(inputCommit, false);
+			commit.persist(versionedModelId, connection, false);
+
+			// now create new commit for uncommited changes
+			Commit uncommitedChangesNew = new Commit(inputCommit, true);
+			uncommitedChangesNew.persist(versionedModelId, connection, false);
+
+			// reload versionedModel from database
+			versionedModel = new VersionedModel(versionedModelId, connection);
+
+			// get model
+			Model model = commit.getModel();
+
+			// do the semantic check
+			if (!semanticCheckService.isEmpty()) {
+				this.checkModel(model);
+			}
+
+			// The codegen service and metadatadocservice already require the model to have
+			// a "type" attribute
+			// this "type" attribute is included in the request body
+			JSONObject commitJson = (JSONObject) JSONValue.parse(inputCommit);
+			String type = (String) commitJson.get("componentType");
+			String componentName = (String) commitJson.get("componentName");
+			String metadataVersion = (String) commitJson.get("metadataVersion");
+
+			// given type "frontend" needs to be converted to "frontend-component"
+			if (type.equals("frontend"))
+				type = "frontend-component";
+			// the other types "microservice" and "application" do not need to be converted
+
+			// these model attributes are not persisted to the database, since model.persist
+			// already got called
+			// when the commit got persisted
+			model.getAttributes().add(new EntityAttribute(new SimpleEntityAttribute("syncmetaid", "type", type)));
+
+			model.getAttributes().add(new EntityAttribute("syncmetaid", "versionedModelId", String.valueOf(versionedModelId)));
+
+			model.getAttributes().add(new EntityAttribute("syncmetaid", "componentName", componentName));
+
+			// call code generation service
+			String commitSha = "";
+			if (!codeGenerationService.isEmpty()) {
+				try {
+					// get user input metadata doc if available
+					String metadataDocString = model.getMetadataDoc();
+
+					if (metadataDocString == null)
+						metadataDocString = "";
+
+					Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postModel: invoking code generation service..");
+
+					// check if it is the first commit or not
+					if (versionedModel.getCommits().size() == 2) {
+						// this is the first commit (there are 2 in total, because of the "uncommited
+						// changes" commit)
+						commitSha = callCodeGenerationService("createFromModel", metadataDocString, versionedModel, commit);
+					} else {
+						// not the first commit
+						commitSha = callCodeGenerationService("updateRepositoryOfModel", metadataDocString, versionedModel, commit);
 					}
-					
-					// generate metadata swagger doc after model valid in code generation
-					metadataDocService.modelToSwagger(versionedModel.getId(), componentName, model, metadataVersion);
-					
-					// now persist the sha given by code generation service
-					commit.persistSha(commitSha, connection);
-					
-					// everything went well -> commit database changes
-					connection.commit();
-					
-					return Response.ok(commitSha).build();
-				} else {
-					// user does not have the permission to commit to the versioned model, or an error occurred
-					return Response.status(HttpURLConnection.HTTP_FORBIDDEN)
-							.entity("User is not allowed to commit to the versioned model (or an error occurred).").build();
+				} catch (CGSInvocationException e) {
+					try {
+						connection.rollback();
+					} catch (SQLException e1) {
+					}
+					return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
 				}
 			}
+
+			// generate metadata swagger doc after model valid in code generation
+			metadataDocService.modelToSwagger(versionedModel.getId(), componentName, model, metadataVersion);
+
+			// now persist the sha given by code generation service
+			commit.persistSha(commitSha, connection);
+
+			// everything went well -> commit database changes
+			connection.commit();
+
+			return Response.ok(commitSha).build();
 		} catch (SQLException e) {
 			try {
 				connection.rollback();
-			} catch (SQLException e1) {}
-	        logger.printStackTrace(e);
-		    return Response.serverError().entity("Internal server error.").build();
+			} catch (SQLException e1) {
+			}
+			logger.printStackTrace(e);
+			return Response.serverError().entity("Internal server error.").build();
 		} catch (ParseException e) {
 			try {
 				connection.rollback();
-			} catch (SQLException e1) {}
+			} catch (SQLException e1) {
+			}
 			logger.printStackTrace(e);
 			return Response.status(HttpURLConnection.HTTP_BAD_REQUEST).entity("Parse error.").build();
 		} catch (Exception e) {
 			try {
 				connection.rollback();
-			} catch (SQLException e1) {}
+			} catch (SQLException e1) {
+			}
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Internal server error: " + e.getMessage()).build();
 		} finally {
 			try {
-			    connection.close();
+				connection.close();
 			} catch (SQLException e) {
 				logger.printStackTrace(e);
 			}

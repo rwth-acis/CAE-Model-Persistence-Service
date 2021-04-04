@@ -10,9 +10,6 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
 import i5.las2peer.api.Context;
-import i5.las2peer.api.security.AgentAccessDeniedException;
-import i5.las2peer.api.security.AgentNotFoundException;
-import i5.las2peer.api.security.AgentOperationFailedException;
 import i5.las2peer.api.security.UserAgent;
 
 public class ProjectMetadata {
