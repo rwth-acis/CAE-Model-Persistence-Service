@@ -48,6 +48,7 @@ import i5.las2peer.api.logging.MonitoringEvent;
 import i5.las2peer.logging.L2pLogger;
 import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
 import i5.las2peer.services.modelPersistenceService.exception.CGSInvocationException;
+import i5.las2peer.services.modelPersistenceService.exception.GitHubException;
 import i5.las2peer.services.modelPersistenceService.exception.ModelNotFoundException;
 import i5.las2peer.services.modelPersistenceService.exception.VersionedModelNotFoundException;
 import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
@@ -62,6 +63,8 @@ import i5.las2peer.services.modelPersistenceService.model.metadata.MetadataDoc;
 
 import i5.las2peer.services.modelPersistenceService.modelServices.*;
 import i5.las2peer.services.modelPersistenceService.projectMetadata.Component;
+import i5.las2peer.services.modelPersistenceService.projectMetadata.ExternalDependency;
+import i5.las2peer.services.modelPersistenceService.projectMetadata.GitHubHelper;
 import i5.las2peer.services.modelPersistenceService.projectMetadata.PredefinedRoles;
 import i5.las2peer.services.modelPersistenceService.versionedModel.Commit;
 import i5.las2peer.services.modelPersistenceService.versionedModel.VersionedModel;
@@ -1217,6 +1220,83 @@ public class RESTResources {
 				| ServiceMethodNotFoundException | ServiceInvocationFailedException | ServiceAccessDeniedException
 				| ServiceNotAuthorizedException e) {
 			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
+		}
+	}
+	
+	/**
+	 * Lists the components, dependencies and external dependencies of the project.
+	 * @param projectName Name of the project where the components should be listed.
+	 * @return Response with status (and possibly error message).
+	 */
+	@GET
+	@Path("/projects/{projectName}/components")
+	@ApiOperation(value = "Lists the components of the project.")
+	@ApiResponses(value = {
+			@ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, returns list of components, dependencies and external dependencies of the project."),
+			@ApiResponse(code = HttpURLConnection.HTTP_FORBIDDEN, message = "User has no access to the project."),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error.")
+	})
+	public Response getProjectComponents(@PathParam("projectName") String projectName) {
+		System.out.println("Klappt");
+		// check if calling agent is member of the project
+        boolean hasAccess;
+		try {
+			hasAccess = (boolean) Context.get().invoke(ModelPersistenceService.PROJECT_SERVICE, "hasAccessToProject", "CAE", projectName);
+		} catch (ServiceNotFoundException | ServiceNotAvailableException | InternalServiceException
+				| ServiceMethodNotFoundException | ServiceInvocationFailedException | ServiceAccessDeniedException
+				| ServiceNotAuthorizedException e) {
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).entity("Problem checking access to project.").build();
+		}
+        if(!hasAccess) {
+        	return Response.status(HttpURLConnection.HTTP_FORBIDDEN).build();
+        }
+        
+        try {
+        	// get current metadata
+			JSONObject metadata = (JSONObject) Context.get().invoke(ModelPersistenceService.PROJECT_SERVICE, "getProjectMetadataRMI", "CAE", projectName);
+		    
+			JSONObject result = new JSONObject();
+			
+			JSONArray components = (JSONArray) metadata.get("components");
+	     	for(Object o : components) {
+	     		JSONObject component = (JSONObject) o;
+	     		int versionedModelId = ((Long) component.get("versionedModelId")).intValue();
+	     		ArrayList<String> versions = service.getVersionsOfVersionedModel(versionedModelId);
+	     	    component.put("versions", versions);
+	     	}
+	     	result.put("components", components);
+	     	
+	     	JSONArray dependencies = (JSONArray) metadata.get("dependencies");
+	     	for(Object o : dependencies) {
+	     		JSONObject dependency = (JSONObject) o;
+	     		int versionedModelId = ((Long) dependency.get("versionedModelId")).intValue();
+	     		ArrayList<String> versions = service.getVersionsOfVersionedModel(versionedModelId);
+	     		dependency.put("versions", versions);
+	     	}
+	     	result.put("dependencies", dependencies);
+	     	
+	     	JSONArray externalDependencies = (JSONArray) metadata.get("externalDependencies");
+	     	for(Object o : externalDependencies) {
+	     		JSONObject externalDependency = (JSONObject) o;
+	     		String gitHubURL = (String) externalDependency.get("gitHubURL");
+	     		String repoOwner = ExternalDependency.getGitHubRepoOwner(gitHubURL);
+	     		String repoName = ExternalDependency.getGitHubRepoName(gitHubURL);
+	     	    // get version tags from GitHub API
+	     		ArrayList<String> versions = new ArrayList<>();
+	     		try {
+	     			versions = GitHubHelper.getRepoVersionTags(repoOwner, repoName);
+	     		} catch (GitHubException e) {
+	     			
+	     		}
+				externalDependency.put("versions", versions);
+	     	}
+	     	result.put("externalDependencies", externalDependencies);
+	     	
+            return Response.status(HttpURLConnection.HTTP_OK).entity(result.toJSONString()).build();
+        } catch (ServiceNotFoundException | ServiceNotAvailableException | InternalServiceException
+				| ServiceMethodNotFoundException | ServiceInvocationFailedException | ServiceAccessDeniedException
+				| ServiceNotAuthorizedException e) {
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).entity(e.getMessage()).build();
 		}
 	}
 	

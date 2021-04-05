@@ -38,12 +38,12 @@ public class ExternalDependency {
 		return jsonExternalDependency;
 	}
 	
-	public String getGitHubRepoOwner() {
-		return this.gitHubURL.split(".com/")[1].split("/")[0];
+	public static String getGitHubRepoOwner(String gitHubURL) {
+		return gitHubURL.split(".com/")[1].split("/")[0];
 	}
 	
-	public String getGitHubRepoName() {
-		String repoName = this.gitHubURL.split(".com/")[1].split("/")[1];
+	public static String getGitHubRepoName(String gitHubURL) {
+		String repoName = gitHubURL.split(".com/")[1].split("/")[1];
 		if(repoName.endsWith(".git")) repoName = repoName.replace(".git", "");
 		return repoName;
 	}
