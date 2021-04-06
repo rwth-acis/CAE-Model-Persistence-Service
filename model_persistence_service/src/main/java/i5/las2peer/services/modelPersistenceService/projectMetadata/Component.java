@@ -52,6 +52,14 @@ public class Component {
     	if(!component.containsKey("type")) throw new ParseException(0, "Attribute 'type' of component is missing.");
     	String typeStr = (String) component.get("type");
         setType(typeStr);
+        
+        if(component.containsKey("reqBazProjectId")) {
+        	this.reqBazProjectId = ((Long) component.get("reqBazProjectId")).intValue();
+        }
+        
+        if(component.containsKey("reqBazCategoryId")) {
+        	this.reqBazCategoryId = ((Long) component.get("reqBazCategoryId")).intValue();
+        }
 	}
 	
 	/**
@@ -78,12 +86,17 @@ public class Component {
 		}
 	}
 	
-	/**
-	 * Checks whether the component is connected to a Requirements Bazaar category.
-	 * @return Whether the component is connected to a Requirements Bazaar category.
-	 */
-	private boolean isConnectedToReqBaz() {
+	public boolean isConnectedToReqBaz() {
 		return this.reqBazCategoryId != -1;
+	}
+	
+	public void setReqBazCategory(ReqBazCategory category) {
+		this.reqBazProjectId = category.getProjectId();
+		this.reqBazCategoryId = category.getId();
+	}
+	
+	public ReqBazCategory getReqBazCategory() {
+		return new ReqBazCategory(this.reqBazCategoryId, this.reqBazProjectId);
 	}
 	
 	@SuppressWarnings("unchecked")

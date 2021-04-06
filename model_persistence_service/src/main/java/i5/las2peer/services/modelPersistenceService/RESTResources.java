@@ -50,6 +50,7 @@ import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
 import i5.las2peer.services.modelPersistenceService.exception.CGSInvocationException;
 import i5.las2peer.services.modelPersistenceService.exception.GitHubException;
 import i5.las2peer.services.modelPersistenceService.exception.ModelNotFoundException;
+import i5.las2peer.services.modelPersistenceService.exception.ReqBazException;
 import i5.las2peer.services.modelPersistenceService.exception.VersionedModelNotFoundException;
 import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
 import i5.las2peer.services.modelPersistenceService.model.Model;
@@ -66,6 +67,8 @@ import i5.las2peer.services.modelPersistenceService.projectMetadata.Component;
 import i5.las2peer.services.modelPersistenceService.projectMetadata.ExternalDependency;
 import i5.las2peer.services.modelPersistenceService.projectMetadata.GitHubHelper;
 import i5.las2peer.services.modelPersistenceService.projectMetadata.PredefinedRoles;
+import i5.las2peer.services.modelPersistenceService.projectMetadata.ReqBazCategory;
+import i5.las2peer.services.modelPersistenceService.projectMetadata.ReqBazHelper;
 import i5.las2peer.services.modelPersistenceService.versionedModel.Commit;
 import i5.las2peer.services.modelPersistenceService.versionedModel.VersionedModel;
 
@@ -1090,6 +1093,8 @@ public class RESTResources {
         	return Response.status(HttpURLConnection.HTTP_FORBIDDEN).build();
         }
         
+        String accessToken = (String) ((JSONObject) JSONValue.parse(inputComponent)).get("access_token");
+        
         // user is project member
         // create new component
         Component component;
@@ -1099,12 +1104,20 @@ public class RESTResources {
 			connection = this.dbm.getConnection();
 			component.createEmptyVersionedModel(connection);
 			
-			// TODO: create Requirements Bazaar category (if possible, we need the access token for this)
+			// create category in requirements bazaar
+			if(!this.service.isCategoryCreationDisabled()) {
+			    String categoryName = projectName + "-" + component.getName();
+				ReqBazCategory reqBazCategory = ReqBazHelper.getInstance().createCategory(categoryName, accessToken);
+				component.setReqBazCategory(reqBazCategory);
+			}
 			
 		} catch (ParseException e) {
 			return Response.status(HttpURLConnection.HTTP_BAD_REQUEST).build();
 		} catch (SQLException e) {
 			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
+		} catch (ReqBazException e) {
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR)
+					.entity("Requirements Bazaar: Category creation failed.").build();
 		} finally {
 			if(connection != null)
 				try {
@@ -1182,28 +1195,35 @@ public class RESTResources {
         	return Response.status(HttpURLConnection.HTTP_FORBIDDEN).build();
         }
         
+        String accessToken = (String) ((JSONObject) JSONValue.parse(body)).get("access_token");
+        
 		try {
 			// get current metadata
 			JSONObject oldMetadata = (JSONObject) Context.get().invoke(ModelPersistenceService.PROJECT_SERVICE, "getProjectMetadataRMI", "CAE", projectName);
 			JSONObject newMetadata = (JSONObject) JSONValue.parse(oldMetadata.toJSONString());
 	     	JSONArray components = (JSONArray) newMetadata.get("components");
-	     	Object toRemove = null;
+	     	Object objectToRemove = null;
+	     	Component componentToRemove = null;
 	     	for(Object o : components) {
 	     		JSONObject component = (JSONObject) o;
 	     		if(component.get("name").equals(componentName)) {
-	     			toRemove = o;
+	     			objectToRemove = o;
+	     			componentToRemove = new Component(component.toJSONString());
 	     			break;
 	     		}
 	     	}
-	     	if(toRemove == null) {
+	     	if(objectToRemove == null) {
 	     		return Response.status(HttpURLConnection.HTTP_NOT_FOUND)
 	    			.entity("Component with the given name could not be found in the project.").build();
 	     	}
 	     	
 	     	// remove component & then send updated metadata to project service
-	     	components.remove(toRemove);
+	     	components.remove(objectToRemove);
 	     	
-	     	// TODO: delete Requirements Bazaar category
+	     	// delete Requirements Bazaar category
+	     	if(componentToRemove.isConnectedToReqBaz()) {
+				ReqBazHelper.getInstance().deleteCategory(componentToRemove.getReqBazCategory(), accessToken);
+			}
 	     	
 	     	JSONObject o = new JSONObject();
 			o.put("projectName", projectName);
@@ -1219,6 +1239,11 @@ public class RESTResources {
 		} catch (ServiceNotFoundException | ServiceNotAvailableException | InternalServiceException
 				| ServiceMethodNotFoundException | ServiceInvocationFailedException | ServiceAccessDeniedException
 				| ServiceNotAuthorizedException e) {
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
+		} catch (ReqBazException e) {
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR)
+					.entity("Error deleting Requirements Bazaar category.").build();
+		} catch (ParseException e) {
 			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
 		}
 	}

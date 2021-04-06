@@ -24,6 +24,8 @@ export MYSQL_DATABASE='commedit'
     echo "Mandatory variable MYSQL_USER is not set. Add -e MYSQL_USER=myuser to your arguments." && exit 1
 [[ -z "${MYSQL_PASSWORD}" ]] && \
     echo "Mandatory variable MYSQL_PASSWORD is not set. Add -e MYSQL_PASSWORD=mypasswd to your arguments." && exit 1
+[[ -z "${REQ_BAZ_PROJECT_ID}" ]] && \
+    echo "Mandatory variable REQ_BAZ_PROJECT_ID is not set. Add -e REQ_BAZ_PROJECT_ID=project_id to your arguments." && exit 1
 
 # set defaults for optional service parameters
 [[ -z "${SERVICE_PASSPHRASE}" ]] && export SERVICE_PASSPHRASE='Passphrase'
@@ -33,6 +35,7 @@ export MYSQL_DATABASE='commedit'
 [[ -z "${CODE_GENERATION_SERVICE}" ]] && export CODE_GENERATION_SERVICE='i5.las2peer.services.codeGenerationService.CodeGenerationService@0.1'
 [[ -z "${METADATA_SERVICE}" ]] && export METADATA_SERVICE='i5.las2peer.services.metadataService.MetadataService@0.1'
 [[ -z "${DEPLOYMENT_URL}" ]] && export DEPLOYMENT_URL="http://localhost:${HTTP_PORT}"
+[[ -z "${DISABLE_CATEGORY_CREATION}" ]] && export DISABLE_CATEGORY_CREATION='false'
 
 # set defaults for optional web connector parameters
 [[ -z "${START_HTTP}" ]] && export START_HTTP='TRUE'
@@ -57,6 +60,8 @@ set_in_service_config semanticCheckService ${SEMANTIC_CHECK_SERVICE}
 set_in_service_config codeGenerationService ${CODE_GENERATION_SERVICE}
 set_in_service_config metadataService ${METADATA_SERVICE}
 set_in_service_config deploymentUrl ${DEPLOYMENT_URL}
+set_in_service_config reqBazProjectId ${REQ_BAZ_PROJECT_ID}
+set_in_service_config debugDisableCategoryCreation ${DISABLE_CATEGORY_CREATION}
 
 # configure web connector properties
 

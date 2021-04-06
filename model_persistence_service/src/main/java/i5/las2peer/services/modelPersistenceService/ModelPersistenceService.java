@@ -27,6 +27,7 @@ import io.swagger.annotations.SwaggerDefinition;
 
 import i5.las2peer.services.modelPersistenceService.modelServices.*;
 import i5.las2peer.services.modelPersistenceService.projectMetadata.ProjectMetadata;
+import i5.las2peer.services.modelPersistenceService.projectMetadata.ReqBazHelper;
 import i5.las2peer.services.modelPersistenceService.versionedModel.Commit;
 import i5.las2peer.services.modelPersistenceService.versionedModel.VersionedModel;
 
@@ -60,6 +61,14 @@ public class ModelPersistenceService extends RESTService {
 	private DatabaseManager dbm;
 
 	private MetadataDocService metadataDocService;
+	
+	/*
+	 * Requirements Bazaar configuration.
+	 */
+	private String reqBazBackendUrl;
+	private int reqBazProjectId;
+	// debug variable to turn on/off the creation of requirements bazaar categories
+	private boolean debugDisableCategoryCreation;
 
 	/*
 	 * Global variables
@@ -73,6 +82,11 @@ public class ModelPersistenceService extends RESTService {
 		// and credentials
 		dbm = new DatabaseManager(jdbcDriverClassName, jdbcLogin, jdbcPass, jdbcUrl, jdbcSchema);
 		metadataDocService = new MetadataDocService(this.dbm, this.logger);
+		
+		// setup ReqBazHelper
+		ReqBazHelper reqBazHelper = ReqBazHelper.getInstance();
+		reqBazHelper.setReqBazBackendUrl(this.reqBazBackendUrl);
+	    reqBazHelper.setReqBazProjectId(this.reqBazProjectId);
 	}
 
 	@Override
@@ -98,6 +112,15 @@ public class ModelPersistenceService extends RESTService {
 
 	public MetadataDocService getMetadataService(){
 		return metadataDocService;
+	}
+	
+	/**
+	 * Whether categories in the Requirements Bazaar should be created for every component.
+	 * This can be configured using the service properties file.
+	 * @return Whether categories in the Requirements Bazaar should be created for every component.
+	 */
+	public boolean isCategoryCreationDisabled() {
+		return this.debugDisableCategoryCreation;
 	}
 	
 	/**
