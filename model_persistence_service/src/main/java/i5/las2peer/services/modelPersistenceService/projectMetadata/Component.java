@@ -27,7 +27,7 @@ public class Component {
 	/**
 	 * Id of the corresponding category in the Requirements Bazaar.
 	 */
-	private int reqBazCategoryId;
+	private int reqBazCategoryId = -1;
 	
 	/**
 	 * Id of the corresponding project in the Requirements Bazaar.
