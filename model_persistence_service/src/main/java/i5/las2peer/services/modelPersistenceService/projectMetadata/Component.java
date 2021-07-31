@@ -2,7 +2,6 @@ package i5.las2peer.services.modelPersistenceService.projectMetadata;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.ArrayList;
 
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
@@ -112,62 +111,6 @@ public class Component {
 		}
 		
 		return jsonComponent;
-	}
-	
-	/**
-	 * Returns a list of all the components that are stored in the database.
-	 * @param connection Connection object
-	 * @return List of Component objects.
-	 * @throws SQLException If something with the database went wrong.
-	 * @throws ParseException If something (with parsing) while loading a component from the database went wrong.
-	 */
-	public static ArrayList<Component> getAllComponents(Connection connection) throws SQLException, ParseException {
-		ArrayList<Component> components = new ArrayList<>();
-		
-		/*PreparedStatement statement = connection.prepareStatement("SELECT id FROM Component");
-		ResultSet results = statement.executeQuery();
-		while(results.next()) {
-			components.add(new Component(results.getInt("id"), connection));
-		}
-		statement.close();*/
-		// TODO: replace this with a search in envelopes of projects containing the metadata
-		return components;
-	}
-	
-	/**
-	 * Checks whether the component is used in a project directly or as a dependency.
-	 * @param connection Connection object
-	 * @return Whether the component is used in a project directly or as a dependency.
-	 * @throws SQLException If something with the database went wrong.
-	 */
-	public boolean isUsed(Connection connection) throws SQLException {
-		boolean used = false;
-		
-		// check if it is used in a project (directly)
-		/*PreparedStatement statement = connection.prepareStatement("SELECT * FROM ProjectToComponent WHERE componentId = ?;");
-		statement.setInt(1, this.id);
-		ResultSet result = statement.executeQuery();
-		if(result.next()) {
-			used = true;
-		}
-		statement.close();
-		result.close();
-		if(used) return true;
-		
-		// check if it is used in a project as a dependency
-	    statement = connection.prepareStatement("SELECT * FROM Dependency WHERE componentId = ?;");
-		statement.setInt(1, this.id);
-		result = statement.executeQuery();
-		if(result.next()) {
-			used = true;
-		}
-		statement.close();
-		result.close();
-		if(used) return true;*/
-		// TODO: adjust to envelopes
-		
-		// component is not used in a project directly or as a dependency
-		return false;
 	}
 	
 	public void createEmptyVersionedModel(Connection connection) throws SQLException {
