@@ -13,6 +13,7 @@ import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
+import javax.ws.rs.HeaderParam;
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
@@ -45,6 +46,7 @@ import i5.las2peer.api.execution.ServiceNotAuthorizedException;
 import i5.las2peer.api.execution.ServiceNotAvailableException;
 import i5.las2peer.api.execution.ServiceNotFoundException;
 import i5.las2peer.api.logging.MonitoringEvent;
+import i5.las2peer.api.security.UserAgent;
 import i5.las2peer.logging.L2pLogger;
 import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
 import i5.las2peer.services.modelPersistenceService.exception.CGSInvocationException;
@@ -1063,6 +1065,8 @@ public class RESTResources {
 	 * Adds a component to a project.
 	 * @param projectName Name of the project where a component should be added to.
 	 * @param inputComponent JSON representation of the component to add to the project (must contain access token of user).
+	 * @param sub Sub of the user.
+	 * @param accessToken Access token of the user.
 	 * @return Response with status code (and possibly an error description).
 	 */
 	@POST
@@ -1077,7 +1081,8 @@ public class RESTResources {
 			@ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST, message = "Given component is not well formatted or attributes are missing."),
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error.")
 	})
-	public Response postProjectComponent(@PathParam("projectName") String projectName, String inputComponent) {
+	public Response postProjectComponent(@PathParam("projectName") String projectName, String inputComponent, 
+			@HeaderParam("sub") String sub, @HeaderParam("access_token") String accessToken) {
         Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postProjectComponent: trying to add component to project");
         
         // check if calling agent is member of the project
@@ -1093,7 +1098,8 @@ public class RESTResources {
         	return Response.status(HttpURLConnection.HTTP_FORBIDDEN).build();
         }
         
-        String accessToken = (String) ((JSONObject) JSONValue.parse(inputComponent)).get("access_token");
+        UserAgent agent = (UserAgent) Context.getCurrent().getMainAgent();
+        String username = agent.getLoginName();
         
         // user is project member
         // create new component
@@ -1107,7 +1113,8 @@ public class RESTResources {
 			// create category in requirements bazaar
 			if(!this.service.isCategoryCreationDisabled()) {
 			    String categoryName = projectName + "-" + component.getName();
-				ReqBazCategory reqBazCategory = ReqBazHelper.getInstance().createCategory(categoryName, accessToken);
+				ReqBazCategory reqBazCategory = ReqBazHelper.getInstance().createCategory(categoryName, accessToken,
+						username, sub);
 				component.setReqBazCategory(reqBazCategory);
 			}
 			
@@ -1162,6 +1169,8 @@ public class RESTResources {
 	 * from the CAE.
 	 * @param projectName Name of the project where the component should be removed from.
 	 * @param componentName Name of the component which should be removed from the project.
+	 * @param sub Sub of the user.
+	 * @param accessToken Access token of the user.
 	 * @return Response with status code (and possibly error message).
 	 */
 	@DELETE
@@ -1177,7 +1186,8 @@ public class RESTResources {
 			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error.")
 	})
 	public Response removeProjectComponent(@PathParam("projectName") String projectName, 
-			@PathParam("componentName") String componentName, String body) {
+			@PathParam("componentName") String componentName, @HeaderParam("sub") String sub, 
+			@HeaderParam("access_token") String accessToken) {
 		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
 				"removeProjectComponent: trying to remove component with name " + componentName +
 				" from project with name " + projectName);
@@ -1195,7 +1205,8 @@ public class RESTResources {
         	return Response.status(HttpURLConnection.HTTP_FORBIDDEN).build();
         }
         
-        String accessToken = (String) ((JSONObject) JSONValue.parse(body)).get("access_token");
+        UserAgent agent = (UserAgent) Context.getCurrent().getMainAgent();
+        String username = agent.getLoginName();
         
 		try {
 			// get current metadata
@@ -1222,7 +1233,7 @@ public class RESTResources {
 	     	
 	     	// delete Requirements Bazaar category
 	     	if(componentToRemove.isConnectedToReqBaz()) {
-				ReqBazHelper.getInstance().deleteCategory(componentToRemove.getReqBazCategory(), accessToken);
+				ReqBazHelper.getInstance().deleteCategory(componentToRemove.getReqBazCategory(), accessToken, username, sub);
 			}
 	     	
 	     	JSONObject o = new JSONObject();
