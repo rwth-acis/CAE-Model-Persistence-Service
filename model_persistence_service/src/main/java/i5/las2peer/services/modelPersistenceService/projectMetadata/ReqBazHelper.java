@@ -7,6 +7,7 @@ import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Base64;
 
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
@@ -47,10 +48,12 @@ public class ReqBazHelper {
 	 * Creates a new category in the Requirements Bazaar.
 	 * @param categoryName Name of the category that should be created.
 	 * @param accessToken The OIDC access token which should be used to create the Requirements Bazaar category.
+	 * @param username Username/login name of the agent.
+	 * @param sub Sub of the user.
 	 * @return ReqBazCategory object.
 	 * @throws ReqBazException If something with the API request went wrong.
 	 */
-	public ReqBazCategory createCategory(String categoryName, String accessToken) throws ReqBazException {
+	public ReqBazCategory createCategory(String categoryName, String accessToken, String username, String sub) throws ReqBazException {
 		if(reqBazBackendUrl == null || reqBazProjectId == -1) {
 			throw new ReqBazException("One of the variables reqBazBackendUrl or reqBazProjectId are not set.");
 		}
@@ -71,7 +74,8 @@ public class ReqBazHelper {
 			connection.setUseCaches(false);
 			connection.setRequestProperty("Content-Type", "application/json");
 			connection.setRequestProperty("Content-Length", String.valueOf(body.length()));
-			connection.setRequestProperty("Authorization", "Bearer " + oidcToken);
+			connection.setRequestProperty("access-token", oidcToken);
+			connection.setRequestProperty("Authorization", "Basic " + this.getAuthorizationHeader(username, sub));
 			
             writeRequestBody(connection, body);
 			
@@ -104,9 +108,11 @@ public class ReqBazHelper {
 	 * Deletes the category in the Requirements Bazaar.
 	 * @param category ReqBazCategory which should be deleted.
 	 * @param accessToken Access Token of the user, needed to use the Requirements Bazaar API.
+	 * @param username Username/login name of the agent.
+	 * @param sub Sub of the user.
 	 * @throws ReqBazException If something with the API went wrong.
 	 */
-	public void deleteCategory(ReqBazCategory category, String accessToken) throws ReqBazException {
+	public void deleteCategory(ReqBazCategory category, String accessToken, String username, String sub) throws ReqBazException {
 		// this is the access token from the user that wants to create the project
 		String oidcToken = accessToken;
 				
@@ -119,7 +125,8 @@ public class ReqBazHelper {
 			connection.setDoInput(true);
 			connection.setDoOutput(true);
 			connection.setUseCaches(false);
-			connection.setRequestProperty("Authorization", "Bearer " + oidcToken);
+			connection.setRequestProperty("access-token", oidcToken);
+			connection.setRequestProperty("Authorization", "Basic " + this.getAuthorizationHeader(username, sub));
 					
 		    // forward (in case of) error
             // 200 is ok, since then the category got deleted
@@ -135,6 +142,11 @@ public class ReqBazHelper {
 			e.printStackTrace();
 			throw new ReqBazException(e.getMessage());
 		}
+	}
+	
+	private String getAuthorizationHeader(String username, String sub) {
+		String s = username + ":" + sub;
+		return Base64.getEncoder().encodeToString(s.getBytes());
 	}
 	
 	/**

@@ -35,6 +35,7 @@ export MYSQL_DATABASE='commedit'
 [[ -z "${CODE_GENERATION_SERVICE}" ]] && export CODE_GENERATION_SERVICE='i5.las2peer.services.codeGenerationService.CodeGenerationService@0.1'
 [[ -z "${METADATA_SERVICE}" ]] && export METADATA_SERVICE='i5.las2peer.services.metadataService.MetadataService@0.1'
 [[ -z "${DEPLOYMENT_URL}" ]] && export DEPLOYMENT_URL="http://localhost:${HTTP_PORT}"
+[[ -z "${REQ_BAZ_BACKEND_URL}" ]] && export REQ_BAZ_BACKEND_URL="https://requirements-bazaar.org/bazaar"
 [[ -z "${DISABLE_CATEGORY_CREATION}" ]] && export DISABLE_CATEGORY_CREATION='false'
 
 # set defaults for optional web connector parameters
@@ -60,6 +61,7 @@ set_in_service_config semanticCheckService ${SEMANTIC_CHECK_SERVICE}
 set_in_service_config codeGenerationService ${CODE_GENERATION_SERVICE}
 set_in_service_config metadataService ${METADATA_SERVICE}
 set_in_service_config deploymentUrl ${DEPLOYMENT_URL}
+set_in_service_config reqBazBackendUrl ${REQ_BAZ_BACKEND_URL}
 set_in_service_config reqBazProjectId ${REQ_BAZ_PROJECT_ID}
 set_in_service_config debugDisableCategoryCreation ${DISABLE_CATEGORY_CREATION}
 
