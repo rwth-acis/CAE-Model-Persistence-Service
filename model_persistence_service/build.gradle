@@ -41,6 +41,8 @@ configurations {
 }
 
 jar {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    
     manifest {
         attributes "Main-Class": "${project.property('service.name')}.${project.property('service.class')}"
         attributes "Library-Version": "${project.property('service.version')}"
