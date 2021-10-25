@@ -5,12 +5,16 @@ plugins {
 }
 
 repositories {
-    // Use JCenter for resolving dependencies.
-    jcenter()
+    // Use maven central for resolving dependencies.
+    mavenCentral()
 
     // DBIS Archiva
     maven {
         url "https://archiva.dbis.rwth-aachen.de:9911/repository/internal/"
+    }
+
+    maven {
+        url "https://archiva.dbis.rwth-aachen.de:9911/repository/snapshots/"
     }
 }
 
@@ -19,8 +23,7 @@ dependencies {
     testImplementation "junit:junit:4.13.2"
 
     // las2peer bundle which is not necessary in the runtime path
-    // compileOnly will be moved into the lib dir afterwards
-    compileOnly "i5:las2peer-bundle:${project.property('core.version')}"
+    implementation "i5:las2peer-bundle:${project.property('core.version')}"
 
     implementation "i5:cae-simple-model-representation:0.3"
     implementation "i5:semantic-check-response:0.1"
@@ -34,7 +37,7 @@ dependencies {
 
 configurations {
     // This ensures las2peer is available in the tests, but won't be bundled
-    testCompile.extendsFrom compileOnly
+    testImplementation.extendsFrom implementation
 }
 
 jar {
@@ -58,14 +61,14 @@ application {
     archivesBaseName = group
 
     version = "${project.property('service.version')}"
-    mainClassName = "i5.las2peer.tools.L2pNodeLauncher"
+    mainClass.set("i5.las2peer.tools.L2pNodeLauncher")
     sourceCompatibility = "${project.property('java.version')}"
     targetCompatibility = "${project.property('java.version')}"
 }
 
 // put all .jar files into export/jars folder
 tasks.withType(Jar) {
-    destinationDir = file("$projectDir/export/jars")
+    destinationDirectory = file("$projectDir/export/jars")
 }
 
 javadoc {
