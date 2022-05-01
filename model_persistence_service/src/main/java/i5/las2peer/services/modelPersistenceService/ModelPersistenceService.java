@@ -1,59 +1,33 @@
 package i5.las2peer.services.modelPersistenceService;
 
-import java.io.Serializable;
-import java.net.HttpURLConnection;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.InternalServerErrorException;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-
-import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
-import org.json.simple.parser.ParseException;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import i5.cae.semanticCheck.SemanticCheckResponse;
-import i5.cae.simpleModel.SimpleEntityAttribute;
-import i5.cae.simpleModel.SimpleModel;
-import i5.cae.simpleModel.node.SimpleNode;
 import i5.las2peer.api.Context;
 import i5.las2peer.api.ManualDeployment;
+import i5.las2peer.api.execution.InternalServiceException;
+import i5.las2peer.api.execution.ServiceAccessDeniedException;
+import i5.las2peer.api.execution.ServiceInvocationFailedException;
+import i5.las2peer.api.execution.ServiceMethodNotFoundException;
+import i5.las2peer.api.execution.ServiceNotAuthorizedException;
+import i5.las2peer.api.execution.ServiceNotAvailableException;
+import i5.las2peer.api.execution.ServiceNotFoundException;
 import i5.las2peer.logging.L2pLogger;
 import i5.las2peer.restMapper.RESTService;
 import i5.las2peer.restMapper.annotations.ServicePath;
 import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
-import i5.las2peer.services.modelPersistenceService.exception.CGSInvocationException;
-import i5.las2peer.services.modelPersistenceService.exception.ModelNotFoundException;
-import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
-import i5.las2peer.services.modelPersistenceService.model.Model;
 import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
 import io.swagger.annotations.Contact;
 import io.swagger.annotations.Info;
 import io.swagger.annotations.License;
 import io.swagger.annotations.SwaggerDefinition;
-import io.swagger.jaxrs.Reader;
-import io.swagger.models.Swagger;
-import io.swagger.util.Json;
 
 import i5.las2peer.services.modelPersistenceService.modelServices.*;
+import i5.las2peer.services.modelPersistenceService.projectMetadata.ProjectMetadata;
+import i5.las2peer.services.modelPersistenceService.projectMetadata.ReqBazHelper;
 import i5.las2peer.services.modelPersistenceService.versionedModel.Commit;
 import i5.las2peer.services.modelPersistenceService.versionedModel.VersionedModel;
 
@@ -70,6 +44,8 @@ import i5.las2peer.services.modelPersistenceService.versionedModel.VersionedMode
 @ServicePath("CAE")
 @ManualDeployment
 public class ModelPersistenceService extends RESTService {
+	
+	public static final String PROJECT_SERVICE = "i5.las2peer.services.projectService.ProjectService";
 
 	/*
 	 * Database configuration
@@ -85,6 +61,14 @@ public class ModelPersistenceService extends RESTService {
 	private DatabaseManager dbm;
 
 	private MetadataDocService metadataDocService;
+	
+	/*
+	 * Requirements Bazaar configuration.
+	 */
+	private String reqBazBackendUrl;
+	private int reqBazProjectId;
+	// debug variable to turn on/off the creation of requirements bazaar categories
+	private boolean debugDisableCategoryCreation;
 
 	/*
 	 * Global variables
@@ -98,6 +82,11 @@ public class ModelPersistenceService extends RESTService {
 		// and credentials
 		dbm = new DatabaseManager(jdbcDriverClassName, jdbcLogin, jdbcPass, jdbcUrl, jdbcSchema);
 		metadataDocService = new MetadataDocService(this.dbm, this.logger);
+		
+		// setup ReqBazHelper
+		ReqBazHelper reqBazHelper = ReqBazHelper.getInstance();
+		reqBazHelper.setReqBazBackendUrl(this.reqBazBackendUrl);
+	    reqBazHelper.setReqBazProjectId(this.reqBazProjectId);
 	}
 
 	@Override
@@ -123,6 +112,15 @@ public class ModelPersistenceService extends RESTService {
 
 	public MetadataDocService getMetadataService(){
 		return metadataDocService;
+	}
+	
+	/**
+	 * Whether categories in the Requirements Bazaar should be created for every component.
+	 * This can be configured using the service properties file.
+	 * @return Whether categories in the Requirements Bazaar should be created for every component.
+	 */
+	public boolean isCategoryCreationDisabled() {
+		return this.debugDisableCategoryCreation;
 	}
 	
 	/**
@@ -216,6 +214,48 @@ public class ModelPersistenceService extends RESTService {
 				return versions;
 			}
 		}
+	}
+	
+	/**
+	 * Method gets called by las2peer-project-service when a new project got created.
+	 * @param project JSON representation of the newly created project.
+	 */
+	public void _onProjectCreated(JSONObject project) {
+		Connection connection = null;
+		try {
+			connection = this.getDbm().getConnection();
+			String projectName = (String) project.get("name");
+			// create initial metadata for the project 
+			ProjectMetadata metadata = new ProjectMetadata(connection, projectName, 
+					Context.getCurrent().getMainAgent().getIdentifier());
+			// update project and set this as the new metadata
+			JSONObject o = new JSONObject();
+			o.put("projectName", projectName);
+			o.put("oldMetadata", new JSONObject());
+			o.put("newMetadata", metadata.toJSONObject());
+			Context.get().invoke(PROJECT_SERVICE, "changeMetadataRMI", "CAE", o.toJSONString());
+		} catch (SQLException | ServiceNotFoundException | ServiceNotAvailableException | InternalServiceException | 
+				ServiceMethodNotFoundException | ServiceInvocationFailedException | ServiceAccessDeniedException |
+				ServiceNotAuthorizedException e) {
+			logger.printStackTrace(e);
+			System.out.println("ERROR:");
+			System.out.println(e.toString());
+			System.out.println(e.getMessage());
+		} finally {
+			try {
+				if(connection != null) connection.close();
+			} catch (SQLException e) {
+				logger.printStackTrace(e);
+			}
+		}
+	}
+	
+	/**
+	 * Methods gets called by las2peer-project-service when a project got deleted.
+	 * @param project JSON representation of the deleted project.
+	 */
+	public void _onProjectDeleted(JSONObject project) {
+		
 	}
 	
 }

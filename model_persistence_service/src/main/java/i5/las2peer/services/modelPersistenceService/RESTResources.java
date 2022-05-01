@@ -13,6 +13,7 @@ import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
+import javax.ws.rs.HeaderParam;
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
@@ -45,10 +46,13 @@ import i5.las2peer.api.execution.ServiceNotAuthorizedException;
 import i5.las2peer.api.execution.ServiceNotAvailableException;
 import i5.las2peer.api.execution.ServiceNotFoundException;
 import i5.las2peer.api.logging.MonitoringEvent;
+import i5.las2peer.api.security.UserAgent;
 import i5.las2peer.logging.L2pLogger;
 import i5.las2peer.services.modelPersistenceService.database.DatabaseManager;
 import i5.las2peer.services.modelPersistenceService.exception.CGSInvocationException;
+import i5.las2peer.services.modelPersistenceService.exception.GitHubException;
 import i5.las2peer.services.modelPersistenceService.exception.ModelNotFoundException;
+import i5.las2peer.services.modelPersistenceService.exception.ReqBazException;
 import i5.las2peer.services.modelPersistenceService.exception.VersionedModelNotFoundException;
 import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
 import i5.las2peer.services.modelPersistenceService.model.Model;
@@ -61,6 +65,12 @@ import io.swagger.util.Json;
 import i5.las2peer.services.modelPersistenceService.model.metadata.MetadataDoc;
 
 import i5.las2peer.services.modelPersistenceService.modelServices.*;
+import i5.las2peer.services.modelPersistenceService.projectMetadata.Component;
+import i5.las2peer.services.modelPersistenceService.projectMetadata.ExternalDependency;
+import i5.las2peer.services.modelPersistenceService.projectMetadata.GitHubHelper;
+import i5.las2peer.services.modelPersistenceService.projectMetadata.PredefinedRoles;
+import i5.las2peer.services.modelPersistenceService.projectMetadata.ReqBazCategory;
+import i5.las2peer.services.modelPersistenceService.projectMetadata.ReqBazHelper;
 import i5.las2peer.services.modelPersistenceService.versionedModel.Commit;
 import i5.las2peer.services.modelPersistenceService.versionedModel.VersionedModel;
 
@@ -366,131 +376,171 @@ public class RESTResources {
 		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
 				"postCommitToVersionedModel: posting commit to versioned model with id " + versionedModelId);
 		
+		JSONObject body = (JSONObject) JSONValue.parse(inputCommit);
+		String projectName = (String) body.get("projectName");
+		
+		// request project from project service to check if the versioned model belongs to the project
+		JSONObject projectMetadataJSON;
+		try {
+			projectMetadataJSON = (JSONObject) Context.get()
+					.invoke(ModelPersistenceService.PROJECT_SERVICE, "getProjectMetadataRMI", "CAE", projectName);
+		} catch (ServiceNotFoundException | ServiceNotAvailableException | InternalServiceException
+				| ServiceMethodNotFoundException | ServiceInvocationFailedException | ServiceAccessDeniedException
+				| ServiceNotAuthorizedException e) {
+			return Response.serverError().entity("Internal server error: " + e.getMessage()).build();
+		}
+		
+		JSONArray componentsJSON = (JSONArray) projectMetadataJSON.get("components");
+		boolean included = false;
+		for(Object o : componentsJSON) {
+			JSONObject componentJSON = (JSONObject) o;
+			int compVersionedModelId = ((Long) componentJSON.get("versionedModelId")).intValue();
+			if(compVersionedModelId == versionedModelId) {
+				included = true;
+				break;
+			}
+		}
+		
+		if(!included) {
+			return Response.status(HttpURLConnection.HTTP_BAD_REQUEST)
+					.entity("The versioned model does not belong to the given project.").build();
+		}
+		
+		// check if user is a project member
+		boolean projectMember;
+		try {
+			projectMember = (boolean) Context.get().invoke(ModelPersistenceService.PROJECT_SERVICE, "hasAccessToProject", "CAE", projectName);
+		} catch (ServiceNotFoundException | ServiceNotAvailableException | InternalServiceException
+				| ServiceMethodNotFoundException | ServiceInvocationFailedException | ServiceAccessDeniedException
+				| ServiceNotAuthorizedException e) {
+			return Response.serverError().entity("Internal server error: " + e.getMessage()).build();
+		}
+		
+		if(!projectMember) {
+			// user does not have the permission to commit to the versioned model, or an error occurred
+			return Response.status(HttpURLConnection.HTTP_FORBIDDEN)
+					.entity("User is not allowed to commit to the versioned model (or an error occurred).").build();
+		}
+		
+		// now we know, that the user is a project member and has the permission to commit to the versioned model
+		
 		Connection connection = null;
 		try {
 			connection = dbm.getConnection();
-			
-			boolean isAnonymous = (boolean) Context.getCurrent().invoke(PROJECT_MANAGEMENT_SERVICE, "isAnonymous");
-			
-			if(isAnonymous) {
-				return Response.status(HttpURLConnection.HTTP_UNAUTHORIZED).entity("User not authorized.").build();
-			} else {
-				boolean hasCommitPermission = (boolean) Context.getCurrent()
-						.invoke(PROJECT_MANAGEMENT_SERVICE, "hasCommitPermission", versionedModelId);
-				
-				if(hasCommitPermission) {
-				    // user has the permission to commit to the versioned model
-					// there always exists a commit for "uncommited changes"
-					// that one needs to be removed first
-					connection.setAutoCommit(false);
-					
-					VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
-					Commit uncommitedChanges = versionedModel.getCommitForUncommitedChanges();
-					uncommitedChanges.delete(connection);
-					
-					// now create a new commit
-					Commit commit = new Commit(inputCommit, false);
-					commit.persist(versionedModelId, connection, false);
-					
-					// now create new commit for uncommited changes
-					Commit uncommitedChangesNew = new Commit(inputCommit, true);
-					uncommitedChangesNew.persist(versionedModelId, connection, false);
-					
-					// reload versionedModel from database
-					versionedModel = new VersionedModel(versionedModelId, connection);
-					
-					// get model
-					Model model = commit.getModel();
-					
-					// do the semantic check
-					if (!semanticCheckService.isEmpty()) {
-						this.checkModel(model);
-					}
-					
-					// The codegen service and metadatadocservice already require the model to have a "type" attribute
-					// this "type" attribute is included in the request body
-					JSONObject commitJson = (JSONObject) JSONValue.parse(inputCommit);
-					String type = (String) commitJson.get("componentType");
-					String componentName = (String) commitJson.get("componentName");
-					String metadataVersion = (String) commitJson.get("metadataVersion");
-					
-					// given type "frontend" needs to be converted to "frontend-component"
-					if(type.equals("frontend")) type = "frontend-component";
-					// the other types "microservice" and "application" do not need to be converted
-					
-					// these model attributes are not persisted to the database, since model.persist already got called
-					// when the commit got persisted
-					model.getAttributes().add(new EntityAttribute(new SimpleEntityAttribute("syncmetaid", "type", type)));
 
-					model.getAttributes().add(new EntityAttribute("syncmetaid", "versionedModelId", String.valueOf(versionedModelId)));
-					
-					model.getAttributes().add(new EntityAttribute("syncmetaid", "componentName", componentName));
-					
-					// call code generation service
-					String commitSha = "";
-					if (!codeGenerationService.isEmpty()) {
-						try {
-							// get user input metadata doc if available
-							String metadataDocString = model.getMetadataDoc();
-							
-							if (metadataDocString == null)
-								metadataDocString = "";
+			// there always exists a commit for "uncommited changes"
+			// that one needs to be removed first
+			connection.setAutoCommit(false);
 
-							Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postModel: invoking code generation service..");
-							
-							// check if it is the first commit or not
-							if(versionedModel.getCommits().size() == 2) {
-								// this is the first commit (there are 2 in total, because of the "uncommited changes" commit)
-								commitSha = callCodeGenerationService("createFromModel", metadataDocString, versionedModel, commit);
-							} else {
-							    // not the first commit
-								commitSha = callCodeGenerationService("updateRepositoryOfModel", metadataDocString, versionedModel, commit);
-							}
-						} catch (CGSInvocationException e) {
-							try {
-								connection.rollback();
-							} catch (SQLException e1) {}
-							return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
-						}
+			VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
+			Commit uncommitedChanges = versionedModel.getCommitForUncommitedChanges();
+			uncommitedChanges.delete(connection);
+
+			// now create a new commit
+			Commit commit = new Commit(inputCommit, false);
+			commit.persist(versionedModelId, connection, false);
+
+			// now create new commit for uncommited changes
+			Commit uncommitedChangesNew = new Commit(inputCommit, true);
+			uncommitedChangesNew.persist(versionedModelId, connection, false);
+
+			// reload versionedModel from database
+			versionedModel = new VersionedModel(versionedModelId, connection);
+
+			// get model
+			Model model = commit.getModel();
+
+			// do the semantic check
+			if (!semanticCheckService.isEmpty()) {
+				this.checkModel(model);
+			}
+
+			// The codegen service and metadatadocservice already require the model to have
+			// a "type" attribute
+			// this "type" attribute is included in the request body
+			JSONObject commitJson = (JSONObject) JSONValue.parse(inputCommit);
+			String type = (String) commitJson.get("componentType");
+			String componentName = (String) commitJson.get("componentName");
+			String metadataVersion = (String) commitJson.get("metadataVersion");
+
+			// given type "frontend" needs to be converted to "frontend-component"
+			if (type.equals("frontend"))
+				type = "frontend-component";
+			// the other types "microservice" and "application" do not need to be converted
+
+			// these model attributes are not persisted to the database, since model.persist
+			// already got called
+			// when the commit got persisted
+			model.getAttributes().add(new EntityAttribute(new SimpleEntityAttribute("syncmetaid", "type", type)));
+
+			model.getAttributes().add(new EntityAttribute("syncmetaid", "versionedModelId", String.valueOf(versionedModelId)));
+
+			model.getAttributes().add(new EntityAttribute("syncmetaid", "componentName", componentName));
+
+			// call code generation service
+			String commitSha = "";
+			if (!codeGenerationService.isEmpty()) {
+				try {
+					// get user input metadata doc if available
+					String metadataDocString = model.getMetadataDoc();
+
+					if (metadataDocString == null)
+						metadataDocString = "";
+
+					Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postModel: invoking code generation service..");
+
+					// check if it is the first commit or not
+					if (versionedModel.getCommits().size() == 2) {
+						// this is the first commit (there are 2 in total, because of the "uncommited
+						// changes" commit)
+						commitSha = callCodeGenerationService("createFromModel", metadataDocString, versionedModel, commit);
+					} else {
+						// not the first commit
+						commitSha = callCodeGenerationService("updateRepositoryOfModel", metadataDocString, versionedModel, commit);
 					}
-					
-					// generate metadata swagger doc after model valid in code generation
-					metadataDocService.modelToSwagger(versionedModel.getId(), componentName, model, metadataVersion);
-					
-					// now persist the sha given by code generation service
-					commit.persistSha(commitSha, connection);
-					
-					// everything went well -> commit database changes
-					connection.commit();
-					
-					return Response.ok(commitSha).build();
-				} else {
-					// user does not have the permission to commit to the versioned model, or an error occurred
-					return Response.status(HttpURLConnection.HTTP_FORBIDDEN)
-							.entity("User is not allowed to commit to the versioned model (or an error occurred).").build();
+				} catch (CGSInvocationException e) {
+					try {
+						connection.rollback();
+					} catch (SQLException e1) {
+					}
+					return Response.serverError().entity("Model not valid: " + e.getMessage()).build();
 				}
 			}
+
+			// generate metadata swagger doc after model valid in code generation
+			metadataDocService.modelToSwagger(versionedModel.getId(), componentName, model, metadataVersion);
+
+			// now persist the sha given by code generation service
+			commit.persistSha(commitSha, connection);
+
+			// everything went well -> commit database changes
+			connection.commit();
+
+			return Response.ok(commitSha).build();
 		} catch (SQLException e) {
 			try {
 				connection.rollback();
-			} catch (SQLException e1) {}
-	        logger.printStackTrace(e);
-		    return Response.serverError().entity("Internal server error.").build();
+			} catch (SQLException e1) {
+			}
+			logger.printStackTrace(e);
+			return Response.serverError().entity("Internal server error.").build();
 		} catch (ParseException e) {
 			try {
 				connection.rollback();
-			} catch (SQLException e1) {}
+			} catch (SQLException e1) {
+			}
 			logger.printStackTrace(e);
 			return Response.status(HttpURLConnection.HTTP_BAD_REQUEST).entity("Parse error.").build();
 		} catch (Exception e) {
 			try {
 				connection.rollback();
-			} catch (SQLException e1) {}
+			} catch (SQLException e1) {
+			}
 			logger.printStackTrace(e);
 			return Response.serverError().entity("Internal server error: " + e.getMessage()).build();
 		} finally {
 			try {
-			    connection.close();
+				connection.close();
 			} catch (SQLException e) {
 				logger.printStackTrace(e);
 			}
@@ -1009,6 +1059,298 @@ public class RESTResources {
 			logger.printStackTrace(e);
 			throw new CGSInvocationException(e.getMessage());
 		}
+	}
+	
+	/**
+	 * Adds a component to a project.
+	 * @param projectName Name of the project where a component should be added to.
+	 * @param inputComponent JSON representation of the component to add to the project (must contain access token of user).
+	 * @param sub Sub of the user.
+	 * @param accessToken Access token of the user.
+	 * @return Response with status code (and possibly an error description).
+	 */
+	@POST
+	@Path("/projects/{projectName}/components")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Adds component to project.")
+	@ApiResponses(value = {
+			@ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, added component to the project."),
+			@ApiResponse(code = HttpURLConnection.HTTP_UNAUTHORIZED, message = "User not authorized to add component to project."),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Project with the given id could not be found."),
+			@ApiResponse(code = HttpURLConnection.HTTP_FORBIDDEN, message = "User needs to be member of the project to add components to it."),
+			@ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST, message = "Given component is not well formatted or attributes are missing."),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error.")
+	})
+	public Response postProjectComponent(@PathParam("projectName") String projectName, String inputComponent, 
+			@HeaderParam("sub") String sub, @HeaderParam("access_token") String accessToken) {
+        Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE, "postProjectComponent: trying to add component to project");
+        
+        // check if calling agent is member of the project
+        boolean hasAccess;
+		try {
+			hasAccess = (boolean) Context.get().invoke(ModelPersistenceService.PROJECT_SERVICE, "hasAccessToProject", "CAE", projectName);
+		} catch (ServiceNotFoundException | ServiceNotAvailableException | InternalServiceException
+				| ServiceMethodNotFoundException | ServiceInvocationFailedException | ServiceAccessDeniedException
+				| ServiceNotAuthorizedException e) {
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).entity("Problem checking access to project.").build();
+		}
+        if(!hasAccess) {
+        	return Response.status(HttpURLConnection.HTTP_FORBIDDEN).build();
+        }
+        
+        UserAgent agent = (UserAgent) Context.getCurrent().getMainAgent();
+        String username = agent.getLoginName();
+        
+        // user is project member
+        // create new component
+        Component component;
+        Connection connection = null;
+		try {
+			component = new Component(inputComponent);
+			connection = this.dbm.getConnection();
+			component.createEmptyVersionedModel(connection);
+			
+			// create category in requirements bazaar
+			if(!this.service.isCategoryCreationDisabled()) {
+			    String categoryName = projectName + "-" + component.getName();
+				ReqBazCategory reqBazCategory = ReqBazHelper.getInstance().createCategory(categoryName, accessToken,
+						username, sub);
+				component.setReqBazCategory(reqBazCategory);
+			}
+			
+		} catch (ParseException e) {
+			return Response.status(HttpURLConnection.HTTP_BAD_REQUEST).build();
+		} catch (SQLException e) {
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
+		} catch (ReqBazException e) {
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR)
+					.entity("Requirements Bazaar: Category creation failed.").build();
+		} finally {
+			if(connection != null)
+				try {
+					connection.close();
+				} catch (SQLException e) {
+					return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
+				}
+		}
+        
+		try {
+			// get current metadata
+			JSONObject oldMetadata = (JSONObject) Context.get().invoke(ModelPersistenceService.PROJECT_SERVICE, "getProjectMetadataRMI", "CAE", projectName);
+			JSONObject newMetadata = (JSONObject) JSONValue.parse(oldMetadata.toJSONString());
+			// update project metadata
+	        JSONArray components = (JSONArray) newMetadata.get("components");
+	        components.add(component.toJSONObject());
+	        // send update metadata back to project service
+	        JSONObject o = new JSONObject();
+			o.put("projectName", projectName);
+			o.put("oldMetadata", oldMetadata);
+			o.put("newMetadata", newMetadata);
+	        boolean success = (boolean) Context.get().invoke(ModelPersistenceService.PROJECT_SERVICE, "changeMetadataRMI", "CAE", o.toJSONString());
+	        if(success) {
+	            return Response.status(HttpURLConnection.HTTP_OK).build();
+	        } else {
+	        	return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR)
+	        			.entity("Request to project service was not successful.").build();
+	        }
+		} catch (ServiceNotFoundException | ServiceNotAvailableException | InternalServiceException
+				| ServiceMethodNotFoundException | ServiceInvocationFailedException | ServiceAccessDeniedException
+				| ServiceNotAuthorizedException e) {
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
+		}
+	}
+	
+	/**
+	 * Removes the component with the given name from the project with the given name.
+	 * Therefore, the user sending the request needs to be a member of the project.
+	 * Access token needs to be sent in the method body.
+	 * 
+	 * If the component is not used somewhere else anymore (e.g. as a dependency), then it gets removed 
+	 * from the CAE.
+	 * @param projectName Name of the project where the component should be removed from.
+	 * @param componentName Name of the component which should be removed from the project.
+	 * @param sub Sub of the user.
+	 * @param accessToken Access token of the user.
+	 * @return Response with status code (and possibly error message).
+	 */
+	@DELETE
+	@Path("/projects/{projectName}/components/{componentName}")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Removes a component from a project.")
+	@ApiResponses(value = {
+			@ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, removed component from project."),
+			@ApiResponse(code = HttpURLConnection.HTTP_UNAUTHORIZED, message = "User not authorized."),
+			@ApiResponse(code = HttpURLConnection.HTTP_FORBIDDEN, message = "User is not member of the project and thus not allowed to remove components from it."),
+			@ApiResponse(code = HttpURLConnection.HTTP_NOT_FOUND, message = "Project with the given name or component to remove from project could not be found."),
+			@ApiResponse(code = HttpURLConnection.HTTP_BAD_REQUEST, message = "Access token missing."),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error.")
+	})
+	public Response removeProjectComponent(@PathParam("projectName") String projectName, 
+			@PathParam("componentName") String componentName, @HeaderParam("sub") String sub, 
+			@HeaderParam("access_token") String accessToken) {
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_MESSAGE,
+				"removeProjectComponent: trying to remove component with name " + componentName +
+				" from project with name " + projectName);
+		
+		// check if calling agent is member of the project
+        boolean hasAccess;
+		try {
+			hasAccess = (boolean) Context.get().invoke(ModelPersistenceService.PROJECT_SERVICE, "hasAccessToProject", "CAE", projectName);
+		} catch (ServiceNotFoundException | ServiceNotAvailableException | InternalServiceException
+				| ServiceMethodNotFoundException | ServiceInvocationFailedException | ServiceAccessDeniedException
+				| ServiceNotAuthorizedException e) {
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).entity("Problem checking access to project.").build();
+		}
+        if(!hasAccess) {
+        	return Response.status(HttpURLConnection.HTTP_FORBIDDEN).build();
+        }
+        
+        UserAgent agent = (UserAgent) Context.getCurrent().getMainAgent();
+        String username = agent.getLoginName();
+        
+		try {
+			// get current metadata
+			JSONObject oldMetadata = (JSONObject) Context.get().invoke(ModelPersistenceService.PROJECT_SERVICE, "getProjectMetadataRMI", "CAE", projectName);
+			JSONObject newMetadata = (JSONObject) JSONValue.parse(oldMetadata.toJSONString());
+	     	JSONArray components = (JSONArray) newMetadata.get("components");
+	     	Object objectToRemove = null;
+	     	Component componentToRemove = null;
+	     	for(Object o : components) {
+	     		JSONObject component = (JSONObject) o;
+	     		if(component.get("name").equals(componentName)) {
+	     			objectToRemove = o;
+	     			componentToRemove = new Component(component.toJSONString());
+	     			break;
+	     		}
+	     	}
+	     	if(objectToRemove == null) {
+	     		return Response.status(HttpURLConnection.HTTP_NOT_FOUND)
+	    			.entity("Component with the given name could not be found in the project.").build();
+	     	}
+	     	
+	     	// remove component & then send updated metadata to project service
+	     	components.remove(objectToRemove);
+	     	
+	     	// delete Requirements Bazaar category
+	     	if(componentToRemove.isConnectedToReqBaz()) {
+				ReqBazHelper.getInstance().deleteCategory(componentToRemove.getReqBazCategory(), accessToken, username, sub);
+			}
+	     	
+	     	JSONObject o = new JSONObject();
+			o.put("projectName", projectName);
+			o.put("oldMetadata", oldMetadata);
+			o.put("newMetadata", newMetadata);
+	     	boolean success = (boolean) Context.get().invoke(ModelPersistenceService.PROJECT_SERVICE, "changeMetadataRMI", "CAE", o.toJSONString());
+	        if(success) {
+	            return Response.status(HttpURLConnection.HTTP_OK).build();
+	        } else {
+	        	return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR)
+	        			.entity("Request to project service was not successful.").build();
+	        }
+		} catch (ServiceNotFoundException | ServiceNotAvailableException | InternalServiceException
+				| ServiceMethodNotFoundException | ServiceInvocationFailedException | ServiceAccessDeniedException
+				| ServiceNotAuthorizedException e) {
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
+		} catch (ReqBazException e) {
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR)
+					.entity("Error deleting Requirements Bazaar category.").build();
+		} catch (ParseException e) {
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
+		}
+	}
+	
+	/**
+	 * Lists the components, dependencies and external dependencies of the project.
+	 * @param projectName Name of the project where the components should be listed.
+	 * @return Response with status (and possibly error message).
+	 */
+	@GET
+	@Path("/projects/{projectName}/components")
+	@ApiOperation(value = "Lists the components of the project.")
+	@ApiResponses(value = {
+			@ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, returns list of components, dependencies and external dependencies of the project."),
+			@ApiResponse(code = HttpURLConnection.HTTP_FORBIDDEN, message = "User has no access to the project."),
+			@ApiResponse(code = HttpURLConnection.HTTP_INTERNAL_ERROR, message = "Internal server error.")
+	})
+	public Response getProjectComponents(@PathParam("projectName") String projectName) {
+		System.out.println("Klappt");
+		// check if calling agent is member of the project
+        boolean hasAccess;
+		try {
+			hasAccess = (boolean) Context.get().invoke(ModelPersistenceService.PROJECT_SERVICE, "hasAccessToProject", "CAE", projectName);
+		} catch (ServiceNotFoundException | ServiceNotAvailableException | InternalServiceException
+				| ServiceMethodNotFoundException | ServiceInvocationFailedException | ServiceAccessDeniedException
+				| ServiceNotAuthorizedException e) {
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).entity("Problem checking access to project.").build();
+		}
+        if(!hasAccess) {
+        	return Response.status(HttpURLConnection.HTTP_FORBIDDEN).build();
+        }
+        
+        try {
+        	// get current metadata
+			JSONObject metadata = (JSONObject) Context.get().invoke(ModelPersistenceService.PROJECT_SERVICE, "getProjectMetadataRMI", "CAE", projectName);
+		    
+			JSONObject result = new JSONObject();
+			
+			JSONArray components = (JSONArray) metadata.get("components");
+	     	for(Object o : components) {
+	     		JSONObject component = (JSONObject) o;
+	     		int versionedModelId = ((Long) component.get("versionedModelId")).intValue();
+	     		ArrayList<String> versions = service.getVersionsOfVersionedModel(versionedModelId);
+	     	    component.put("versions", versions);
+	     	}
+	     	result.put("components", components);
+	     	
+	     	JSONArray dependencies = (JSONArray) metadata.get("dependencies");
+	     	for(Object o : dependencies) {
+	     		JSONObject dependency = (JSONObject) o;
+	     		int versionedModelId = ((Long) dependency.get("versionedModelId")).intValue();
+	     		ArrayList<String> versions = service.getVersionsOfVersionedModel(versionedModelId);
+	     		dependency.put("versions", versions);
+	     	}
+	     	result.put("dependencies", dependencies);
+	     	
+	     	JSONArray externalDependencies = (JSONArray) metadata.get("externalDependencies");
+	     	for(Object o : externalDependencies) {
+	     		JSONObject externalDependency = (JSONObject) o;
+	     		String gitHubURL = (String) externalDependency.get("gitHubURL");
+	     		String repoOwner = ExternalDependency.getGitHubRepoOwner(gitHubURL);
+	     		String repoName = ExternalDependency.getGitHubRepoName(gitHubURL);
+	     	    // get version tags from GitHub API
+	     		ArrayList<String> versions = new ArrayList<>();
+	     		try {
+	     			versions = GitHubHelper.getRepoVersionTags(repoOwner, repoName);
+	     		} catch (GitHubException e) {
+	     			
+	     		}
+				externalDependency.put("versions", versions);
+	     	}
+	     	result.put("externalDependencies", externalDependencies);
+	     	
+            return Response.status(HttpURLConnection.HTTP_OK).entity(result.toJSONString()).build();
+        } catch (ServiceNotFoundException | ServiceNotAvailableException | InternalServiceException
+				| ServiceMethodNotFoundException | ServiceInvocationFailedException | ServiceAccessDeniedException
+				| ServiceNotAuthorizedException e) {
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).entity(e.getMessage()).build();
+		}
+	}
+	
+	/**
+	 * Returns the widget config which allows to view every widget.
+	 * This is used when a new role gets added to a project. Then it gets
+	 * this widget config initially.
+	 * @return Widget config which allows to view every widget.
+	 */
+	@GET
+	@Path("/widgetConfigAll") 
+	@Produces(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "Returns the widget config that allows to view every widget.")
+	@ApiResponses(value = {
+			@ApiResponse(code = HttpURLConnection.HTTP_OK, message = "OK, sending widget config.")
+	})
+	public Response getDefaultWidgetConfig() {
+		return Response.status(HttpURLConnection.HTTP_OK).entity(PredefinedRoles.VIEW_ALL).build();
 	}
 
 

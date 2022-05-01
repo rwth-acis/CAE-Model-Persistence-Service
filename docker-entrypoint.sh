@@ -24,6 +24,8 @@ export MYSQL_DATABASE='commedit'
     echo "Mandatory variable MYSQL_USER is not set. Add -e MYSQL_USER=myuser to your arguments." && exit 1
 [[ -z "${MYSQL_PASSWORD}" ]] && \
     echo "Mandatory variable MYSQL_PASSWORD is not set. Add -e MYSQL_PASSWORD=mypasswd to your arguments." && exit 1
+[[ -z "${REQ_BAZ_PROJECT_ID}" ]] && \
+    echo "Mandatory variable REQ_BAZ_PROJECT_ID is not set. Add -e REQ_BAZ_PROJECT_ID=project_id to your arguments." && exit 1
 
 # set defaults for optional service parameters
 [[ -z "${SERVICE_PASSPHRASE}" ]] && export SERVICE_PASSPHRASE='Passphrase'
@@ -33,6 +35,8 @@ export MYSQL_DATABASE='commedit'
 [[ -z "${CODE_GENERATION_SERVICE}" ]] && export CODE_GENERATION_SERVICE='i5.las2peer.services.codeGenerationService.CodeGenerationService@0.1'
 [[ -z "${METADATA_SERVICE}" ]] && export METADATA_SERVICE='i5.las2peer.services.metadataService.MetadataService@0.1'
 [[ -z "${DEPLOYMENT_URL}" ]] && export DEPLOYMENT_URL="http://localhost:${HTTP_PORT}"
+[[ -z "${REQ_BAZ_BACKEND_URL}" ]] && export REQ_BAZ_BACKEND_URL="https://requirements-bazaar.org/bazaar"
+[[ -z "${DISABLE_CATEGORY_CREATION}" ]] && export DISABLE_CATEGORY_CREATION='false'
 
 # set defaults for optional web connector parameters
 [[ -z "${START_HTTP}" ]] && export START_HTTP='TRUE'
@@ -57,6 +61,9 @@ set_in_service_config semanticCheckService ${SEMANTIC_CHECK_SERVICE}
 set_in_service_config codeGenerationService ${CODE_GENERATION_SERVICE}
 set_in_service_config metadataService ${METADATA_SERVICE}
 set_in_service_config deploymentUrl ${DEPLOYMENT_URL}
+set_in_service_config reqBazBackendUrl ${REQ_BAZ_BACKEND_URL}
+set_in_service_config reqBazProjectId ${REQ_BAZ_PROJECT_ID}
+set_in_service_config debugDisableCategoryCreation ${DISABLE_CATEGORY_CREATION}
 
 # configure web connector properties
 
@@ -115,9 +122,11 @@ if [[ ! -z "${BOOTSTRAP}" ]]; then
     done
 fi
 
+echo external_address = $(curl -s https://ipinfo.io/ip):${LAS2PEER_PORT} >etc/pastry.properties
+
 # prevent glob expansion in lib/*
 set -f
-LAUNCH_COMMAND='java -cp lib/* i5.las2peer.tools.L2pNodeLauncher -s service -p '"${LAS2PEER_PORT} ${SERVICE_EXTRA_ARGS}"
+LAUNCH_COMMAND='java -cp lib/* --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED i5.las2peer.tools.L2pNodeLauncher -s service -p '"${LAS2PEER_PORT} ${SERVICE_EXTRA_ARGS}"
 if [[ ! -z "${BOOTSTRAP}" ]]; then
     LAUNCH_COMMAND="${LAUNCH_COMMAND} -b ${BOOTSTRAP}"
 fi
