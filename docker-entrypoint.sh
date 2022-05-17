@@ -16,6 +16,7 @@ export SERVICE_CLASS=$(awk -F "=" '/service.class/ {print $2}' gradle.properties
 export SERVICE=${SERVICE_NAME}.${SERVICE_CLASS}@${SERVICE_VERSION}
 export CREATE_DB_SQL='database/ModelPersistenceService_Database.sql'
 export CREATE_WIREFRAME_SQL='database/Wireframe_Extension.sql'
+export CREATE_TEST_SQL='database/Test_Extension.sql'
 export CREATE_METADATA_SQL='database/Metadata_Extension.sql'
 export MYSQL_DATABASE='commedit'
 
@@ -100,6 +101,11 @@ if [[ ! -z "${INIT_WIREFRAME_EXTENSION}" ]]; then
         echo "Adding wireframe extension to the database schema..."
         mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USER} -p${MYSQL_PASSWORD} ${MYSQL_DATABASE} < ${CREATE_WIREFRAME_SQL}
     fi
+fi
+
+if ! mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USER} -p${MYSQL_PASSWORD} -e "desc ${MYSQL_DATABASE}.TestModel" > /dev/null 2>&1; then
+    echo "Adding test extension to the database schema..."
+    mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USER} -p${MYSQL_PASSWORD} ${MYSQL_DATABASE} < ${CREATE_TEST_SQL}
 fi
 
 # insert metadata schema extension into the database
