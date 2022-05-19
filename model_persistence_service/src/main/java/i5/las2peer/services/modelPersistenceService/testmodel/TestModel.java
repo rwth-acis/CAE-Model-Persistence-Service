@@ -13,6 +13,8 @@ import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 import org.json.simple.parser.ParseException;
 
+import i5.las2peer.services.modelPersistenceService.exception.ModelNotFoundException;
+
 /**
  * Stores the test cases that are part of a test suite.
  * @author Philipp
@@ -49,6 +51,30 @@ public class TestModel {
 			// create test case from JSONObject
 			this.testCases.add(new TestCase(testCase));
 		}
+	}
+	
+	/**
+	 * Loads test model with the given id from the database.
+	 * @param connection
+	 * @param id Id of the test model to load.
+	 * @throws SQLException If model with given id could not be found.
+	 */
+	public TestModel (Connection connection, int id) throws SQLException {
+		PreparedStatement statement = connection.prepareStatement("SELECT * FROM TestModel WHERE modelId=?;");
+		statement.setInt(1, id);
+		
+		// execute query
+	    ResultSet queryResult = statement.executeQuery();
+	    
+	    // check for results
+	 	if (queryResult.next()) {
+	 		this.id = queryResult.getInt("modelId");
+	 		this.loadTestCases(connection);
+	 	} else {
+	 		// there does not exist a test model with the given id in the database
+	 		throw new ModelNotFoundException("Test model with id " + id + " could not be found.");
+	 	}
+	 	statement.close();
 	}
 
 	/**
@@ -88,5 +114,42 @@ public class TestModel {
 			// reset auto commit to previous value
 			connection.setAutoCommit(autoCommitBefore);
 		}
+	}
+	
+	/**
+	 * Loads the test cases that are part of the current test model from the database.
+	 * @param connection
+	 * @throws SQLException
+	 */
+	private void loadTestCases(Connection connection) throws SQLException {
+		this.testCases = new ArrayList<>();
+		
+		PreparedStatement statement = connection.prepareStatement("SELECT * FROM TestCase WHERE modelId=?;");
+		statement.setInt(1, this.id);
+		
+		// execute query
+	    ResultSet queryResult = statement.executeQuery();
+	    while(queryResult.next()) {
+	    	int testCaseId = queryResult.getInt("testCaseId");
+	    	this.testCases.add(new TestCase(connection, testCaseId, this.id));
+	    }
+	    
+	    statement.close();
+	}
+	
+	public JSONObject toJSONObject() {
+		JSONObject testModel = new JSONObject();
+		
+		JSONArray testCasesJSON = new JSONArray();
+		for(TestCase testCase : this.testCases) {
+			testCasesJSON.add(testCase.toJSONObject());
+		}
+		
+		testModel.put("testCases", testCasesJSON);
+		return testModel;
+	}
+	
+	public int getId() {
+		return this.id;
 	}
 }

@@ -2,9 +2,12 @@ package i5.las2peer.services.modelPersistenceService.testmodel;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import org.json.simple.JSONObject;
+
+import i5.las2peer.services.modelPersistenceService.exception.ModelNotFoundException;
 
 /**
  * Represents an assertion which can either be a StatusCodeAssertion
@@ -44,6 +47,13 @@ public class RequestAssertion {
 		this.assertionType = assertionType;
 	}
 	
+	public RequestAssertion(int id, int testRequestId, int assertionType, int modelId) {
+		this.id = id;
+		this.testRequestId = testRequestId;
+		this.assertionType = assertionType;
+		this.modelId = modelId;
+	}
+	
 	/**
 	 * Creates the correct RequestAssertion (either StatusCodeAssertion or
 	 * BodyAssertion) for the given JSONObject.
@@ -65,6 +75,45 @@ public class RequestAssertion {
 	}
 	
 	/**
+	 * Loads the assertion with the given id from the database.
+	 * @param connection
+	 * @param id Id of the assertion to load.
+	 * @param modelId Id of the model that the assertion belongs to.
+	 * @param testRequestId Id of the request that the assertion belongs to.
+	 * @return StatusCodeAssertion or BodyAssertion object
+	 * @throws SQLException
+	 */
+	public static RequestAssertion loadFromDatabase(Connection connection, int id, int modelId, int testRequestId) throws SQLException {
+		PreparedStatement statement = connection.prepareStatement("SELECT * FROM RequestAssertion WHERE requestAssertionId=? AND modelId=? AND testRequestId=?;");
+		statement.setInt(1, id);
+		statement.setInt(2, modelId);
+		statement.setInt(3, testRequestId);
+		
+		// execute query
+	    ResultSet queryResult = statement.executeQuery();
+	    
+	    // check for results
+	 	if (queryResult.next()) {
+	 		int assertionType = queryResult.getInt("assertionType");
+	 		
+	 		statement.close();
+	 		
+	 		if(assertionType == StatusCodeAssertion.ASSERTION_TYPE_ID) {
+	 			return StatusCodeAssertion.loadFromDatabase(connection, modelId, testRequestId, id);
+	 		} else if(assertionType == BodyAssertion.ASSERTION_TYPE_ID) {
+	 			return BodyAssertion.loadFromDatabase(connection, modelId, testRequestId, id);
+	 		} else {
+	 			throw new ModelNotFoundException("Unknown assertion type: " + assertionType);
+	 		}
+	 	} else {
+	 		statement.close();
+	 		
+	 		// there does not exist a request assertion with the given id in the database
+	 		throw new ModelNotFoundException("Request assertion with id " + id + " could not be found.");
+	 	}
+	}
+	
+	/**
 	 * Stores the current assertion to the database.
 	 * @param connection
 	 * @param modelId Id of the model, that the assertion belongs to.
@@ -81,5 +130,14 @@ public class RequestAssertion {
 		
 		statement.executeUpdate();
 		statement.close();
+	}
+	
+	public JSONObject toJSONObject() {
+		JSONObject assertion = new JSONObject();
+		
+		assertion.put("id", this.id);
+		assertion.put("assertionType", this.assertionType);
+		
+		return assertion;
 	}
 }

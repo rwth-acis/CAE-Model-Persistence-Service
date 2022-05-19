@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS commedit.TestModel (
 );
 
 CREATE TABLE IF NOT EXISTS commedit.TestCase (
-  testCaseId INT NOT NULL AUTO_INCREMENT,
+  testCaseId INT NOT NULL,
   modelId INT NOT NULL,
   name VARCHAR(255) NOT NULL,
   CONSTRAINT testCasePK PRIMARY KEY (testCaseId, modelId),
@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS commedit.TestCase (
 );
 
 CREATE TABLE IF NOT EXISTS commedit.TestRequest (
-  testRequestId INT NOT NULL AUTO_INCREMENT,
+  testRequestId INT NOT NULL,
   modelId INT NOT NULL,
   testCaseId INT NOT NULL,
   type VARCHAR(255) NOT NULL,
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS commedit.TestRequest (
 );
 
 CREATE TABLE IF NOT EXISTS commedit.RequestAssertion (
-  requestAssertionId INT NOT NULL AUTO_INCREMENT,
+  requestAssertionId INT NOT NULL,
   modelId INT NOT NULL,
   testRequestId INT NOT NULL,
   assertionType INT NOT NULL,
@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS commedit.BodyAssertion (
 );
 
 CREATE TABLE IF NOT EXISTS commedit.BodyAssertionOperator (
-  operatorId INT NOT NULL AUTO_INCREMENT,
+  operatorId INT NOT NULL,
   modelId INT NOT NULL,
   inputType INT,
   inputValue VARCHAR(255),

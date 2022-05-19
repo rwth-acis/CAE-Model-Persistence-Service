@@ -2,9 +2,12 @@ package i5.las2peer.services.modelPersistenceService.testmodel;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import org.json.simple.JSONObject;
+
+import i5.las2peer.services.modelPersistenceService.exception.ModelNotFoundException;
 
 /**
  * Represents a part of a BodyAssertion.
@@ -58,6 +61,51 @@ public class BodyAssertionOperator {
 		}
 	}
 	
+	public BodyAssertionOperator(int id, int modelId, int inputType, String inputValue, BodyAssertionOperator followedByOperator) {
+		this.id = id;
+		this.modelId = modelId;
+		this.inputType = inputType;
+		this.inputValue = inputValue;
+		this.followedByOperator = followedByOperator;
+	}
+	
+	/**
+	 * Loads the operator with the given id from the database.
+	 * @param connection
+	 * @param operatorId Id of the operator to load.
+	 * @param modelId Id of the model, that the operator belongs to.
+	 * @return BodyAssertionOperator object
+	 * @throws SQLException
+	 */
+	public static BodyAssertionOperator loadFromDatabase(Connection connection, int operatorId, int modelId) throws SQLException {
+		PreparedStatement statement = connection.prepareStatement("SELECT * FROM BodyAssertionOperator WHERE operatorId=? AND modelId=?;");
+		statement.setInt(1, operatorId);
+		statement.setInt(2, modelId);
+		
+		// execute query
+	    ResultSet queryResult = statement.executeQuery();
+	    
+	    // check for results
+	 	if (queryResult.next()) {
+	 		int inputType = queryResult.getInt("inputType");
+	 		String inputValue = queryResult.getString("inputValue");
+	 		int followedById = queryResult.getInt("followedBy");
+	 		BodyAssertionOperator followedByOperator = null;
+	 		if(!queryResult.wasNull()) {
+	 		    followedByOperator = BodyAssertionOperator.loadFromDatabase(connection, followedById, modelId);
+	 		}
+	 		
+	 		statement.close();
+	 		
+	 		return new BodyAssertionOperator(operatorId, modelId, inputType, inputValue, followedByOperator);
+	 	} else {
+	 		statement.close();
+
+	 	    // there does not exist an operator with the given id in the database
+	 		throw new ModelNotFoundException("Operator with id " + operatorId + " could not be found.");
+	 	}
+	}
+	
 	/**
 	 * Stores the current operator (and its following operator, if there exists one) to the database.
 	 * @param connection
@@ -88,6 +136,22 @@ public class BodyAssertionOperator {
 		if(this.hasFollowingOperator()) {
 			this.followedByOperator.persist(connection, modelId);
 		}
+	}
+	
+	public JSONObject toJSONObject() {
+		JSONObject operator = new JSONObject();
+		
+		operator.put("id", this.id);
+		JSONObject inputJSON = new JSONObject();
+		inputJSON.put("id", this.inputType);
+		inputJSON.put("value", this.inputValue);
+		operator.put("input", inputJSON);
+		
+		if(this.hasFollowingOperator()) {
+			operator.put("followedBy", this.followedByOperator.toJSONObject());
+		}
+		
+		return operator;
 	}
 	
 	/**

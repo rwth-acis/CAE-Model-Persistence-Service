@@ -2,9 +2,12 @@ package i5.las2peer.services.modelPersistenceService.testmodel;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import org.json.simple.JSONObject;
+
+import i5.las2peer.services.modelPersistenceService.exception.ModelNotFoundException;
 
 /**
  * Assertion on the status code of the response.
@@ -13,7 +16,7 @@ import org.json.simple.JSONObject;
  */
 public class StatusCodeAssertion extends RequestAssertion {
 	
-	private static final int ASSERTION_TYPE_ID = 0;
+	public static final int ASSERTION_TYPE_ID = 0;
 	
 	private int comparisonOperator;
 	
@@ -27,6 +30,46 @@ public class StatusCodeAssertion extends RequestAssertion {
 		
 		this.comparisonOperator = (int) ((long) operator.get("id"));
 		this.statusCodeValue = (int) ((long) ((JSONObject) operator.get("input")).get("value"));
+	}
+	
+	public StatusCodeAssertion(int id, int testRequestId, int modelId, int comparisonOperator, int statusCodeValue) {
+		super(id, testRequestId, ASSERTION_TYPE_ID, modelId);
+		
+		this.comparisonOperator = comparisonOperator;
+		this.statusCodeValue = statusCodeValue;
+	}
+	
+	/**
+	 * Loads the status code assertion from the database.
+	 * @param connection
+	 * @param modelId Id of the model, that the assertion belongs to.
+	 * @param testRequestId Id of the request, that the assertion belongs to.
+	 * @param requestAssertionId Id of the assertion.
+	 * @return
+	 * @throws SQLException If assertion could not be found.
+	 */
+	public static StatusCodeAssertion loadFromDatabase(Connection connection, int modelId, int testRequestId, int requestAssertionId) throws SQLException {
+		PreparedStatement statement = connection.prepareStatement("SELECT * FROM StatusCodeAssertion WHERE modelId=? AND requestAssertionId=?;");
+		statement.setInt(1, modelId);
+		statement.setInt(2, requestAssertionId);
+		
+		// execute query
+	    ResultSet queryResult = statement.executeQuery();
+	    
+	    // check for results
+	 	if (queryResult.next()) {
+	 		int comparisonOperator = queryResult.getInt("comparisonOperator");
+	 		int statusCodeValue = queryResult.getInt("statusCodeValue");
+	 		
+	 		statement.close();
+	 		
+	 		return new StatusCodeAssertion(requestAssertionId, testRequestId, modelId, comparisonOperator, statusCodeValue);
+	 	} else {
+	 		statement.close();
+	 		
+	 		// there does not exist a status code assertion with the given id in the database
+	 		throw new ModelNotFoundException("Status code assertion with id " + requestAssertionId + " could not be found.");
+	 	}
 	}
 	
 	/**
@@ -43,5 +86,18 @@ public class StatusCodeAssertion extends RequestAssertion {
 		
 		statement.executeUpdate();
 		statement.close();
+	}
+	
+	public JSONObject toJSONObject() {
+		JSONObject assertion = super.toJSONObject();
+		
+		JSONObject operatorJSON = new JSONObject();
+		operatorJSON.put("id", this.comparisonOperator);
+		JSONObject operatorInputJSON = new JSONObject();
+		operatorInputJSON.put("value", this.statusCodeValue);
+		operatorJSON.put("input", operatorInputJSON);
+		assertion.put("operator", operatorJSON);
+		
+		return assertion;
 	}
 }
