@@ -22,6 +22,8 @@ public class BodyAssertionOperator {
 	 */
 	private int id;
 	
+	private int operatorId;
+	
 	/**
 	 * Id of the test model, that the operator belongs to.
 	 * Different versions of the same operator have different model ids.
@@ -49,6 +51,7 @@ public class BodyAssertionOperator {
 	 */
 	public BodyAssertionOperator(JSONObject operator) {
 		this.id = (int) ((long) operator.get("id"));
+		this.operatorId = (int) ((long) operator.get("operatorId"));
 		
 		// get operator input
 		JSONObject input = (JSONObject) operator.get("input");
@@ -61,8 +64,9 @@ public class BodyAssertionOperator {
 		}
 	}
 	
-	public BodyAssertionOperator(int id, int modelId, int inputType, String inputValue, BodyAssertionOperator followedByOperator) {
+	public BodyAssertionOperator(int id, int operatorId, int modelId, int inputType, String inputValue, BodyAssertionOperator followedByOperator) {
 		this.id = id;
+		this.operatorId = operatorId;
 		this.modelId = modelId;
 		this.inputType = inputType;
 		this.inputValue = inputValue;
@@ -72,14 +76,14 @@ public class BodyAssertionOperator {
 	/**
 	 * Loads the operator with the given id from the database.
 	 * @param connection
-	 * @param operatorId Id of the operator to load.
+	 * @param id Id of the operator to load.
 	 * @param modelId Id of the model, that the operator belongs to.
 	 * @return BodyAssertionOperator object
 	 * @throws SQLException
 	 */
-	public static BodyAssertionOperator loadFromDatabase(Connection connection, int operatorId, int modelId) throws SQLException {
-		PreparedStatement statement = connection.prepareStatement("SELECT * FROM BodyAssertionOperator WHERE operatorId=? AND modelId=?;");
-		statement.setInt(1, operatorId);
+	public static BodyAssertionOperator loadFromDatabase(Connection connection, int id, int modelId) throws SQLException {
+		PreparedStatement statement = connection.prepareStatement("SELECT * FROM BodyAssertionOperator WHERE id=? AND modelId=?;");
+		statement.setInt(1, id);
 		statement.setInt(2, modelId);
 		
 		// execute query
@@ -87,6 +91,7 @@ public class BodyAssertionOperator {
 	    
 	    // check for results
 	 	if (queryResult.next()) {
+	 		int operatorId = queryResult.getInt("operatorId");
 	 		int inputType = queryResult.getInt("inputType");
 	 		String inputValue = queryResult.getString("inputValue");
 	 		int followedById = queryResult.getInt("followedBy");
@@ -97,12 +102,12 @@ public class BodyAssertionOperator {
 	 		
 	 		statement.close();
 	 		
-	 		return new BodyAssertionOperator(operatorId, modelId, inputType, inputValue, followedByOperator);
+	 		return new BodyAssertionOperator(id, operatorId, modelId, inputType, inputValue, followedByOperator);
 	 	} else {
 	 		statement.close();
 
 	 	    // there does not exist an operator with the given id in the database
-	 		throw new ModelNotFoundException("Operator with id " + operatorId + " could not be found.");
+	 		throw new ModelNotFoundException("Operator with id " + id + " could not be found.");
 	 	}
 	}
 	
@@ -115,18 +120,19 @@ public class BodyAssertionOperator {
 	public void persist(Connection connection, int modelId) throws SQLException {
 		this.modelId = modelId;
 		
-		String statementStr = "INSERT INTO BodyAssertionOperator (operatorId, modelId, inputType, inputValue) VALUES (?,?,?,?);";
+		String statementStr = "INSERT INTO BodyAssertionOperator (id, operatorId, modelId, inputType, inputValue) VALUES (?,?,?,?,?);";
 		if(this.hasFollowingOperator()) {
-			statementStr = "INSERT INTO BodyAssertionOperator (operatorId, modelId, inputType, inputValue, followedBy) VALUES (?,?,?,?,?);";
+			statementStr = "INSERT INTO BodyAssertionOperator (id, operatorId, modelId, inputType, inputValue, followedBy) VALUES (?,?,?,?,?,?);";
 		}
 		
 		PreparedStatement statement = connection.prepareStatement(statementStr);
 		statement.setInt(1, this.id);
-		statement.setInt(2, this.modelId);
-		statement.setInt(3, this.inputType);
-		statement.setString(4, this.inputValue);
+		statement.setInt(2, this.operatorId);
+		statement.setInt(3, this.modelId);
+		statement.setInt(4, this.inputType);
+		statement.setString(5, this.inputValue);
 		if(this.hasFollowingOperator()) {
-			statement.setInt(5, this.followedByOperator.getId());
+			statement.setInt(6, this.followedByOperator.getId());
 		}
 		
 		statement.executeUpdate();
@@ -142,6 +148,7 @@ public class BodyAssertionOperator {
 		JSONObject operator = new JSONObject();
 		
 		operator.put("id", this.id);
+		operator.put("operatorId", this.operatorId);
 		JSONObject inputJSON = new JSONObject();
 		inputJSON.put("id", this.inputType);
 		inputJSON.put("value", this.inputValue);

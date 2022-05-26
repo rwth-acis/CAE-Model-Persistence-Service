@@ -54,11 +54,12 @@ CREATE TABLE IF NOT EXISTS commedit.BodyAssertion (
 );
 
 CREATE TABLE IF NOT EXISTS commedit.BodyAssertionOperator (
+  id INT NOT NULL,
   operatorId INT NOT NULL,
   modelId INT NOT NULL,
   inputType INT,
   inputValue VARCHAR(255),
   followedBy INT,
-  CONSTRAINT bodyAssertionOperatorPK PRIMARY KEY (operatorId, modelId),
+  CONSTRAINT bodyAssertionOperatorPK PRIMARY KEY (id, modelId),
   CONSTRAINT bodyAssertionOperatorModelFK FOREIGN KEY (modelId) REFERENCES commedit.TestModel(modelId) ON DELETE CASCADE
 );
