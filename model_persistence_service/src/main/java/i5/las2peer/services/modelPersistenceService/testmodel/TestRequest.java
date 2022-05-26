@@ -55,7 +55,7 @@ public class TestRequest {
 	/**
 	 * Request body.
 	 */
-	private String body;
+	private String body = null;
 	
 	/**
 	 * Response assertions.
@@ -72,6 +72,9 @@ public class TestRequest {
 		this.testCaseId = testCaseId;
 		this.type = (String) request.get("type");
 		this.url = (String) request.get("url");
+		if(request.containsKey("body")) {
+		    this.body = (String) request.get("body");
+		}
 		
 		// check if auth is enabled
 		if(request.containsKey("auth")) {
@@ -136,9 +139,9 @@ public class TestRequest {
 	public void persist(Connection connection, int modelId) throws SQLException {
 		this.modelId = modelId;
 		
-		String statementStr = "INSERT INTO TestRequest (testRequestId, modelId, testCaseId, type, url) VALUES (?,?,?,?,?);";
+		String statementStr = "INSERT INTO TestRequest (testRequestId, modelId, testCaseId, type, url, body) VALUES (?,?,?,?,?,?);";
 		if(this.isAuthEnabled()) {
-			statementStr = "INSERT INTO TestRequest (testRequestId, modelId, testCaseId, type, url, authSelectedAgent) VALUES (?,?,?,?,?,?);";
+			statementStr = "INSERT INTO TestRequest (testRequestId, modelId, testCaseId, type, url, body, authSelectedAgent) VALUES (?,?,?,?,?,?,?);";
 		}
 		PreparedStatement statement = connection.prepareStatement(statementStr);
 		statement.setInt(1, this.id);
@@ -146,8 +149,9 @@ public class TestRequest {
 		statement.setInt(3, this.testCaseId);
 		statement.setString(4, this.type);
 		statement.setString(5, this.url);
+		statement.setString(6, this.body);
 		if(this.isAuthEnabled()) {
-			statement.setInt(6, this.authSelectedAgent);
+			statement.setInt(7, this.authSelectedAgent);
 		}
 		statement.executeUpdate();
 		statement.close();
@@ -186,6 +190,11 @@ public class TestRequest {
 		request.put("id", this.id);
 		request.put("type", this.type);
 		request.put("url", this.url);
+		if(this.body == null) {
+			request.put("body", "");
+		} else {
+			request.put("body", this.body);
+		}
 		
 		JSONObject auth = new JSONObject();
 		if(this.isAuthEnabled()) {
