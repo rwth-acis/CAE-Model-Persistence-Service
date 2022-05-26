@@ -56,7 +56,11 @@ public class BodyAssertionOperator {
 		// get operator input
 		JSONObject input = (JSONObject) operator.get("input");
 		this.inputType = (int) ((long) input.get("id"));
-		this.inputValue = (String) input.get("value");
+		if(input.containsKey("value")) {
+		    this.inputValue = (String) input.get("value");
+		} else {
+			this.inputValue = null;
+		}
 		
 		// check if operator has a following operator
 		if(operator.containsKey("followedBy")) {
