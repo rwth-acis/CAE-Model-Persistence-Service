@@ -59,7 +59,7 @@ public class ProjectMetadata {
 		Component applicationComponent = new Component(applicationComponentName, Component.TYPE_APPLICATION);
 		
 		// create versioned model for the component
-		applicationComponent.createEmptyVersionedModel(connection);
+		applicationComponent.createEmptyVersionedModel(connection, false);
 		
 		// also create category in Requirements Bazaar
 		// TODO

@@ -113,9 +113,9 @@ public class Component {
 		return jsonComponent;
 	}
 	
-	public void createEmptyVersionedModel(Connection connection) throws SQLException {
+	public void createEmptyVersionedModel(Connection connection, boolean isMicroservice) throws SQLException {
 		// create empty versioned model for this component
-		this.versionedModelId = ComponentInitHelper.createEmptyVersionedModel(connection);
+		this.versionedModelId = ComponentInitHelper.createEmptyVersionedModel(connection, isMicroservice);
 	}
 	
 	public String getName() {

@@ -1107,8 +1107,9 @@ public class RESTResources {
         Connection connection = null;
 		try {
 			component = new Component(inputComponent);
+			boolean isMicroservice = component.getType().equals(Component.TYPE_MICROSERVICE);
 			connection = this.dbm.getConnection();
-			component.createEmptyVersionedModel(connection);
+			component.createEmptyVersionedModel(connection, isMicroservice);
 			
 			// create category in requirements bazaar
 			if(!this.service.isCategoryCreationDisabled()) {
