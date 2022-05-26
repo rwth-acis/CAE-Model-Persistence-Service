@@ -3,6 +3,15 @@ CREATE TABLE IF NOT EXISTS commedit.TestModel (
   CONSTRAINT testModelPK PRIMARY KEY (modelId)
 );
 
+CREATE TABLE IF NOT EXISTS commedit.CommitToTestModel (
+  id INT NOT NULL AUTO_INCREMENT,
+  commitId INT NOT NULL,
+  testModelId INT NOT NULL,
+  CONSTRAINT commitToTestModelPK PRIMARY KEY (id),
+  CONSTRAINT commitToTestModelCommitFK FOREIGN KEY (commitId) REFERENCES commedit.Commit(id) ON DELETE CASCADE,
+  CONSTRAINT commitToTestModelModelFK FOREIGN KEY (testModelId) REFERENCES commedit.TestModel(modelId) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS commedit.TestCase (
   testCaseId INT NOT NULL,
   modelId INT NOT NULL,

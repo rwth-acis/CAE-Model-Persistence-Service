@@ -71,6 +71,7 @@ import i5.las2peer.services.modelPersistenceService.projectMetadata.GitHubHelper
 import i5.las2peer.services.modelPersistenceService.projectMetadata.PredefinedRoles;
 import i5.las2peer.services.modelPersistenceService.projectMetadata.ReqBazCategory;
 import i5.las2peer.services.modelPersistenceService.projectMetadata.ReqBazHelper;
+import i5.las2peer.services.modelPersistenceService.testmodel.TestModel;
 import i5.las2peer.services.modelPersistenceService.versionedModel.Commit;
 import i5.las2peer.services.modelPersistenceService.versionedModel.VersionedModel;
 
@@ -359,7 +360,7 @@ public class RESTResources {
 	/**
 	 * Posts a commit to the versioned model.
 	 * @param versionedModelId Id of the versioned model, where the commit should be added to.
-	 * @param inputCommit Input commit as JSON, also containing the model that should be connected to the commit.
+	 * @param inputCommit Input commit as JSON, also containing the model (and test model) that should be connected to the commit.
 	 * @return Response with status code (and possibly error message).
 	 */
 	@POST
@@ -431,17 +432,27 @@ public class RESTResources {
 			// there always exists a commit for "uncommited changes"
 			// that one needs to be removed first
 			connection.setAutoCommit(false);
+			
+			// The codegen service and metadatadocservice already require the model to have
+			// a "type" attribute
+			// this "type" attribute is included in the request body
+			JSONObject commitJson = (JSONObject) JSONValue.parse(inputCommit);
+			String type = (String) commitJson.get("componentType");
+			String componentName = (String) commitJson.get("componentName");
+			String metadataVersion = (String) commitJson.get("metadataVersion");
+			
+			boolean testModelIncluded = type.equals("microservice");
 
 			VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
 			Commit uncommitedChanges = versionedModel.getCommitForUncommitedChanges();
 			uncommitedChanges.delete(connection);
 
 			// now create a new commit
-			Commit commit = new Commit(inputCommit, false);
+			Commit commit = new Commit(inputCommit, testModelIncluded, false);
 			commit.persist(versionedModelId, connection, false);
 
 			// now create new commit for uncommited changes
-			Commit uncommitedChangesNew = new Commit(inputCommit, true);
+			Commit uncommitedChangesNew = new Commit(inputCommit, testModelIncluded, true);
 			uncommitedChangesNew.persist(versionedModelId, connection, false);
 
 			// reload versionedModel from database
@@ -454,14 +465,6 @@ public class RESTResources {
 			if (!semanticCheckService.isEmpty()) {
 				this.checkModel(model);
 			}
-
-			// The codegen service and metadatadocservice already require the model to have
-			// a "type" attribute
-			// this "type" attribute is included in the request body
-			JSONObject commitJson = (JSONObject) JSONValue.parse(inputCommit);
-			String type = (String) commitJson.get("componentType");
-			String componentName = (String) commitJson.get("componentName");
-			String metadataVersion = (String) commitJson.get("metadataVersion");
 
 			// given type "frontend" needs to be converted to "frontend-component"
 			if (type.equals("frontend"))
