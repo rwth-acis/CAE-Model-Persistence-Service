@@ -826,6 +826,8 @@ public class RESTResources {
 		if (modelType.equals("application")) {
 			isApplication = true;
 		}
+		
+		TestModel testModel = null;
 
 		if (isApplication) {
 			// If we call the code generation service with an application to be generated, then we also need
@@ -1036,6 +1038,10 @@ public class RESTResources {
 				
 				modelsToSendList.add(oldModel);
 			}
+			
+			if(modelType.equals("microservice")) {
+				testModel = commit.getTestModel();
+			}
 		}
 
 
@@ -1049,7 +1055,8 @@ public class RESTResources {
 				// method is either updateRepositoryOfModel or createFromModel
 				String versionTag = commit.getVersionTag();
 				if(versionTag == null) versionTag = "";
-				Serializable[] payload = { commit.getMessage(), versionTag, metadataDoc, modelsToSendList, (Serializable) extDependenciesToSend };
+				Serializable[] payload = { commit.getMessage(), versionTag, metadataDoc, modelsToSendList,
+						(Serializable) extDependenciesToSend, testModel };
 				answer = (String) Context.getCurrent().invoke(codeGenerationService, methodName, payload);
 			}
 

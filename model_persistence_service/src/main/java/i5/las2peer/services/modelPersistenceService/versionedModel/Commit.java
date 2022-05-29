@@ -330,6 +330,10 @@ public class Commit {
 		return this.model;
 	}
 	
+	public TestModel getTestModel() {
+		return this.testModel;
+	}
+	
 	public String getMessage() {
 		return this.message;
 	}
