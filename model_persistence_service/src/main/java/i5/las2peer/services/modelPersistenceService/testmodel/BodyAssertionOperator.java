@@ -1,5 +1,6 @@
 package i5.las2peer.services.modelPersistenceService.testmodel;
 
+import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -14,7 +15,7 @@ import i5.las2peer.services.modelPersistenceService.exception.ModelNotFoundExcep
  * @author Philipp
  *
  */
-public class BodyAssertionOperator {
+public class BodyAssertionOperator implements Serializable {
 	
 	/**
 	 * Id of the operator.
@@ -175,5 +176,21 @@ public class BodyAssertionOperator {
 	
 	public int getId() {
 		return this.id;
+	}
+	
+	public int getOperatorId() {
+		return this.operatorId;
+	}
+	
+	public BodyAssertionOperator getFollowingOperator() {
+		return this.followedByOperator;
+	}
+	
+	public int getInputType() {
+		return this.inputType;
+	}
+	
+	public String getInputValue() {
+		return this.inputValue;
 	}
 }

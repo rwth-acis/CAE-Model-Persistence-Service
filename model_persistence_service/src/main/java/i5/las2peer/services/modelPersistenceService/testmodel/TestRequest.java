@@ -1,5 +1,6 @@
 package i5.las2peer.services.modelPersistenceService.testmodel;
 
+import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -17,7 +18,7 @@ import i5.las2peer.services.modelPersistenceService.exception.ModelNotFoundExcep
  * @author Philipp
  *
  */
-public class TestRequest {
+public class TestRequest implements Serializable {
 	
 	/**
 	 * Id of the request.
@@ -217,5 +218,29 @@ public class TestRequest {
 	 */
 	public boolean isAuthEnabled() {
 		return this.authSelectedAgent != -1;
+	}
+	
+	public int getId() {
+		return this.id;
+	}
+	
+	public String getUrl() {
+		return this.url;
+	}
+	
+	public String getType() {
+		return this.type;
+	}
+	
+	public int getAgent() {
+		return this.authSelectedAgent;
+	}
+	
+	public String getBody() {
+		return this.body;
+	}
+	
+	public List<RequestAssertion> getAssertions() {
+		return this.assertions;
 	}
 }

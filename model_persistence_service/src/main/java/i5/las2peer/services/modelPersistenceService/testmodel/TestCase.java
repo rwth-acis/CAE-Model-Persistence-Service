@@ -1,5 +1,6 @@
 package i5.las2peer.services.modelPersistenceService.testmodel;
 
+import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -18,7 +19,7 @@ import i5.las2peer.services.modelPersistenceService.exception.ModelNotFoundExcep
  * @author Philipp
  *
  */
-public class TestCase {
+public class TestCase implements Serializable {
 	
 	/**
 	 * Id of the test case.
@@ -148,5 +149,17 @@ public class TestCase {
 		testCase.put("requests", requestsJSON);
 		
 		return testCase;
+	}
+	
+	public int getId() {
+		return this.id;
+	}
+	
+	public String getName() {
+		return this.name;
+	}
+	
+	public List<TestRequest> getRequests() {
+		return this.requests;
 	}
 }

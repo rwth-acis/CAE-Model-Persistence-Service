@@ -1,5 +1,6 @@
 package i5.las2peer.services.modelPersistenceService.testmodel;
 
+import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -14,7 +15,7 @@ import i5.las2peer.services.modelPersistenceService.exception.ModelNotFoundExcep
  * @author Philipp
  *
  */
-public class StatusCodeAssertion extends RequestAssertion {
+public class StatusCodeAssertion extends RequestAssertion implements Serializable {
 	
 	public static final int ASSERTION_TYPE_ID = 0;
 	
@@ -99,5 +100,13 @@ public class StatusCodeAssertion extends RequestAssertion {
 		assertion.put("operator", operatorJSON);
 		
 		return assertion;
+	}
+	
+	public int getComparisonOperator() {
+		return this.comparisonOperator;
+	}
+	
+	public int getStatusCodeValue() {
+		return this.statusCodeValue;
 	}
 }

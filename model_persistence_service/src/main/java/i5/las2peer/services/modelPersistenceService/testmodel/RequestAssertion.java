@@ -1,5 +1,6 @@
 package i5.las2peer.services.modelPersistenceService.testmodel;
 
+import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -15,7 +16,7 @@ import i5.las2peer.services.modelPersistenceService.exception.ModelNotFoundExcep
  * @author Philipp
  *
  */
-public class RequestAssertion {
+public class RequestAssertion implements Serializable {
 	
 	/**
 	 * Id of the assertion.
@@ -139,5 +140,9 @@ public class RequestAssertion {
 		assertion.put("assertionType", this.assertionType);
 		
 		return assertion;
+	}
+	
+	public int getId() {
+		return this.id;
 	}
 }
