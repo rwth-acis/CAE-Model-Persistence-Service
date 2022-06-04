@@ -34,12 +34,12 @@ public class BodyAssertionOperator implements Serializable {
 	/**
 	 * Id of the input for the operator, e.g., no input, input field or a data type.
 	 */
-	private int inputType;
+	private int inputType = -1;
 	
 	/**
 	 * Value that has been entered or selected.
 	 */
-	private String inputValue;
+	private String inputValue = null;
 	
 	/**
 	 * The following operator, if there exists one.
@@ -55,12 +55,12 @@ public class BodyAssertionOperator implements Serializable {
 		this.operatorId = (int) ((long) operator.get("operatorId"));
 		
 		// get operator input
-		JSONObject input = (JSONObject) operator.get("input");
-		this.inputType = (int) ((long) input.get("id"));
-		if(input.containsKey("value")) {
-		    this.inputValue = (String) input.get("value");
-		} else {
-			this.inputValue = null;
+		if(operator.containsKey("input")) {
+		    JSONObject input = (JSONObject) operator.get("input");
+		    this.inputType = (int) ((long) input.get("id"));
+		    if(input.containsKey("value")) {
+		        this.inputValue = (String) input.get("value");
+		    }
 		}
 		
 		// check if operator has a following operator
