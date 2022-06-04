@@ -166,6 +166,23 @@ public class BodyAssertionOperator implements Serializable {
 		return operator;
 	}
 	
+    public String toString() {
+    	String description = "";
+    	if(this.operatorId == ResponseBodyOperator.HAS_TYPE.getId()) {
+    		description = "has type " + OperatorInput.fromId(this.inputType).getValue();
+    	} else if(this.operatorId == ResponseBodyOperator.HAS_FIELD.getId()) {
+    		description = "has field \"" + this.inputValue + "\"";
+    	} else if(this.operatorId == ResponseBodyOperator.HAS_LIST_ENTRY_THAT.getId()) {
+    		description = "has list entry that";
+    	} else if(this.operatorId == ResponseBodyOperator.ALL_LIST_ENTRIES.getId()) {
+    		description = "all list entries";
+    	}
+    	if(this.hasFollowingOperator()) {
+    		description += " " + this.getFollowingOperator().toString();
+    	}
+    	return description;
+    }
+	
 	/**
 	 * Whether the current operator is followed by another operator.
 	 * @return Whether the current operator is followed by another operator.
