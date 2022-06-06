@@ -140,6 +140,7 @@ public class TestModel implements Serializable {
 	
 	public JSONObject toJSONObject() {
 		JSONObject testModel = new JSONObject();
+		testModel.put("id", this.id);
 		
 		JSONArray testCasesJSON = new JSONArray();
 		for(TestCase testCase : this.testCases) {

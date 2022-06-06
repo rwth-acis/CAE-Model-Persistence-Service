@@ -42,6 +42,8 @@ public class TestCase implements Serializable {
 	 * List of requests that are part of the test case.
 	 */
 	private List<TestRequest> requests;
+
+	private String status = "none";
 	
 	/**
 	 * Creates a TestCase object given a JSONObject representing it.
@@ -147,6 +149,7 @@ public class TestCase implements Serializable {
 			requestsJSON.add(request.toJSONObject());
 		}
 		testCase.put("requests", requestsJSON);
+		testCase.put("status", this.status);
 		
 		return testCase;
 	}
@@ -161,5 +164,9 @@ public class TestCase implements Serializable {
 	
 	public List<TestRequest> getRequests() {
 		return this.requests;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
 	}
 }

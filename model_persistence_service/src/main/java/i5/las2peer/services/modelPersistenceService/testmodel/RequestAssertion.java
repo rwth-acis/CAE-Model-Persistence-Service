@@ -41,6 +41,8 @@ public class RequestAssertion implements Serializable {
 	 * 1: BodyAssertion
 	 */
 	private int assertionType;
+
+	private String status = "none";
 	
 	public RequestAssertion(int id, int testRequestId, int assertionType) {
 		this.id = id;
@@ -138,11 +140,16 @@ public class RequestAssertion implements Serializable {
 		
 		assertion.put("id", this.id);
 		assertion.put("assertionType", this.assertionType);
+		assertion.put("status", this.status);
 		
 		return assertion;
 	}
 	
 	public int getId() {
 		return this.id;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
 	}
 }
