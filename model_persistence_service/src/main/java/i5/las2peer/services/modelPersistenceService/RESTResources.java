@@ -1,5 +1,6 @@
 package i5.las2peer.services.modelPersistenceService;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.net.HttpURLConnection;
 import java.sql.Connection;
@@ -24,6 +25,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import i5.las2peer.services.modelPersistenceService.testmodel.TestGHActionsHelper;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
@@ -95,6 +97,25 @@ public class RESTResources {
 		this.deploymentUrl = service.getDeploymentUrl();
 		this.dbm = service.getDbm();
 		this.metadataDocService = service.getMetadataService();
+	}
+
+	@GET
+	@Path("/testmodel/{id}/status")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getTestModelStatus(@PathParam("id") int testModelId, @QueryParam("sha") String sha, @QueryParam("repoName") String repoName) {
+		try {
+			Connection connection = dbm.getConnection();
+			TestModel testModel = new TestModel(connection, testModelId);
+			TestGHActionsHelper h = new TestGHActionsHelper(service.getGitHubOrganization(), service.getGitHubPersonalAccessToken());
+			h.addTestResults(sha, testModel, repoName);
+			return Response.status(HttpURLConnection.HTTP_OK).entity(testModel.toJSONObject().toJSONString()).build();
+		} catch (SQLException | IOException e) {
+			e.printStackTrace();
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
+		} catch (Exception e) {
+			e.printStackTrace();
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
+		}
 	}
 
 	/**

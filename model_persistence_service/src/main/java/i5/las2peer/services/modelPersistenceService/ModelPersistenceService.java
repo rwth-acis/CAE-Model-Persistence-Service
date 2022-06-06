@@ -59,6 +59,9 @@ public class ModelPersistenceService extends RESTService {
 	private String codeGenerationService = "";
 	private String deploymentUrl = "";
 	private DatabaseManager dbm;
+	
+	private String gitHubOrganization;
+	private String gitHubPersonalAccessToken;
 
 	private MetadataDocService metadataDocService;
 	
@@ -113,7 +116,15 @@ public class ModelPersistenceService extends RESTService {
 	public MetadataDocService getMetadataService(){
 		return metadataDocService;
 	}
-	
+
+	public String getGitHubOrganization() {
+		return gitHubOrganization;
+	}
+
+	public String getGitHubPersonalAccessToken() {
+		return gitHubPersonalAccessToken;
+	}
+
 	/**
 	 * Whether categories in the Requirements Bazaar should be created for every component.
 	 * This can be configured using the service properties file.

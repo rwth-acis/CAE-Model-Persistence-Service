@@ -27,6 +27,10 @@ export MYSQL_DATABASE='commedit'
     echo "Mandatory variable MYSQL_PASSWORD is not set. Add -e MYSQL_PASSWORD=mypasswd to your arguments." && exit 1
 [[ -z "${REQ_BAZ_PROJECT_ID}" ]] && \
     echo "Mandatory variable REQ_BAZ_PROJECT_ID is not set. Add -e REQ_BAZ_PROJECT_ID=project_id to your arguments." && exit 1
+[[ -z "${GITHUB_ORG}" ]] && \
+    echo "Mandatory variable GITHUB_ORG is not set. Add -e GITHUB_ORG=organization_name to your arguments." && exit 1
+[[ -z "${GITHUB_PERSONAL_ACCESS_TOKEN}" ]] && \
+    echo "Mandatory variable GITHUB_PERSONAL_ACCESS_TOKEN is not set. Add -e GITHUB_PERSONAL_ACCESS_TOKEN=token to your arguments." && exit 1
 
 # set defaults for optional service parameters
 [[ -z "${SERVICE_PASSPHRASE}" ]] && export SERVICE_PASSPHRASE='Passphrase'
@@ -65,6 +69,8 @@ set_in_service_config deploymentUrl ${DEPLOYMENT_URL}
 set_in_service_config reqBazBackendUrl ${REQ_BAZ_BACKEND_URL}
 set_in_service_config reqBazProjectId ${REQ_BAZ_PROJECT_ID}
 set_in_service_config debugDisableCategoryCreation ${DISABLE_CATEGORY_CREATION}
+set_in_service_config gitHubOrganization ${GITHUB_ORG}
+set_in_service_config gitHubPersonalAccessToken ${GITHUB_PERSONAL_ACCESS_TOKEN}
 
 # configure web connector properties
 
