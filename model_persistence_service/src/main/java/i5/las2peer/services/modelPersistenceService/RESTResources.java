@@ -106,6 +106,7 @@ public class RESTResources {
 		try {
 			Connection connection = dbm.getConnection();
 			TestModel testModel = new TestModel(connection, testModelId);
+			connection.close();
 			TestGHActionsHelper h = new TestGHActionsHelper(service.getGitHubOrganization(), service.getGitHubPersonalAccessToken());
 			h.addTestResults(sha, testModel, repoName);
 			return Response.status(HttpURLConnection.HTTP_OK).entity(testModel.toJSONObject().toJSONString()).build();
