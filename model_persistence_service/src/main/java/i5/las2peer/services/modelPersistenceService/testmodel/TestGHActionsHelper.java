@@ -63,6 +63,10 @@ public class TestGHActionsHelper {
 			} else if(latestCommitWorkflowRun.getConclusion() == GHWorkflowRun.Conclusion.FAILURE) {
 				// check which test cases were successful or failed
 				GHArtifact artifact = getTestResultsArtifact(latestCommitWorkflowRun);
+
+				// if there is no artifact with test results => build may have failed and tests were not executed
+				if(artifact == null) return;
+
                 ReportTestSuite testReport = extractTestResultFromArtifact(artifact);
 
                 // iterate over test cases from commit
