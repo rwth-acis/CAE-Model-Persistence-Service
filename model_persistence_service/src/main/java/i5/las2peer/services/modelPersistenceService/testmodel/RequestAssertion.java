@@ -43,6 +43,7 @@ public class RequestAssertion implements Serializable {
 	private int assertionType;
 
 	private String status = "none";
+	private String errorMessage = null;
 	
 	public RequestAssertion(int id, int testRequestId, int assertionType) {
 		this.id = id;
@@ -141,6 +142,9 @@ public class RequestAssertion implements Serializable {
 		assertion.put("id", this.id);
 		assertion.put("assertionType", this.assertionType);
 		assertion.put("status", this.status);
+        if(this.errorMessage != null) {
+        	assertion.put("errorMessage", this.errorMessage);
+		}
 		
 		return assertion;
 	}
@@ -151,5 +155,9 @@ public class RequestAssertion implements Serializable {
 
 	public void setStatus(String status) {
 		this.status = status;
+	}
+
+	public void setErrorMessage(String errorMessage) {
+		this.errorMessage = errorMessage;
 	}
 }

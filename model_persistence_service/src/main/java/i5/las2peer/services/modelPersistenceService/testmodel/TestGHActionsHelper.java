@@ -85,6 +85,7 @@ public class TestGHActionsHelper {
                             		if(failure.getMessage().contains("[" + commitAssertion.getId() + "]")) {
                             			// this assertion failed
 										commitAssertion.setStatus("failed");
+										commitAssertion.setErrorMessage(failure.getMessage());
 									}
 								}
 							}
