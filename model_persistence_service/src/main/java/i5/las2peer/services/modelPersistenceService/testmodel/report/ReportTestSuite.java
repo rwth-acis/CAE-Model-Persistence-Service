@@ -20,6 +20,9 @@ public class ReportTestSuite {
     @XmlElement(name = "testcase")
     private List<ReportTestCase> testCases;
 
+    @XmlElement(name = "system-out")
+    private String systemOut;
+
     public int getTests() {
         return tests;
     }
@@ -30,5 +33,9 @@ public class ReportTestSuite {
 
     public List<ReportTestCase> getTestCases() {
         return testCases;
+    }
+
+    public String getSystemOut() {
+        return systemOut;
     }
 }

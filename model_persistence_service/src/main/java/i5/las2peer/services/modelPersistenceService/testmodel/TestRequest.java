@@ -62,6 +62,8 @@ public class TestRequest implements Serializable {
 	 * Response assertions.
 	 */
 	private List<RequestAssertion> assertions;
+
+	private String lastResponse = null;
 	
 	/**
 	 * Creates a TestRequest object given a JSONObject representing it and the id of the test case.
@@ -196,7 +198,11 @@ public class TestRequest implements Serializable {
 		} else {
 			request.put("body", this.body);
 		}
-		
+
+		if(this.lastResponse != null) {
+			request.put("lastResponse", this.lastResponse);
+		}
+
 		JSONObject auth = new JSONObject();
 		if(this.isAuthEnabled()) {
 			auth.put("selectedAgent", this.authSelectedAgent);
@@ -242,5 +248,9 @@ public class TestRequest implements Serializable {
 	
 	public List<RequestAssertion> getAssertions() {
 		return this.assertions;
+	}
+
+	public void setLastResponse(String lastResponse) {
+		this.lastResponse = lastResponse;
 	}
 }

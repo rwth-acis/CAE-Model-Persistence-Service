@@ -56,18 +56,20 @@ public class TestGHActionsHelper {
 		GHWorkflowRun latestCommitWorkflowRun = getLatestCommitWorkflowRun(repoName, latestCommitSha);
 		if(latestCommitWorkflowRun == null) throw new Exception("Could not find a GitHub Actions workflow for the given latestCommitSha.");
 
+		GHArtifact artifact = getTestResultsArtifact(latestCommitWorkflowRun);
+
+		// if there is no artifact with test results => build may have failed and tests were not executed
+		if(artifact == null) return;
+
+		ReportTestSuite testReport = extractTestResultFromArtifact(artifact);
+		addRequestResponses(testModel, testReport);
+
 		if(latestCommitWorkflowRun.getStatus() == GHWorkflowRun.Status.COMPLETED) {
 			if(latestCommitWorkflowRun.getConclusion() == GHWorkflowRun.Conclusion.SUCCESS) {
 				// mark all test cases as successful
 				markAllTestCasesAs(testModel, "success");
 			} else if(latestCommitWorkflowRun.getConclusion() == GHWorkflowRun.Conclusion.FAILURE) {
 				// check which test cases were successful or failed
-				GHArtifact artifact = getTestResultsArtifact(latestCommitWorkflowRun);
-
-				// if there is no artifact with test results => build may have failed and tests were not executed
-				if(artifact == null) return;
-
-                ReportTestSuite testReport = extractTestResultFromArtifact(artifact);
 
                 // iterate over test cases from commit
 				for(TestCase commitTestCase : testModel.getTestCases()) {
@@ -99,6 +101,28 @@ public class TestGHActionsHelper {
 		} else if(latestCommitWorkflowRun.getStatus() == GHWorkflowRun.Status.IN_PROGRESS) {
 			// mark all test cases as in progress
 			markAllTestCasesAs(testModel, "in_progress");
+		}
+	}
+
+	private void addRequestResponses(TestModel testModel, ReportTestSuite testReport) {
+		String testSystemOut = testReport.getSystemOut();
+		for(TestCase testCase : testModel.getTestCases()) {
+			for(TestRequest request : testCase.getRequests()) {
+				int requestId = request.getId();
+				if(testSystemOut.contains("" + requestId)) {
+					try {
+						List<String> lines = IOUtils.readLines(new StringReader(testSystemOut));
+						for(String line : lines) {
+							if(line.contains(requestId + ": ")) {
+								String response = line.split(requestId + ": ")[1];
+								request.setLastResponse(response);
+							}
+						}
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+			}
 		}
 	}
 
