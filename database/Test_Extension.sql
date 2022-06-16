@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS commedit.TestRequest (
   url VARCHAR(255) NOT NULL,
   authSelectedAgent INT,
   body TEXT,
+  pathParams TEXT,
   CONSTRAINT testRequestPK PRIMARY KEY (testRequestId, modelId),
   CONSTRAINT testRequestModelFK FOREIGN KEY (modelId) REFERENCES commedit.TestModel(modelId) ON DELETE CASCADE,
   CONSTRAINT testRequestTestCaseFK FOREIGN KEY (testCaseId) REFERENCES commedit.TestCase(testCaseId) ON DELETE CASCADE

@@ -12,6 +12,7 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
 import i5.las2peer.services.modelPersistenceService.exception.ModelNotFoundException;
+import org.json.simple.JSONValue;
 
 /**
  * Represents one request of a test case.
@@ -46,6 +47,8 @@ public class TestRequest implements Serializable {
 	 * Request URL.
 	 */
 	private String url;
+
+	private JSONObject pathParams = null;
 	
 	/**
 	 * Agent that was chosen for authorization.
@@ -78,6 +81,8 @@ public class TestRequest implements Serializable {
 		if(request.containsKey("body")) {
 		    this.body = (String) request.get("body");
 		}
+
+		this.pathParams = (JSONObject) JSONValue.parse((String) request.get("pathParams"));
 		
 		// check if auth is enabled
 		if(request.containsKey("auth")) {
@@ -124,6 +129,7 @@ public class TestRequest implements Serializable {
 	 		this.authSelectedAgent = queryResult.getInt("authSelectedAgent");	
 	 		if(queryResult.wasNull()) this.authSelectedAgent = -1;
 	 		this.body = queryResult.getString("body");
+	 		this.pathParams = (JSONObject) JSONValue.parse(queryResult.getString("pathParams"));
 	 		this.loadAssertions(connection);
 	 	} else {
 	 		// there does not exist a test request with the given id in the database
@@ -142,9 +148,9 @@ public class TestRequest implements Serializable {
 	public void persist(Connection connection, int modelId) throws SQLException {
 		this.modelId = modelId;
 		
-		String statementStr = "INSERT INTO TestRequest (testRequestId, modelId, testCaseId, type, url, body) VALUES (?,?,?,?,?,?);";
+		String statementStr = "INSERT INTO TestRequest (testRequestId, modelId, testCaseId, type, url, body, pathParams) VALUES (?,?,?,?,?,?,?);";
 		if(this.isAuthEnabled()) {
-			statementStr = "INSERT INTO TestRequest (testRequestId, modelId, testCaseId, type, url, body, authSelectedAgent) VALUES (?,?,?,?,?,?,?);";
+			statementStr = "INSERT INTO TestRequest (testRequestId, modelId, testCaseId, type, url, body, pathParams, authSelectedAgent) VALUES (?,?,?,?,?,?,?,?);";
 		}
 		PreparedStatement statement = connection.prepareStatement(statementStr);
 		statement.setInt(1, this.id);
@@ -153,8 +159,9 @@ public class TestRequest implements Serializable {
 		statement.setString(4, this.type);
 		statement.setString(5, this.url);
 		statement.setString(6, this.body);
+		statement.setString(7, this.pathParams.toJSONString());
 		if(this.isAuthEnabled()) {
-			statement.setInt(7, this.authSelectedAgent);
+			statement.setInt(8, this.authSelectedAgent);
 		}
 		statement.executeUpdate();
 		statement.close();
@@ -198,6 +205,8 @@ public class TestRequest implements Serializable {
 		} else {
 			request.put("body", this.body);
 		}
+
+		request.put("pathParams", this.pathParams.toJSONString());
 
 		if(this.lastResponse != null) {
 			request.put("lastResponse", this.lastResponse);
@@ -252,5 +261,9 @@ public class TestRequest implements Serializable {
 
 	public void setLastResponse(String lastResponse) {
 		this.lastResponse = lastResponse;
+	}
+
+	public JSONObject getPathParams() {
+		return this.pathParams;
 	}
 }
