@@ -120,6 +120,29 @@ public class RESTResources {
 	}
 
 	/**
+	 * Adds API test coverage information to given microservice model and returns it.
+	 * Uses coverage information from latest test run from GitHub actions.
+	 * @param sha Sha of the latest commit to the microservice.
+	 * @param repoName Name of the repository, where the microservice code is hosted.
+	 * @param body Current state of the microservice model.
+	 * @return Given microservice model including API test coverage information.
+	 */
+	@POST
+	@Path("/models/coverage")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getModelCoverage(@QueryParam("sha") String sha, @QueryParam("repoName") String repoName, String body) {
+		try {
+			Model model = new Model(body);
+			TestGHActionsHelper h = new TestGHActionsHelper(service.getGitHubOrganization(), service.getGitHubPersonalAccessToken());
+			h.addTestCoverage(sha, model, repoName);
+			return Response.status(HttpURLConnection.HTTP_OK).entity(model.toJSONObject().toJSONString()).build();
+		} catch (Exception e) {
+			e.printStackTrace();
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
+		}
+	}
+
+	/**
 	 * 
 	 * Searches for a model in the database by name.
 	 * 
