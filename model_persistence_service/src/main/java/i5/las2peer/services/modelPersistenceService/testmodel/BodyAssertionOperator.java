@@ -169,7 +169,13 @@ public class BodyAssertionOperator implements Serializable {
     public String toString() {
     	String description = "";
     	if(this.operatorId == ResponseBodyOperator.HAS_TYPE.getId()) {
-    		description = "has type " + OperatorInput.fromId(this.inputType).getValue();
+    		OperatorInput input = OperatorInput.fromId(this.inputType);
+    		if(input != null) {
+				description = "has type " + input.getValue();
+			} else {
+				// no predefined type but a schema defined in metadata editor
+				description = "has type " + this.inputValue;
+			}
     	} else if(this.operatorId == ResponseBodyOperator.HAS_FIELD.getId()) {
     		description = "has field \"" + this.inputValue + "\"";
     	} else if(this.operatorId == ResponseBodyOperator.HAS_LIST_ENTRY_THAT.getId()) {
