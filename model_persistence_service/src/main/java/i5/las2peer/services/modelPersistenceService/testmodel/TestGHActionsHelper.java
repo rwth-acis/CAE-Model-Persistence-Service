@@ -97,6 +97,20 @@ public class TestGHActionsHelper {
 
 			}
 		}
+
+        // model might contain changes which were not part of it during the last test run
+		// mark these nodes as unknown
+		model.getNodes().forEach(node -> {
+			if(node.getType().equals("HTTP Response") || node.getType().equals("HTTP Payload") || node.getType().equals("HTTP Method")) {
+				// check if coverage attribute exists
+				try {
+					getNodeAttributeValue(node, "coverage");
+				} catch (NoSuchElementException e) {
+                    // coverage attribute not found => set to unknown
+					addCoverageAttributeToNode(node, "unknown");
+				}
+			}
+		});
 	}
 
 	/**
@@ -174,7 +188,11 @@ public class TestGHActionsHelper {
 	}
 
 	private void addCoverageAttributeToNode(Node node, int coverage) {
-		node.getAttributes().add(new EntityAttribute("coverage", "coverage", String.valueOf(coverage)));
+		addCoverageAttributeToNode(node, String.valueOf(coverage));
+	}
+
+	private void addCoverageAttributeToNode(Node node, String coverage) {
+		node.getAttributes().add(new EntityAttribute("coverage", "coverage", coverage));
 	}
 
 	/**
