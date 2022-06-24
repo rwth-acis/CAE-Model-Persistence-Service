@@ -254,9 +254,9 @@ public class TestGHActionsHelper {
 	 */
 	public void addTestResults(String latestCommitSha, TestModel testModel, String repoName) throws Exception {
 		GHWorkflowRun latestCommitWorkflowRun = getLatestCommitWorkflowRun(repoName, latestCommitSha);
-		if(latestCommitWorkflowRun == null) throw new Exception("Could not find a GitHub Actions workflow for the given latestCommitSha.");
-
-		if(latestCommitWorkflowRun.getStatus() == GHWorkflowRun.Status.IN_PROGRESS) {
+		if(latestCommitWorkflowRun == null
+				|| latestCommitWorkflowRun.getStatus() == GHWorkflowRun.Status.IN_PROGRESS
+				|| latestCommitWorkflowRun.getStatus() == GHWorkflowRun.Status.QUEUED) {
 			// mark all test cases as in progress
 			markAllTestCasesAs(testModel, "in_progress");
 			return;
