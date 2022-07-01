@@ -25,6 +25,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import i5.las2peer.apiTestModel.TestModel;
 import i5.las2peer.services.modelPersistenceService.testmodel.TestGHActionsHelper;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -73,7 +74,6 @@ import i5.las2peer.services.modelPersistenceService.projectMetadata.GitHubHelper
 import i5.las2peer.services.modelPersistenceService.projectMetadata.PredefinedRoles;
 import i5.las2peer.services.modelPersistenceService.projectMetadata.ReqBazCategory;
 import i5.las2peer.services.modelPersistenceService.projectMetadata.ReqBazHelper;
-import i5.las2peer.services.modelPersistenceService.testmodel.TestModel;
 import i5.las2peer.services.modelPersistenceService.versionedModel.Commit;
 import i5.las2peer.services.modelPersistenceService.versionedModel.VersionedModel;
 

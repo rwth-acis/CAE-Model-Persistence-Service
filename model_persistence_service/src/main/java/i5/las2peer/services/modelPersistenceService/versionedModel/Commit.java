@@ -6,13 +6,13 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+import i5.las2peer.apiTestModel.TestModel;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 import org.json.simple.parser.ParseException;
 
 import i5.las2peer.services.modelPersistenceService.exception.CommitNotFoundException;
 import i5.las2peer.services.modelPersistenceService.model.Model;
-import i5.las2peer.services.modelPersistenceService.testmodel.TestModel;
 
 public class Commit {
 	
