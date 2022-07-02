@@ -496,6 +496,7 @@ public class MetadataDocService {
                             switch(attribute.getName()) {
                                 case "path":
                                     String urlPath = attribute.getValue();
+                                    urlPath = "http://127.0.0.1:8080/" + urlPath;
                                     // get host
                                     URL urlObject = new URL(urlPath);
                                     rootObject.put("host", urlObject.getHost().replace("http://", ""));
