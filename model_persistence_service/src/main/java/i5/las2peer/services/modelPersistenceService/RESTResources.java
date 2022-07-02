@@ -3,12 +3,8 @@ package i5.las2peer.services.modelPersistenceService;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.HttpURLConnection;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.sql.*;
+import java.util.*;
 
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
@@ -25,6 +21,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import i5.las2peer.apiTestModel.TestCase;
 import i5.las2peer.apiTestModel.TestModel;
 import i5.las2peer.services.modelPersistenceService.testmodel.TestGHActionsHelper;
 import org.json.simple.JSONArray;
@@ -594,7 +591,7 @@ public class RESTResources {
 			}
 		}
 	}
-	
+
 	/**
 	 * Get the status / console text of a build. The build is identified by
 	 * using the queue item that is returned when a job is created.
@@ -1680,5 +1677,47 @@ public class RESTResources {
 			return Response.serverError().entity("Could not delete metadata doc, SQL exception").build();
 		}
 
+	}
+
+	private void storeTestSuggestionToDB(Connection connection, int versionedModelId, TestModel m, String description) throws SQLException {
+		PreparedStatement statement = connection.prepareStatement("INSERT INTO VersionedModelToTestSuggestion (versionedModelId, testModelId, description, suggest) VALUES (?,?,?,?);");
+		statement.setInt(1, versionedModelId);
+		statement.setInt(2, m.getId());
+		statement.setString(3, description);
+		statement.setBoolean(4, true);
+		statement.executeUpdate();
+		statement.close();
+	}
+
+	/**
+	 * Loads test suggestions from database.
+	 * @param connection Database connection
+	 * @param versionedModelId Id of versioned model for which test suggestions should be loaded.
+	 * @param includeAlreadySuggestedTests Whether already accepted/declined test cases should be included in result.
+	 * @return Map containing test cases and their descriptions.
+	 * @throws SQLException
+	 */
+	private Map<TestCase, String> getTestSuggestionsByVersionedModel(Connection connection, int versionedModelId, boolean includeAlreadySuggestedTests) throws SQLException {
+		Map<TestCase, String> testCases = new HashMap<>();
+
+		// load test suggestions from database
+		PreparedStatement statement = connection.prepareStatement("SELECT * FROM VersionedModelToTestSuggestion WHERE versionedModelId = ?;");
+		statement.setInt(1, versionedModelId);
+
+		ResultSet queryResult = statement.executeQuery();
+		while(queryResult.next()) {
+			int testModelId = queryResult.getInt("testModelId");
+			boolean suggest = queryResult.getBoolean("suggest");
+			String description = queryResult.getString("description");
+			if(suggest || includeAlreadySuggestedTests) {
+				TestModel testModel = new TestModel(connection, testModelId);
+				TestCase testCase = testModel.getTestCases().get(0);
+				testCase.setId(testModelId);
+				testCases.put(testCase, description);
+			}
+		}
+		statement.close();
+
+		return testCases;
 	}
 }
