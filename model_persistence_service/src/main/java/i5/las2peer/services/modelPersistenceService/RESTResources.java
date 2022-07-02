@@ -553,7 +553,9 @@ public class RESTResources {
 			}
 
 			// generate metadata swagger doc after model valid in code generation
-			metadataDocService.modelToSwagger(versionedModel.getId(), componentName, model, metadataVersion);
+			String swaggerDoc = metadataDocService.modelToSwagger(versionedModel.getId(), componentName, model, metadataVersion);
+			// generate test cases
+			generateTestSuggestions(swaggerDoc, versionedModel.getId());
 
 			// now persist the sha given by code generation service
 			commit.persistSha(commitSha, connection);
@@ -1679,6 +1681,45 @@ public class RESTResources {
 
 	}
 
+	/**
+	 * Calls API test generation service to generate test cases.
+	 * Stores the suggested test cases to the database afterwards.
+	 * @param swaggerDoc Swagger documentation
+	 * @param versionedModelId Id of versioned model.
+	 */
+	private void generateTestSuggestions(String swaggerDoc, int versionedModelId) throws ServiceNotAvailableException, ServiceInvocationFailedException, ServiceNotFoundException, ServiceAccessDeniedException, ServiceNotAuthorizedException, ServiceMethodNotFoundException, InternalServiceException, ParseException {
+		String testCasesMapStr = (String) Context.getCurrent().invoke("i5.las2peer.services.apiTestGenService.APITestGenService@0.1.0", "openAPIToTests", new Serializable[] { swaggerDoc });
+		JSONArray arr = (JSONArray) JSONValue.parse(testCasesMapStr);
+		Map<TestCase, String> testCasesMap = testCasesArrayToMap(arr);
+
+		try {
+			Connection connection = dbm.getConnection();
+
+			// get existing suggestions from database
+			List<TestCase> storedTestCases = getTestSuggestionsByVersionedModel(connection, versionedModelId, true).keySet().stream().toList();
+
+			// split every test case into separate testmodel
+			for(Map.Entry<TestCase, String> entry : testCasesMap.entrySet()) {
+				TestCase t = entry.getKey();
+				String description = entry.getValue();
+
+				// check if test case is already stored as a suggestion in database
+				if(storedTestCases.stream().anyMatch(tc -> tc.contentEquals(t))) {
+					// already exists
+					continue;
+				}
+
+				TestModel m = new TestModel(Arrays.stream(new TestCase[] { t }).toList());
+				m.persist(connection);
+
+				storeTestSuggestionToDB(connection, versionedModelId, m, description);
+			}
+			connection.close();
+		} catch (SQLException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
 	private void storeTestSuggestionToDB(Connection connection, int versionedModelId, TestModel m, String description) throws SQLException {
 		PreparedStatement statement = connection.prepareStatement("INSERT INTO VersionedModelToTestSuggestion (versionedModelId, testModelId, description, suggest) VALUES (?,?,?,?);");
 		statement.setInt(1, versionedModelId);
@@ -1687,6 +1728,17 @@ public class RESTResources {
 		statement.setBoolean(4, true);
 		statement.executeUpdate();
 		statement.close();
+	}
+
+	private Map<TestCase, String> testCasesArrayToMap(JSONArray arr) {
+		Map<TestCase, String> testCasesMap = new HashMap<>();
+		for(Object o : arr) {
+			JSONObject obj = (JSONObject) o;
+			JSONObject testCase = (JSONObject) obj.get("testCase");
+			String description = (String) obj.get("description");
+			testCasesMap.put(new TestCase(testCase), description);
+		}
+		return testCasesMap;
 	}
 
 	/**
