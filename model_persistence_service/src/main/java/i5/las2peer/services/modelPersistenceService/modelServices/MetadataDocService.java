@@ -804,7 +804,7 @@ public class MetadataDocService {
         ObjectNode schemaObject = mapper.createObjectNode();
         if (type.equals("application/json")) {
             // search for the schema
-            String nodeSchema = nodeSchemas.get(node.getId());
+            String nodeSchema = nodeSchemas.get(node.getSyncMetaId());
             if (nodeSchema != null && !nodeSchema.isEmpty()) {
                 schemaObject.put("$ref", "#/definitions/" + nodeSchema);
                 nodeObject.put("schema", schemaObject);
@@ -821,7 +821,7 @@ public class MetadataDocService {
         }
 
         // get description from node informations
-        String description = nodeInformations.get(node.getId());
+        String description = nodeInformations.get(node.getSyncMetaId());
         description = (description == null || description.isEmpty()) ? "" : description;
         nodeObject.put("description", description);
         return nodeObject;
@@ -896,7 +896,7 @@ public class MetadataDocService {
         type = TypeToOpenApiSpec(type);
         if (type.equals("application/json")) {
             // search for the schema
-            String nodeSchema = nodeSchemas.get(node.getId());
+            String nodeSchema = nodeSchemas.get(node.getSyncMetaId());
             if (nodeSchema != null && !nodeSchema.isEmpty()) {
                 schemaObject.put("$ref", "#/definitions/" + nodeSchema);
                 responseObject.put("schema", schemaObject);
@@ -904,7 +904,7 @@ public class MetadataDocService {
         }
 
         // get description from node informations
-        String description = nodeInformations.get(node.getId());
+        String description = nodeInformations.get(node.getSyncMetaId());
         description = (description == null || description.isEmpty()) ? "" : description;
         responseObject.put("description", description);
 
