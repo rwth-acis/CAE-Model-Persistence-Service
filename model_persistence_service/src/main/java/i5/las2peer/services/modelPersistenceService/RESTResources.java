@@ -594,6 +594,47 @@ public class RESTResources {
 		}
 	}
 
+	@GET
+	@Path("/versionedModels/{id}/testsuggestions")
+	public Response getTestSuggestions(@PathParam("id") int versionedModelId) {
+		try {
+			Connection connection = dbm.getConnection();
+			Map<TestCase, String> testCases = getTestSuggestionsByVersionedModel(connection, versionedModelId, false);
+			connection.close();
+
+			JSONArray arr = new JSONArray();
+			for(Map.Entry<TestCase, String> entry : testCases.entrySet()) {
+				JSONObject obj = new JSONObject();
+				obj.put("testCase", entry.getKey().toJSONObject());
+				obj.put("description", entry.getValue());
+				arr.add(obj);
+			}
+
+			return Response.status(HttpURLConnection.HTTP_OK).entity(arr.toJSONString()).build();
+		} catch(SQLException e) {
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
+		}
+	}
+
+	@PUT
+	@Path("/versionedModels/{id}/testsuggestions/{testModelId}")
+	public Response dismissTestSuggestion(@PathParam("id") int versionedModelId, @PathParam("testModelId") int testModelId) {
+		try {
+			Connection connection = dbm.getConnection();
+
+			PreparedStatement statement = connection.prepareStatement("UPDATE VersionedModelToTestSuggestion SET `suggest`='0' WHERE `versionedModelId`=? AND `testModelId`=?;");
+			statement.setInt(1, versionedModelId);
+			statement.setInt(2, testModelId);
+			statement.executeUpdate();
+			statement.close();
+
+			connection.close();
+			return Response.status(HttpURLConnection.HTTP_OK).build();
+		} catch(SQLException e) {
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
+		}
+	}
+	
 	/**
 	 * Get the status / console text of a build. The build is identified by
 	 * using the queue item that is returned when a job is created.
