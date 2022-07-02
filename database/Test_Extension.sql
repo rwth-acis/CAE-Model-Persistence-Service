@@ -12,6 +12,17 @@ CREATE TABLE IF NOT EXISTS commedit.CommitToTestModel (
   CONSTRAINT commitToTestModelModelFK FOREIGN KEY (testModelId) REFERENCES commedit.TestModel(modelId) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS commedit.VersionedModelToTestSuggestion (
+  id INT NOT NULL AUTO_INCREMENT,
+  versionedModelId INT NOT NULL,
+  testModelId INT NOT NULL,
+  description TEXT,
+  suggest BOOLEAN,
+  CONSTRAINT versionedModelToTestSuggestionPK PRIMARY KEY (id),
+  CONSTRAINT versionedModelToTestSuggestionFK1 FOREIGN KEY (versionedModelId) REFERENCES commedit.VersionedModel(id) ON DELETE CASCADE,
+  CONSTRAINT versionedModelToTestSuggestionFK2 FOREIGN KEY (testModelId) REFERENCES commedit.TestModel(modelId) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS commedit.TestCase (
   testCaseId INT NOT NULL,
   modelId INT NOT NULL,
