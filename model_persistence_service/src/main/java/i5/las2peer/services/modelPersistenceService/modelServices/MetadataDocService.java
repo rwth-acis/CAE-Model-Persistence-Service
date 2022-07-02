@@ -798,27 +798,30 @@ public class MetadataDocService {
             }
         }
 
+        // type is JSON, TEXT, PATH_PARAM or CUSTOM
+
         nodeObject.put("name", name);
         nodeObject.put("required", true);
-        type = TypeToOpenApiSpec(type);
+        if(type.equals("JSON")) {
+            type = TypeToOpenApiSpec(type);
 
-        ObjectNode schemaObject = mapper.createObjectNode();
-        if (type.equals("application/json")) {
-            // search for the schema
-            String nodeSchema = nodeSchemas.get(node.getSyncMetaId());
-            if (nodeSchema != null && !nodeSchema.isEmpty()) {
-                schemaObject.put("$ref", "#/definitions/" + nodeSchema);
-                nodeObject.put("schema", schemaObject);
-                nodeObject.put("in", "body");
-            } else {
-                // schema empty even if application json chosen
-                nodeObject.put("type", "string");
-                nodeObject.put("in", "query"); 
+            ObjectNode schemaObject = mapper.createObjectNode();
+            if (type.equals("application/json")) {
+                // search for the schema
+                String nodeSchema = nodeSchemas.get(node.getSyncMetaId());
+                if (nodeSchema != null && !nodeSchema.isEmpty()) {
+                    schemaObject.put("$ref", "#/definitions/" + nodeSchema);
+                    nodeObject.put("schema", schemaObject);
+                    nodeObject.put("in", "body");
+                } else {
+                    // schema empty even if application json chosen
+                    nodeObject.put("type", "application/json");
+                    nodeObject.put("in", "body");
+                }
             }
-        }
-        else {
-            nodeObject.put("type", type);
-            nodeObject.put("in", "query"); 
+        } else {
+            nodeObject.put("type", "string");
+            nodeObject.put("in", "path");
         }
 
         // get description from node informations
