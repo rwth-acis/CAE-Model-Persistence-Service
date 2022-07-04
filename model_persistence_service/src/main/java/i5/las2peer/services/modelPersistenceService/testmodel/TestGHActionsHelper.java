@@ -66,7 +66,10 @@ public class TestGHActionsHelper {
 
 		// get coverage report artifact
 		GHArtifact artifact = getArtifactByName(latestCommitWorkflowRun, "swagger-coverage-report");
-		if(artifact == null) return;
+		if(artifact == null) {
+			this.markNodesUnknownCoverage(model);
+			return;
+		}
 
 		// iterate over operations from coverage report
 		JSONObject operations = getCoverageReportOperations(artifact);
@@ -104,13 +107,17 @@ public class TestGHActionsHelper {
 
         // model might contain changes which were not part of it during the last test run
 		// mark these nodes as unknown
+		this.markNodesUnknownCoverage(model);
+	}
+
+	private void markNodesUnknownCoverage(Model model) {
 		model.getNodes().forEach(node -> {
 			if(node.getType().equals("HTTP Response") || node.getType().equals("HTTP Payload") || node.getType().equals("HTTP Method")) {
 				// check if coverage attribute exists
 				try {
 					getNodeAttributeValue(node, "coverage");
 				} catch (NoSuchElementException e) {
-                    // coverage attribute not found => set to unknown
+					// coverage attribute not found => set to unknown
 					addCoverageAttributeToNode(node, "unknown");
 				}
 			}
@@ -290,6 +297,7 @@ public class TestGHActionsHelper {
 		if(artifact == null) return;
 
 		ReportTestSuite testReport = extractTestResultFromArtifact(artifact);
+		if(testReport == null) return;
 		addRequestResponses(testModel, testReport);
 
 		if(latestCommitWorkflowRun.getStatus() == GHWorkflowRun.Status.COMPLETED) {
