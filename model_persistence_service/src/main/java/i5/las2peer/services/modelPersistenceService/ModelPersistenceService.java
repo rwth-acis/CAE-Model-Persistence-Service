@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
+import i5.las2peer.services.modelPersistenceService.chat.RocketChatConfig;
 import org.json.simple.JSONObject;
 
 import i5.las2peer.api.Context;
@@ -73,6 +74,10 @@ public class ModelPersistenceService extends RESTService {
 	// debug variable to turn on/off the creation of requirements bazaar categories
 	private boolean debugDisableCategoryCreation;
 
+	private String rocketChatUrl;
+	private String rocketChatBotAuthToken;
+	private String rocketChatBotUserId;
+
 	/*
 	 * Global variables
 	 */
@@ -123,6 +128,10 @@ public class ModelPersistenceService extends RESTService {
 
 	public String getGitHubPersonalAccessToken() {
 		return gitHubPersonalAccessToken;
+	}
+
+	public RocketChatConfig getRocketChatConfig() {
+		return new RocketChatConfig(this.rocketChatUrl, this.rocketChatBotAuthToken, this.rocketChatBotUserId);
 	}
 
 	/**

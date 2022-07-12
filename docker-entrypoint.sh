@@ -71,6 +71,9 @@ set_in_service_config reqBazProjectId ${REQ_BAZ_PROJECT_ID}
 set_in_service_config debugDisableCategoryCreation ${DISABLE_CATEGORY_CREATION}
 set_in_service_config gitHubOrganization ${GITHUB_ORG}
 set_in_service_config gitHubPersonalAccessToken ${GITHUB_PERSONAL_ACCESS_TOKEN}
+set_in_service_config rocketChatUrl ${ROCKET_CHAT_URL}
+set_in_service_config rocketChatBotAuthToken ${ROCKET_CHAT_BOT_AUTH_TOKEN}
+set_in_service_config rocketChatBotUserId ${ROCKET_CHAT_BOT_USER_ID}
 
 # configure web connector properties
 
