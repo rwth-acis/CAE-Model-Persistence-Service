@@ -36,6 +36,7 @@ dependencies {
     implementation group: 'org.kohsuke', name: 'github-api', version: '1.306'
 
     implementation "i5:las2peer-api-test-model:0.1.5"
+    implementation "com.konghq:unirest-java:3.13.10"
 }
 
 configurations {
