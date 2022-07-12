@@ -5,6 +5,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 
 import i5.las2peer.services.modelPersistenceService.chat.RocketChatConfig;
+import i5.las2peer.services.modelPersistenceService.chat.RocketChatHelper;
 import org.json.simple.JSONObject;
 
 import i5.las2peer.api.Context;
@@ -254,6 +255,15 @@ public class ModelPersistenceService extends RESTService {
 			o.put("oldMetadata", new JSONObject());
 			o.put("newMetadata", metadata.toJSONObject());
 			Context.get().invoke(PROJECT_SERVICE, "changeMetadataRMI", "CAE", o.toJSONString());
+
+			JSONObject chatInfo = (JSONObject) project.get("chatInfo");
+			String channelId = (String) chatInfo.get("channelId");
+
+			// create RocketChat integration
+			String webhookUrl = new RocketChatHelper().createIntegration(getRocketChatConfig(), channelId);
+			// add webhook to GitHub repo
+			String repoName = "application-" + metadata.getComponents().stream().findFirst().get().getVersionedModelId();
+			Context.get().invoke(codeGenerationService, "addWebhook", repoName, webhookUrl);
 		} catch (SQLException | ServiceNotFoundException | ServiceNotAvailableException | InternalServiceException | 
 				ServiceMethodNotFoundException | ServiceInvocationFailedException | ServiceAccessDeniedException |
 				ServiceNotAuthorizedException e) {

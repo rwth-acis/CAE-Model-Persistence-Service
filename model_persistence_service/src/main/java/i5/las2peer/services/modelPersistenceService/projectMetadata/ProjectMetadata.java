@@ -124,5 +124,8 @@ public class ProjectMetadata {
 		
 		return jsonMetadata;
 	}
-	
+
+	public ArrayList<Component> getComponents() {
+		return components;
+	}
 }

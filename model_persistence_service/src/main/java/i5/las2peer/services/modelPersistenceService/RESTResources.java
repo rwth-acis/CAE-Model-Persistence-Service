@@ -23,6 +23,7 @@ import javax.ws.rs.core.Response;
 
 import i5.las2peer.apiTestModel.TestCase;
 import i5.las2peer.apiTestModel.TestModel;
+import i5.las2peer.services.modelPersistenceService.chat.RocketChatHelper;
 import i5.las2peer.services.modelPersistenceService.testmodel.TestGHActionsHelper;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -1239,6 +1240,11 @@ public class RESTResources {
 		try {
 			Context.get().invoke(codeGenerationService, "createRepo", repoName);
 
+			JSONObject chatInfo = (JSONObject) Context.get().invoke(PROJECT_SERVICE, "getProjectChatInfo", "CAE", projectName);
+            String channelId = (String) chatInfo.get("channelId");
+			// add RocketChat webhook
+			String webhookUrl = RocketChatHelper.getIntegrationWebhookUrl(service.getRocketChatConfig(), channelId);
+			Context.get().invoke(codeGenerationService, "addWebhook", repoName, webhookUrl);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
