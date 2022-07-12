@@ -238,7 +238,7 @@ public class ModelPersistenceService extends RESTService {
 			String projectName = (String) project.get("name");
 			// create initial metadata for the project 
 			ProjectMetadata metadata = new ProjectMetadata(connection, projectName, 
-					Context.getCurrent().getMainAgent().getIdentifier());
+					Context.getCurrent().getMainAgent().getIdentifier(), codeGenerationService);
 			// update project and set this as the new metadata
 			JSONObject o = new JSONObject();
 			o.put("projectName", projectName);

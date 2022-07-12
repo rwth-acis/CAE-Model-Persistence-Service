@@ -1,5 +1,6 @@
 package i5.las2peer.services.modelPersistenceService.projectMetadata;
 
+import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -39,7 +40,7 @@ public class ProjectMetadata {
 	 */
 	private ArrayList<ExternalDependency> externalDependencies;
 	
-	public ProjectMetadata(Connection connection, String projectName, String projectCreatorAgentId) throws SQLException {
+	public ProjectMetadata(Connection connection, String projectName, String projectCreatorAgentId, String codeGenService) throws SQLException {
 	    this.roles = PredefinedRoles.get();	
 	    
 	    this.mapUserRole = new HashMap<>();
@@ -48,19 +49,27 @@ public class ProjectMetadata {
 	    
 	    this.components = new ArrayList<>();
 	    // store empty application model
-	    createApplicationComponent(connection, projectName);
+	    createApplicationComponent(connection, projectName, codeGenService);
 	    
 	    this.dependencies = new ArrayList<>();
 	    this.externalDependencies = new ArrayList<>();
 	}
 	
-	private void createApplicationComponent(Connection connection, String projectName) throws SQLException {
+	private void createApplicationComponent(Connection connection, String projectName, String codeGenService) throws SQLException {
 		String applicationComponentName = projectName + "-application";
 		Component applicationComponent = new Component(applicationComponentName, Component.TYPE_APPLICATION);
 		
 		// create versioned model for the component
 		applicationComponent.createEmptyVersionedModel(connection, false);
-		
+
+		// create GitHub repo
+		String repoName = "application-" +  applicationComponent.getVersionedModelId();
+		try {
+			Context.get().invoke(codeGenService, "createRepo", new Serializable[] { repoName });
+		} catch (Exception e) {
+
+		}
+
 		// also create category in Requirements Bazaar
 		// TODO
 		

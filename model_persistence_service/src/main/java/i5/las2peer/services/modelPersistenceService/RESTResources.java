@@ -74,6 +74,8 @@ import i5.las2peer.services.modelPersistenceService.projectMetadata.ReqBazHelper
 import i5.las2peer.services.modelPersistenceService.versionedModel.Commit;
 import i5.las2peer.services.modelPersistenceService.versionedModel.VersionedModel;
 
+import static i5.las2peer.services.modelPersistenceService.ModelPersistenceService.PROJECT_SERVICE;
+
 @Path("/")
 public class RESTResources {
 
@@ -1229,7 +1231,18 @@ public class RESTResources {
 					return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
 				}
 		}
-        
+
+		// create GitHub repository
+		String prefix = component.getType().equals(Component.TYPE_FRONTEND) ? "frontendComponent" :
+				(component.getType().equals(Component.TYPE_MICROSERVICE) ? "microservice" : "application");
+		String repoName = prefix + "-" + component.getVersionedModelId();
+		try {
+			Context.get().invoke(codeGenerationService, "createRepo", repoName);
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
 		try {
 			// get current metadata
 			JSONObject oldMetadata = (JSONObject) Context.get().invoke(ModelPersistenceService.PROJECT_SERVICE, "getProjectMetadataRMI", "CAE", projectName);
