@@ -1,13 +1,10 @@
 package i5.las2peer.services.modelPersistenceService;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.net.HttpURLConnection;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.sql.*;
+import java.util.*;
 
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
@@ -24,6 +21,10 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import i5.las2peer.apiTestModel.TestCase;
+import i5.las2peer.apiTestModel.TestModel;
+import i5.las2peer.services.modelPersistenceService.chat.RocketChatHelper;
+import i5.las2peer.services.modelPersistenceService.testmodel.TestGHActionsHelper;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
@@ -74,6 +75,8 @@ import i5.las2peer.services.modelPersistenceService.projectMetadata.ReqBazHelper
 import i5.las2peer.services.modelPersistenceService.versionedModel.Commit;
 import i5.las2peer.services.modelPersistenceService.versionedModel.VersionedModel;
 
+import static i5.las2peer.services.modelPersistenceService.ModelPersistenceService.PROJECT_SERVICE;
+
 @Path("/")
 public class RESTResources {
 
@@ -94,6 +97,49 @@ public class RESTResources {
 		this.deploymentUrl = service.getDeploymentUrl();
 		this.dbm = service.getDbm();
 		this.metadataDocService = service.getMetadataService();
+	}
+
+	@GET
+	@Path("/testmodel/{id}/status")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getTestModelStatus(@PathParam("id") int testModelId, @QueryParam("sha") String sha, @QueryParam("repoName") String repoName) {
+		try {
+			Connection connection = dbm.getConnection();
+			TestModel testModel = new TestModel(connection, testModelId);
+			connection.close();
+			TestGHActionsHelper h = new TestGHActionsHelper(service.getGitHubOrganization(), service.getGitHubPersonalAccessToken());
+			h.addTestResults(sha, testModel, repoName);
+			return Response.status(HttpURLConnection.HTTP_OK).entity(testModel.toJSONObject().toJSONString()).build();
+		} catch (SQLException | IOException e) {
+			e.printStackTrace();
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
+		} catch (Exception e) {
+			e.printStackTrace();
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
+		}
+	}
+
+	/**
+	 * Adds API test coverage information to given microservice model and returns it.
+	 * Uses coverage information from latest test run from GitHub actions.
+	 * @param sha Sha of the latest commit to the microservice.
+	 * @param repoName Name of the repository, where the microservice code is hosted.
+	 * @param body Current state of the microservice model.
+	 * @return Given microservice model including API test coverage information.
+	 */
+	@POST
+	@Path("/models/coverage")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getModelCoverage(@QueryParam("sha") String sha, @QueryParam("repoName") String repoName, String body) {
+		try {
+			Model model = new Model(body);
+			TestGHActionsHelper h = new TestGHActionsHelper(service.getGitHubOrganization(), service.getGitHubPersonalAccessToken());
+			h.addTestCoverage(sha, model, repoName);
+			return Response.status(HttpURLConnection.HTTP_OK).entity(model.toJSONObject().toJSONString()).build();
+		} catch (Exception e) {
+			e.printStackTrace();
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
+		}
 	}
 
 	/**
@@ -359,7 +405,7 @@ public class RESTResources {
 	/**
 	 * Posts a commit to the versioned model.
 	 * @param versionedModelId Id of the versioned model, where the commit should be added to.
-	 * @param inputCommit Input commit as JSON, also containing the model that should be connected to the commit.
+	 * @param inputCommit Input commit as JSON, also containing the model (and test model) that should be connected to the commit.
 	 * @return Response with status code (and possibly error message).
 	 */
 	@POST
@@ -431,17 +477,27 @@ public class RESTResources {
 			// there always exists a commit for "uncommited changes"
 			// that one needs to be removed first
 			connection.setAutoCommit(false);
+			
+			// The codegen service and metadatadocservice already require the model to have
+			// a "type" attribute
+			// this "type" attribute is included in the request body
+			JSONObject commitJson = (JSONObject) JSONValue.parse(inputCommit);
+			String type = (String) commitJson.get("componentType");
+			String componentName = (String) commitJson.get("componentName");
+			String metadataVersion = (String) commitJson.get("metadataVersion");
+			
+			boolean testModelIncluded = type.equals("microservice");
 
 			VersionedModel versionedModel = new VersionedModel(versionedModelId, connection);
 			Commit uncommitedChanges = versionedModel.getCommitForUncommitedChanges();
 			uncommitedChanges.delete(connection);
 
 			// now create a new commit
-			Commit commit = new Commit(inputCommit, false);
+			Commit commit = new Commit(inputCommit, testModelIncluded, false);
 			commit.persist(versionedModelId, connection, false);
 
 			// now create new commit for uncommited changes
-			Commit uncommitedChangesNew = new Commit(inputCommit, true);
+			Commit uncommitedChangesNew = new Commit(inputCommit, testModelIncluded, true);
 			uncommitedChangesNew.persist(versionedModelId, connection, false);
 
 			// reload versionedModel from database
@@ -454,14 +510,6 @@ public class RESTResources {
 			if (!semanticCheckService.isEmpty()) {
 				this.checkModel(model);
 			}
-
-			// The codegen service and metadatadocservice already require the model to have
-			// a "type" attribute
-			// this "type" attribute is included in the request body
-			JSONObject commitJson = (JSONObject) JSONValue.parse(inputCommit);
-			String type = (String) commitJson.get("componentType");
-			String componentName = (String) commitJson.get("componentName");
-			String metadataVersion = (String) commitJson.get("metadataVersion");
 
 			// given type "frontend" needs to be converted to "frontend-component"
 			if (type.equals("frontend"))
@@ -508,7 +556,9 @@ public class RESTResources {
 			}
 
 			// generate metadata swagger doc after model valid in code generation
-			metadataDocService.modelToSwagger(versionedModel.getId(), componentName, model, metadataVersion);
+			String swaggerDoc = metadataDocService.modelToSwagger(versionedModel.getId(), componentName, model, metadataVersion);
+			// generate test cases
+			generateTestSuggestions(swaggerDoc, versionedModel.getId());
 
 			// now persist the sha given by code generation service
 			commit.persistSha(commitSha, connection);
@@ -544,6 +594,47 @@ public class RESTResources {
 			} catch (SQLException e) {
 				logger.printStackTrace(e);
 			}
+		}
+	}
+
+	@GET
+	@Path("/versionedModels/{id}/testsuggestions")
+	public Response getTestSuggestions(@PathParam("id") int versionedModelId) {
+		try {
+			Connection connection = dbm.getConnection();
+			Map<TestCase, String> testCases = getTestSuggestionsByVersionedModel(connection, versionedModelId, false);
+			connection.close();
+
+			JSONArray arr = new JSONArray();
+			for(Map.Entry<TestCase, String> entry : testCases.entrySet()) {
+				JSONObject obj = new JSONObject();
+				obj.put("testCase", entry.getKey().toJSONObject());
+				obj.put("description", entry.getValue());
+				arr.add(obj);
+			}
+
+			return Response.status(HttpURLConnection.HTTP_OK).entity(arr.toJSONString()).build();
+		} catch(SQLException e) {
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
+		}
+	}
+
+	@PUT
+	@Path("/versionedModels/{id}/testsuggestions/{testModelId}")
+	public Response dismissTestSuggestion(@PathParam("id") int versionedModelId, @PathParam("testModelId") int testModelId) {
+		try {
+			Connection connection = dbm.getConnection();
+
+			PreparedStatement statement = connection.prepareStatement("UPDATE VersionedModelToTestSuggestion SET `suggest`='0' WHERE `versionedModelId`=? AND `testModelId`=?;");
+			statement.setInt(1, versionedModelId);
+			statement.setInt(2, testModelId);
+			statement.executeUpdate();
+			statement.close();
+
+			connection.close();
+			return Response.status(HttpURLConnection.HTTP_OK).build();
+		} catch(SQLException e) {
+			return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
 		}
 	}
 	
@@ -823,6 +914,8 @@ public class RESTResources {
 		if (modelType.equals("application")) {
 			isApplication = true;
 		}
+		
+		TestModel testModel = null;
 
 		if (isApplication) {
 			// If we call the code generation service with an application to be generated, then we also need
@@ -1033,6 +1126,10 @@ public class RESTResources {
 				
 				modelsToSendList.add(oldModel);
 			}
+			
+			if(modelType.equals("microservice")) {
+				testModel = commit.getTestModel();
+			}
 		}
 
 
@@ -1046,7 +1143,8 @@ public class RESTResources {
 				// method is either updateRepositoryOfModel or createFromModel
 				String versionTag = commit.getVersionTag();
 				if(versionTag == null) versionTag = "";
-				Serializable[] payload = { commit.getMessage(), versionTag, metadataDoc, modelsToSendList, (Serializable) extDependenciesToSend };
+				Serializable[] payload = { commit.getMessage(), versionTag, metadataDoc, modelsToSendList,
+						(Serializable) extDependenciesToSend, testModel };
 				answer = (String) Context.getCurrent().invoke(codeGenerationService, methodName, payload);
 			}
 
@@ -1107,8 +1205,9 @@ public class RESTResources {
         Connection connection = null;
 		try {
 			component = new Component(inputComponent);
+			boolean isMicroservice = component.getType().equals(Component.TYPE_MICROSERVICE);
 			connection = this.dbm.getConnection();
-			component.createEmptyVersionedModel(connection);
+			component.createEmptyVersionedModel(connection, isMicroservice);
 			
 			// create category in requirements bazaar
 			if(!this.service.isCategoryCreationDisabled()) {
@@ -1133,7 +1232,23 @@ public class RESTResources {
 					return Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).build();
 				}
 		}
-        
+
+		// create GitHub repository
+		String prefix = component.getType().equals(Component.TYPE_FRONTEND) ? "frontendComponent" :
+				(component.getType().equals(Component.TYPE_MICROSERVICE) ? "microservice" : "application");
+		String repoName = prefix + "-" + component.getVersionedModelId();
+		try {
+			Context.get().invoke(codeGenerationService, "createRepo", repoName);
+
+			JSONObject chatInfo = (JSONObject) Context.get().invoke(PROJECT_SERVICE, "getProjectChatInfo", "CAE", projectName);
+            String channelId = (String) chatInfo.get("channelId");
+			// add RocketChat webhook
+			String webhookUrl = RocketChatHelper.getIntegrationWebhookUrl(service.getRocketChatConfig(), channelId);
+			Context.get().invoke(codeGenerationService, "addWebhook", repoName, webhookUrl);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
 		try {
 			// get current metadata
 			JSONObject oldMetadata = (JSONObject) Context.get().invoke(ModelPersistenceService.PROJECT_SERVICE, "getProjectMetadataRMI", "CAE", projectName);
@@ -1624,5 +1739,97 @@ public class RESTResources {
 			return Response.serverError().entity("Could not delete metadata doc, SQL exception").build();
 		}
 
+	}
+
+	/**
+	 * Calls API test generation service to generate test cases.
+	 * Stores the suggested test cases to the database afterwards.
+	 * @param swaggerDoc Swagger documentation
+	 * @param versionedModelId Id of versioned model.
+	 */
+	private void generateTestSuggestions(String swaggerDoc, int versionedModelId) throws ServiceNotAvailableException, ServiceInvocationFailedException, ServiceNotFoundException, ServiceAccessDeniedException, ServiceNotAuthorizedException, ServiceMethodNotFoundException, InternalServiceException, ParseException {
+		String testCasesMapStr = (String) Context.getCurrent().invoke("i5.las2peer.services.apiTestGenService.APITestGenService@0.1.0", "openAPIToTests", new Serializable[] { swaggerDoc });
+		JSONArray arr = (JSONArray) JSONValue.parse(testCasesMapStr);
+		Map<TestCase, String> testCasesMap = testCasesArrayToMap(arr);
+
+		try {
+			Connection connection = dbm.getConnection();
+
+			// get existing suggestions from database
+			List<TestCase> storedTestCases = getTestSuggestionsByVersionedModel(connection, versionedModelId, true).keySet().stream().toList();
+
+			// split every test case into separate testmodel
+			for(Map.Entry<TestCase, String> entry : testCasesMap.entrySet()) {
+				TestCase t = entry.getKey();
+				String description = entry.getValue();
+
+				// check if test case is already stored as a suggestion in database
+				if(storedTestCases.stream().anyMatch(tc -> tc.contentEquals(t))) {
+					// already exists
+					continue;
+				}
+
+				TestModel m = new TestModel(Arrays.stream(new TestCase[] { t }).toList());
+				m.persist(connection);
+
+				storeTestSuggestionToDB(connection, versionedModelId, m, description);
+			}
+			connection.close();
+		} catch (SQLException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	private void storeTestSuggestionToDB(Connection connection, int versionedModelId, TestModel m, String description) throws SQLException {
+		PreparedStatement statement = connection.prepareStatement("INSERT INTO VersionedModelToTestSuggestion (versionedModelId, testModelId, description, suggest) VALUES (?,?,?,?);");
+		statement.setInt(1, versionedModelId);
+		statement.setInt(2, m.getId());
+		statement.setString(3, description);
+		statement.setBoolean(4, true);
+		statement.executeUpdate();
+		statement.close();
+	}
+
+	private Map<TestCase, String> testCasesArrayToMap(JSONArray arr) {
+		Map<TestCase, String> testCasesMap = new HashMap<>();
+		for(Object o : arr) {
+			JSONObject obj = (JSONObject) o;
+			JSONObject testCase = (JSONObject) obj.get("testCase");
+			String description = (String) obj.get("description");
+			testCasesMap.put(new TestCase(testCase), description);
+		}
+		return testCasesMap;
+	}
+
+	/**
+	 * Loads test suggestions from database.
+	 * @param connection Database connection
+	 * @param versionedModelId Id of versioned model for which test suggestions should be loaded.
+	 * @param includeAlreadySuggestedTests Whether already accepted/declined test cases should be included in result.
+	 * @return Map containing test cases and their descriptions.
+	 * @throws SQLException
+	 */
+	private Map<TestCase, String> getTestSuggestionsByVersionedModel(Connection connection, int versionedModelId, boolean includeAlreadySuggestedTests) throws SQLException {
+		Map<TestCase, String> testCases = new HashMap<>();
+
+		// load test suggestions from database
+		PreparedStatement statement = connection.prepareStatement("SELECT * FROM VersionedModelToTestSuggestion WHERE versionedModelId = ?;");
+		statement.setInt(1, versionedModelId);
+
+		ResultSet queryResult = statement.executeQuery();
+		while(queryResult.next()) {
+			int testModelId = queryResult.getInt("testModelId");
+			boolean suggest = queryResult.getBoolean("suggest");
+			String description = queryResult.getString("description");
+			if(suggest || includeAlreadySuggestedTests) {
+				TestModel testModel = new TestModel(connection, testModelId);
+				TestCase testCase = testModel.getTestCases().get(0);
+				testCase.setId(testModelId);
+				testCases.put(testCase, description);
+			}
+		}
+		statement.close();
+
+		return testCases;
 	}
 }

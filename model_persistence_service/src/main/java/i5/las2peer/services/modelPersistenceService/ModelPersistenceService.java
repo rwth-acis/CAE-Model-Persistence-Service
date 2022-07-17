@@ -4,6 +4,8 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
+import i5.las2peer.services.modelPersistenceService.chat.RocketChatConfig;
+import i5.las2peer.services.modelPersistenceService.chat.RocketChatHelper;
 import org.json.simple.JSONObject;
 
 import i5.las2peer.api.Context;
@@ -59,6 +61,9 @@ public class ModelPersistenceService extends RESTService {
 	private String codeGenerationService = "";
 	private String deploymentUrl = "";
 	private DatabaseManager dbm;
+	
+	private String gitHubOrganization;
+	private String gitHubPersonalAccessToken;
 
 	private MetadataDocService metadataDocService;
 	
@@ -69,6 +74,10 @@ public class ModelPersistenceService extends RESTService {
 	private int reqBazProjectId;
 	// debug variable to turn on/off the creation of requirements bazaar categories
 	private boolean debugDisableCategoryCreation;
+
+	private String rocketChatUrl;
+	private String rocketChatBotAuthToken;
+	private String rocketChatBotUserId;
 
 	/*
 	 * Global variables
@@ -113,7 +122,19 @@ public class ModelPersistenceService extends RESTService {
 	public MetadataDocService getMetadataService(){
 		return metadataDocService;
 	}
-	
+
+	public String getGitHubOrganization() {
+		return gitHubOrganization;
+	}
+
+	public String getGitHubPersonalAccessToken() {
+		return gitHubPersonalAccessToken;
+	}
+
+	public RocketChatConfig getRocketChatConfig() {
+		return new RocketChatConfig(this.rocketChatUrl, this.rocketChatBotAuthToken, this.rocketChatBotUserId);
+	}
+
 	/**
 	 * Whether categories in the Requirements Bazaar should be created for every component.
 	 * This can be configured using the service properties file.
@@ -227,13 +248,22 @@ public class ModelPersistenceService extends RESTService {
 			String projectName = (String) project.get("name");
 			// create initial metadata for the project 
 			ProjectMetadata metadata = new ProjectMetadata(connection, projectName, 
-					Context.getCurrent().getMainAgent().getIdentifier());
+					Context.getCurrent().getMainAgent().getIdentifier(), codeGenerationService);
 			// update project and set this as the new metadata
 			JSONObject o = new JSONObject();
 			o.put("projectName", projectName);
 			o.put("oldMetadata", new JSONObject());
 			o.put("newMetadata", metadata.toJSONObject());
 			Context.get().invoke(PROJECT_SERVICE, "changeMetadataRMI", "CAE", o.toJSONString());
+
+			JSONObject chatInfo = (JSONObject) project.get("chatInfo");
+			String channelId = (String) chatInfo.get("channelId");
+
+			// create RocketChat integration
+			String webhookUrl = new RocketChatHelper().createIntegration(getRocketChatConfig(), channelId);
+			// add webhook to GitHub repo
+			String repoName = "application-" + metadata.getComponents().stream().findFirst().get().getVersionedModelId();
+			Context.get().invoke(codeGenerationService, "addWebhook", repoName, webhookUrl);
 		} catch (SQLException | ServiceNotFoundException | ServiceNotAvailableException | InternalServiceException | 
 				ServiceMethodNotFoundException | ServiceInvocationFailedException | ServiceAccessDeniedException |
 				ServiceNotAuthorizedException e) {
