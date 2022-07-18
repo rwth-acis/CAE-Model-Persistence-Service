@@ -486,11 +486,6 @@ public class MetadataDocService {
         infoObject.put("version", version);
         infoObject.put("termsOfService", termsOfService);
 
-        // Fixed value
-        ArrayNode schemes = mapper.createArrayNode();
-        schemes.add("http");
-        rootObject.put("schemes", schemes);
-
         try {
             // ==================== PROCESS NODES ======================
             ArrayList<Node> nodes = model.getNodes();
@@ -507,8 +502,8 @@ public class MetadataDocService {
                                     urlPath = "http://127.0.0.1:8080/" + urlPath;
                                     // get host
                                     URL urlObject = new URL(urlPath);
-                                    rootObject.put("host", urlObject.getHost().replace("http://", ""));
-                                    rootObject.put("basePath", urlObject.getPath());
+
+                                    
                                     break;
                                 case "developer":
                                     ObjectNode contactNode = mapper.createObjectNode();
