@@ -503,7 +503,11 @@ public class MetadataDocService {
                                     // get host
                                     URL urlObject = new URL(urlPath);
 
-                                    
+                                    ArrayNode servers = mapper.createArrayNode();
+                                    ObjectNode server = mapper.createObjectNode();
+                                    server.put("url", urlObject.getHost() + urlObject.getPath());
+                                    servers.add(server);
+                                    rootObject.put("servers", servers);
                                     break;
                                 case "developer":
                                     ObjectNode contactNode = mapper.createObjectNode();
