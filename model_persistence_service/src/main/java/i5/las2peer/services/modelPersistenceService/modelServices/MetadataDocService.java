@@ -626,8 +626,8 @@ public class MetadataDocService {
         // process definitions
         if (definitionsNode != null) {
             Iterator<Map.Entry<String, JsonNode>> definitionIterator = definitionsNode.fields();
-            ObjectNode definitionObjectNode = mapper.createObjectNode();
-            ObjectNode definitionPropertiesNode = mapper.createObjectNode();
+            ObjectNode componentsObject = mapper.createObjectNode();
+            ObjectNode schemasObject = mapper.createObjectNode();
 
             while (definitionIterator.hasNext()) {
                 ObjectNode iteratorObjectNode = mapper.createObjectNode();
@@ -636,9 +636,10 @@ public class MetadataDocService {
                 String entryKey = entry.getKey();
                 iteratorObjectNode.put("type", "object");
                 iteratorObjectNode.put("properties", entryValue);
-                definitionObjectNode.put(entryKey, iteratorObjectNode);
+                schemasObject.put(entryKey, iteratorObjectNode);
             }
-            rootObject.put("definitions", definitionObjectNode);
+            componentsObject.put("schemas", schemasObject);
+            rootObject.put("components", componentsObject);
         }
 
         try {
