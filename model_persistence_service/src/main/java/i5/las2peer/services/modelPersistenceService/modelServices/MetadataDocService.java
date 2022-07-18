@@ -409,11 +409,13 @@ public class MetadataDocService {
         // simple entry path and object method
         HashMap<String, SimpleEntry<String, SimpleEntry<String, ObjectNode>>> httpMethodNodes = new HashMap<String, SimpleEntry<String, SimpleEntry<String, ObjectNode>>>();
         HashMap<String, ObjectNode> httpPayloadNodes = new HashMap<String, ObjectNode>();
+        HashMap<String, ObjectNode> requestBodyNodes = new HashMap<>();
         // simple entry code and response node
         HashMap<String, SimpleEntry<String, ObjectNode>> httpResponseNodes = new HashMap<String, SimpleEntry<String, ObjectNode>>();
 
         // maps http methods to payload and reponse nodes
         HashMap<String, ArrayList<ObjectNode>> httpMethodParameterNodes = new HashMap<String, ArrayList<ObjectNode>>();
+        HashMap<String, ObjectNode> httpMethodRequestBodyNode = new HashMap<>();
         HashMap<String, ArrayList<SimpleEntry<String, ObjectNode>>> httpMethodResponsesNodes = new HashMap<String, ArrayList<SimpleEntry<String, ObjectNode>>>();
         ObjectNode pathsObject = mapper.createObjectNode();
 
@@ -475,7 +477,7 @@ public class MetadataDocService {
         }
 
         //get basic attributes for first level
-        rootObject.put("swagger", "2.0");
+        rootObject.put("openapi", "3.0.3");
 
         // info object
         ObjectNode infoObject = mapper.createObjectNode();
@@ -485,11 +487,6 @@ public class MetadataDocService {
         infoObject.put("description", description);
         infoObject.put("version", version);
         infoObject.put("termsOfService", termsOfService);
-
-        // Fixed value
-        ArrayNode schemes = mapper.createArrayNode();
-        schemes.add("http");
-        rootObject.put("schemes", schemes);
 
         try {
             // ==================== PROCESS NODES ======================
@@ -507,8 +504,12 @@ public class MetadataDocService {
                                     urlPath = "http://127.0.0.1:8080/" + urlPath;
                                     // get host
                                     URL urlObject = new URL(urlPath);
-                                    rootObject.put("host", urlObject.getHost().replace("http://", ""));
-                                    rootObject.put("basePath", urlObject.getPath());
+
+                                    ArrayNode servers = mapper.createArrayNode();
+                                    ObjectNode server = mapper.createObjectNode();
+                                    server.put("url", urlObject.getHost() + urlObject.getPath());
+                                    servers.add(server);
+                                    rootObject.put("servers", servers);
                                     break;
                                 case "developer":
                                     ObjectNode contactNode = mapper.createObjectNode();
@@ -527,7 +528,13 @@ public class MetadataDocService {
                         break;
                     case "HTTP Payload":
                         // parameters
-                        httpPayloadNodes.put(node.getSyncMetaId(), nodeToHttpPayload(node, nodeInformations, nodeSchemas));
+                        ObjectNode payload = nodeToHttpPayload(node, nodeInformations, nodeSchemas);
+                        if(payload.has("content")) {
+                            // request body parameter
+                            requestBodyNodes.put(node.getSyncMetaId(), payload);
+                        } else {
+                            httpPayloadNodes.put(node.getSyncMetaId(), payload);
+                        }
                         break;
                     case "HTTP Response":
                         // produces
@@ -559,6 +566,7 @@ public class MetadataDocService {
                         if (httpMethodNodes.get(sourceId) != null) {
                             // get payload object node
                             ObjectNode httpPayloadNode = httpPayloadNodes.get(targetId);
+                            ObjectNode requestBodyNode = requestBodyNodes.get(targetId);
                             if (httpPayloadNode != null) {
                                 // get parameter type for consume list
                                 String nodeType = (httpPayloadNode.hasNonNull("type")) ? httpPayloadNode.get("type").asText() : "application/json";
@@ -579,6 +587,8 @@ public class MetadataDocService {
                                     payloadList.add(httpPayloadNode);
                                     httpMethodParameterNodes.put(sourceId, payloadList);
                                 }
+                            } else if(requestBodyNode != null) {
+                                httpMethodRequestBodyNode.put(sourceId, requestBodyNode);
                             }
                         }
                         break;
@@ -627,8 +637,8 @@ public class MetadataDocService {
         // process definitions
         if (definitionsNode != null) {
             Iterator<Map.Entry<String, JsonNode>> definitionIterator = definitionsNode.fields();
-            ObjectNode definitionObjectNode = mapper.createObjectNode();
-            ObjectNode definitionPropertiesNode = mapper.createObjectNode();
+            ObjectNode componentsObject = mapper.createObjectNode();
+            ObjectNode schemasObject = mapper.createObjectNode();
 
             while (definitionIterator.hasNext()) {
                 ObjectNode iteratorObjectNode = mapper.createObjectNode();
@@ -637,9 +647,10 @@ public class MetadataDocService {
                 String entryKey = entry.getKey();
                 iteratorObjectNode.put("type", "object");
                 iteratorObjectNode.put("properties", entryValue);
-                definitionObjectNode.put(entryKey, iteratorObjectNode);
+                schemasObject.put(entryKey, iteratorObjectNode);
             }
-            rootObject.put("definitions", definitionObjectNode);
+            componentsObject.put("schemas", schemasObject);
+            rootObject.put("components", componentsObject);
         }
 
         try {
@@ -654,28 +665,6 @@ public class MetadataDocService {
                 String methodType = methodTypeToNode.getKey();
                 ObjectNode methodObjectNode = methodTypeToNode.getValue();
 
-                // get consumes & produces list
-                ArrayList<String> producesList = methodToProduces.get(methodId);
-                ArrayList<String> consumesList = methodToConsumes.get(methodId);
-
-                if (producesList == null)
-                    producesList = new ArrayList<String>();
-                if (consumesList == null)
-                    consumesList = new ArrayList<String>();
-
-                ArrayNode produces = mapper.createArrayNode();
-                for (String produceString : producesList) {
-                    produces.add(produceString);
-                }
-
-                ArrayNode consumes = mapper.createArrayNode();
-                for (String consumeString : consumesList) {
-                    consumes.add(consumeString);
-                }
-
-                methodObjectNode.put("consumes", consumes);
-                methodObjectNode.put("produces", produces);
-
                 // get all parameters
                 ArrayNode parameters = mapper.createArrayNode();
                 ArrayList<ObjectNode> parametersArray = httpMethodParameterNodes.get(methodId);
@@ -685,6 +674,12 @@ public class MetadataDocService {
                         parameters.add(parameter);
                     }
                     methodObjectNode.put("parameters", parameters);
+                }
+
+                // request body
+                ObjectNode requestBody = httpMethodRequestBodyNode.get(methodId);
+                if(requestBody != null) {
+                    methodObjectNode.put("requestBody", requestBody);
                 }
 
                 // get all responses
@@ -812,27 +807,33 @@ public class MetadataDocService {
 
         // type is JSON, TEXT, PATH_PARAM or CUSTOM
 
-        nodeObject.put("name", name);
-        nodeObject.put("required", true);
         if (type.equals("JSON")) {
             type = TypeToOpenApiSpec(type);
 
             ObjectNode schemaObject = mapper.createObjectNode();
             if (type.equals("application/json")) {
+                ObjectNode contentObject = mapper.createObjectNode();
+                ObjectNode applicationJsonObject = mapper.createObjectNode();
+
                 // search for the schema
                 String nodeSchema = nodeSchemas.get(node.getSyncMetaId());
                 if (nodeSchema != null && !nodeSchema.isEmpty()) {
-                    schemaObject.put("$ref", "#/definitions/" + nodeSchema);
-                    nodeObject.put("schema", schemaObject);
-                    nodeObject.put("in", "body");
+                    schemaObject.put("$ref", "#/components/schemas/" + nodeSchema);
+                    applicationJsonObject.put("schema", schemaObject);
                 } else {
                     // schema empty even if application json chosen
-                    nodeObject.put("type", "application/json");
-                    nodeObject.put("in", "body");
                 }
+
+                contentObject.put("application/json", applicationJsonObject);
+                nodeObject.put("content", contentObject);
             }
         } else {
-            nodeObject.put("type", "string");
+            nodeObject.put("name", name);
+            nodeObject.put("required", true);
+
+            ObjectNode schema = mapper.createObjectNode();
+            schema.put("type", "string");
+            nodeObject.put("schema", schema);
             nodeObject.put("in", "path");
         }
 
@@ -907,16 +908,22 @@ public class MetadataDocService {
         }
 
         ObjectNode responseObject = mapper.createObjectNode();
+        ObjectNode contentObject = mapper.createObjectNode();
         ObjectNode schemaObject = mapper.createObjectNode();
 
         type = TypeToOpenApiSpec(type);
         if (type.equals("application/json")) {
+            ObjectNode applicationJsonObject = mapper.createObjectNode();
+
             // search for the schema
             String nodeSchema = nodeSchemas.get(node.getSyncMetaId());
             if (nodeSchema != null && !nodeSchema.isEmpty()) {
-                schemaObject.put("$ref", "#/definitions/" + nodeSchema);
-                responseObject.put("schema", schemaObject);
+                schemaObject.put("$ref", "#/components/schemas/" + nodeSchema);
+                applicationJsonObject.put("schema", schemaObject);
             }
+
+            contentObject.put("application/json", applicationJsonObject);
+            responseObject.put("content", contentObject);
         }
 
         // get description from node informations
