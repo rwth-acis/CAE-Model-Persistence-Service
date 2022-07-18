@@ -654,28 +654,6 @@ public class MetadataDocService {
                 String methodType = methodTypeToNode.getKey();
                 ObjectNode methodObjectNode = methodTypeToNode.getValue();
 
-                // get consumes & produces list
-                ArrayList<String> producesList = methodToProduces.get(methodId);
-                ArrayList<String> consumesList = methodToConsumes.get(methodId);
-
-                if (producesList == null)
-                    producesList = new ArrayList<String>();
-                if (consumesList == null)
-                    consumesList = new ArrayList<String>();
-
-                ArrayNode produces = mapper.createArrayNode();
-                for (String produceString : producesList) {
-                    produces.add(produceString);
-                }
-
-                ArrayNode consumes = mapper.createArrayNode();
-                for (String consumeString : consumesList) {
-                    consumes.add(consumeString);
-                }
-
-                methodObjectNode.put("consumes", consumes);
-                methodObjectNode.put("produces", produces);
-
                 // get all parameters
                 ArrayNode parameters = mapper.createArrayNode();
                 ArrayList<ObjectNode> parametersArray = httpMethodParameterNodes.get(methodId);
