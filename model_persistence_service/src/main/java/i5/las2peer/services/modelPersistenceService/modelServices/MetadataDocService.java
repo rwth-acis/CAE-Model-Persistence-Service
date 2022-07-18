@@ -885,16 +885,22 @@ public class MetadataDocService {
         }
 
         ObjectNode responseObject = mapper.createObjectNode();
+        ObjectNode contentObject = mapper.createObjectNode();
         ObjectNode schemaObject = mapper.createObjectNode();
 
         type = TypeToOpenApiSpec(type);
         if (type.equals("application/json")) {
+            ObjectNode applicationJsonObject = mapper.createObjectNode();
+
             // search for the schema
             String nodeSchema = nodeSchemas.get(node.getSyncMetaId());
             if (nodeSchema != null && !nodeSchema.isEmpty()) {
-                schemaObject.put("$ref", "#/definitions/" + nodeSchema);
-                responseObject.put("schema", schemaObject);
+                schemaObject.put("$ref", "#/components/schemas/" + nodeSchema);
+                applicationJsonObject.put("schema", schemaObject);
             }
+
+            contentObject.put("application/json", applicationJsonObject);
+            responseObject.put("content", contentObject);
         }
 
         // get description from node informations
