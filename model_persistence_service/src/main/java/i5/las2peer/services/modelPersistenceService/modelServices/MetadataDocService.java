@@ -475,7 +475,7 @@ public class MetadataDocService {
         }
 
         //get basic attributes for first level
-        rootObject.put("swagger", "2.0");
+        rootObject.put("openapi", "3.0.3");
 
         // info object
         ObjectNode infoObject = mapper.createObjectNode();
