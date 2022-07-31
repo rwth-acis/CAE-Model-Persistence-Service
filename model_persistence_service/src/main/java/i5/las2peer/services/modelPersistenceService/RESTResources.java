@@ -427,9 +427,12 @@ public class RESTResources {
 		
 		// request project from project service to check if the versioned model belongs to the project
 		JSONObject projectMetadataJSON;
+		JSONObject projectChatInfoJSON;
 		try {
 			projectMetadataJSON = (JSONObject) Context.get()
 					.invoke(ModelPersistenceService.PROJECT_SERVICE, "getProjectMetadataRMI", "CAE", projectName);
+			projectChatInfoJSON = (JSONObject) Context.get()
+					.invoke(ModelPersistenceService.PROJECT_SERVICE, "getProjectChatInfo", "CAE", projectName);
 		} catch (ServiceNotFoundException | ServiceNotAvailableException | InternalServiceException
 				| ServiceMethodNotFoundException | ServiceInvocationFailedException | ServiceAccessDeniedException
 				| ServiceNotAuthorizedException e) {
@@ -555,8 +558,18 @@ public class RESTResources {
 				}
 			}
 
+			String oldSwaggerDoc = metadataDocService.getByVersionedModelId(versionedModel.getId()).getDocString();
+
 			// generate metadata swagger doc after model valid in code generation
 			String swaggerDoc = metadataDocService.modelToSwagger(versionedModel.getId(), componentName, model, metadataVersion);
+
+			String channelId = (String) projectChatInfoJSON.get("channelId");
+
+			if(oldSwaggerDoc != null && swaggerDoc != null) {
+				Context.getCurrent().invoke("i5.las2peer.services.apiTestingBot.APITestingBot", "sendAPIDocChangesMessage",
+						oldSwaggerDoc, swaggerDoc, "CAEBot", "RocketChat", channelId);
+			}
+
 			// generate test cases
 			generateTestSuggestions(swaggerDoc, versionedModel.getId());
 
