@@ -1,9 +1,11 @@
 package i5.las2peer.services.modelPersistenceService;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
+import i5.las2peer.apiTestModel.TestModel;
 import i5.las2peer.services.modelPersistenceService.chat.RocketChatConfig;
 import i5.las2peer.services.modelPersistenceService.chat.RocketChatHelper;
 import org.json.simple.JSONObject;
@@ -286,6 +288,33 @@ public class ModelPersistenceService extends RESTService {
 	 */
 	public void _onProjectDeleted(JSONObject project) {
 		
+	}
+
+	public void addTestSuggestion(int versionedModelId, TestModel testModel, String description) {
+		Connection connection = null;
+		try {
+			connection = dbm.getConnection();
+			testModel.persist(connection);
+			this.storeTestSuggestionToDB(connection, versionedModelId, testModel, description);
+		} catch(Exception e) {
+			logger.printStackTrace(e);
+		} finally {
+			try {
+				if(connection != null) connection.close();
+			} catch (SQLException e) {
+				logger.printStackTrace(e);
+			}
+		}
+	}
+
+	public static void storeTestSuggestionToDB(Connection connection, int versionedModelId, TestModel m, String description) throws SQLException {
+		PreparedStatement statement = connection.prepareStatement("INSERT INTO VersionedModelToTestSuggestion (versionedModelId, testModelId, description, suggest) VALUES (?,?,?,?);");
+		statement.setInt(1, versionedModelId);
+		statement.setInt(2, m.getId());
+		statement.setString(3, description);
+		statement.setBoolean(4, true);
+		statement.executeUpdate();
+		statement.close();
 	}
 	
 }

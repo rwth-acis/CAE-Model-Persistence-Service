@@ -35,7 +35,7 @@ dependencies {
     implementation "com.fasterxml.jackson.core:jackson-databind:2.8.5"
     implementation group: 'org.kohsuke', name: 'github-api', version: '1.306'
 
-    implementation "i5:las2peer-api-test-model:0.1.5"
+    implementation "i5:las2peer-api-test-model:0.1.7"
     implementation "com.konghq:unirest-java:3.13.10"
 }
 

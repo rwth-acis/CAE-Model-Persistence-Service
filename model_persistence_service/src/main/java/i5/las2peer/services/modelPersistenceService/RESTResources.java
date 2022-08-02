@@ -1785,22 +1785,12 @@ public class RESTResources {
 				TestModel m = new TestModel(Arrays.stream(new TestCase[] { t }).toList());
 				m.persist(connection);
 
-				storeTestSuggestionToDB(connection, versionedModelId, m, description);
+				ModelPersistenceService.storeTestSuggestionToDB(connection, versionedModelId, m, description);
 			}
 			connection.close();
 		} catch (SQLException e) {
 			throw new RuntimeException(e);
 		}
-	}
-
-	private void storeTestSuggestionToDB(Connection connection, int versionedModelId, TestModel m, String description) throws SQLException {
-		PreparedStatement statement = connection.prepareStatement("INSERT INTO VersionedModelToTestSuggestion (versionedModelId, testModelId, description, suggest) VALUES (?,?,?,?);");
-		statement.setInt(1, versionedModelId);
-		statement.setInt(2, m.getId());
-		statement.setString(3, description);
-		statement.setBoolean(4, true);
-		statement.executeUpdate();
-		statement.close();
 	}
 
 	private Map<TestCase, String> testCasesArrayToMap(JSONArray arr) {
