@@ -1761,7 +1761,7 @@ public class RESTResources {
 	 * @param versionedModelId Id of versioned model.
 	 */
 	private void generateTestSuggestions(String swaggerDoc, int versionedModelId) throws ServiceNotAvailableException, ServiceInvocationFailedException, ServiceNotFoundException, ServiceAccessDeniedException, ServiceNotAuthorizedException, ServiceMethodNotFoundException, InternalServiceException, ParseException {
-		String testCasesMapStr = (String) Context.getCurrent().invoke("i5.las2peer.services.apiTestGenService.APITestGenService@0.1.0", "openAPIV3ToTests", new Serializable[] { swaggerDoc });
+		String testCasesMapStr = (String) Context.getCurrent().invoke("i5.las2peer.services.apiTestGenService.APITestGenService", "openAPIV3ToTests", new Serializable[] { swaggerDoc });
 		JSONArray arr = (JSONArray) JSONValue.parse(testCasesMapStr);
 		Map<TestCase, String> testCasesMap = testCasesArrayToMap(arr);
 
