@@ -2,7 +2,6 @@ package i5.las2peer.services.modelPersistenceService.modelServices;
 
 import java.util.Date;
 import java.util.ArrayList;
-import java.util.UUID;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.HashMap;
 import java.util.Map;
@@ -14,8 +13,6 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.ResultSet;
 
-import i5.las2peer.api.Context;
-import i5.las2peer.api.logging.MonitoringEvent;
 import i5.las2peer.logging.L2pLogger;
 import i5.las2peer.services.modelPersistenceService.model.EntityAttribute;
 import i5.las2peer.services.modelPersistenceService.model.Model;
@@ -38,7 +35,8 @@ public class MetadataDocService {
 
     /**
      * Constructor
-     * @param dbm database manager
+     *
+     * @param dbm    database manager
      * @param logger logger
      */
     public MetadataDocService(DatabaseManager dbm, L2pLogger logger) {
@@ -49,7 +47,8 @@ public class MetadataDocService {
 
     /**
      * Map sql result set to object
-     * @param queryResult result set to convert 
+     *
+     * @param queryResult result set to convert
      */
     private MetadataDoc mapResultSetToObject(ResultSet queryResult) throws SQLException {
         _logger.info(String.format(_logPrefix, "Mapping result set to MetadataDoc object"));
@@ -74,6 +73,7 @@ public class MetadataDocService {
 
     /**
      * Get list of all metadata doc
+     *
      * @return list of all metadata doc
      */
     public ArrayList<MetadataDoc> getAll() throws SQLException {
@@ -84,11 +84,11 @@ public class MetadataDocService {
         // refresh connection
         _connection = _dbm.getConnection();
         sqlQuery = _connection.prepareStatement(query);
-        
+
         try {
             _logger.info(String.format(_logPrefix, "Executing GET ALL query " + query));
             ResultSet queryResult = sqlQuery.executeQuery();
-            while(queryResult.next()) {
+            while (queryResult.next()) {
                 result.add(mapResultSetToObject(queryResult));
             }
             sqlQuery.close();
@@ -98,12 +98,13 @@ public class MetadataDocService {
             _connection.close();
             _logger.printStackTrace(e);
         }
-        
+
         return result;
     }
 
     /**
      * Get metadata doc connection by versioned model id
+     *
      * @param queryId id of metadata doc
      * @return founded metadata doc
      */
@@ -113,12 +114,12 @@ public class MetadataDocService {
         // refresh connection
         _connection = _dbm.getConnection();
         sqlQuery = _connection.prepareStatement("SELECT *, UNIX_TIMESTAMP(timeEdited) as 'timeEditedUnix', UNIX_TIMESTAMP(timeDeployed) as 'timeDeployedUnix' FROM MetadataDoc WHERE versionedModelId = ? ORDER BY timeEdited DESC LIMIT 1;");
-            
+
         try {
             sqlQuery.setInt(1, queryId);
             _logger.info(String.format(_logPrefix, "Executing GET BY ID query with versionedModelId " + queryId));
             ResultSet queryResult = sqlQuery.executeQuery();
-            if(queryResult.next()) {
+            if (queryResult.next()) {
                 MetadataDoc model = mapResultSetToObject(queryResult);
                 sqlQuery.close();
                 _connection.close();
@@ -126,19 +127,20 @@ public class MetadataDocService {
             } else {
                 sqlQuery.close();
                 _connection.close();
-            	throw new SQLException("Could not find metadata doc!");
+                throw new SQLException("Could not find metadata doc!");
             }
-            
+
         } catch (SQLException e) {
             sqlQuery.close();
             _logger.printStackTrace(e);
         }
-        
+
         return new MetadataDoc();
     }
 
-        /**
+    /**
      * Get metadata doc connection by versioned model id
+     *
      * @param queryId id of metadata doc
      * @return founded metadata doc
      */
@@ -148,13 +150,13 @@ public class MetadataDocService {
         // refresh connection
         _connection = _dbm.getConnection();
         sqlQuery = _connection.prepareStatement("SELECT *, UNIX_TIMESTAMP(timeEdited) as 'timeEditedUnix', UNIX_TIMESTAMP(timeDeployed) as 'timeDeployedUnix' FROM MetadataDoc WHERE versionedModelId = ? AND version = ? ORDER BY timeEdited DESC LIMIT 1;");
-            
+
         try {
             sqlQuery.setString(1, queryId);
             sqlQuery.setString(2, version);
             _logger.info(String.format(_logPrefix, "Executing GET BY ID & VERSION query with versionedModelId " + queryId + " and version " + version));
             ResultSet queryResult = sqlQuery.executeQuery();
-            if(queryResult.next()) {
+            if (queryResult.next()) {
                 MetadataDoc model = mapResultSetToObject(queryResult);
                 sqlQuery.close();
                 _connection.close();
@@ -162,19 +164,20 @@ public class MetadataDocService {
             } else {
                 sqlQuery.close();
                 _connection.close();
-            	throw new SQLException("Could not find metadata doc!");
+                throw new SQLException("Could not find metadata doc!");
             }
-            
+
         } catch (SQLException e) {
             sqlQuery.close();
             _logger.printStackTrace(e);
         }
-        
+
         return new MetadataDoc();
     }
 
     /**
      * Get metadata doc string by versioned model id
+     *
      * @param queryId id of metadata doc
      * @return founded metadata doc string
      */
@@ -188,6 +191,7 @@ public class MetadataDocService {
 
     /**
      * Get user inputted metadata doc string by versioned model id
+     *
      * @param queryId id of metadata doc
      * @return founded metadata doc string
      */
@@ -201,12 +205,12 @@ public class MetadataDocService {
 
     /****** CREATE UPDATE MODEL GENERATED METADATA DOC */
     public void createUpdateModelGeneratedMetadata(int versionedModelId, String modelGenerateMetadata, String docType, String version) throws SQLException {
-        
+
         // refresh connection
         _connection = _dbm.getConnection();
         PreparedStatement sqlQuery = _connection.prepareStatement(
-                    " INSERT INTO MetadataDoc(versionedModelId, docString, docType, version) VALUES (?,?,?,?) " + 
-                    " ON DUPLICATE KEY UPDATE docString=?, docType=?, urlDeployed=NULL");
+                " INSERT INTO MetadataDoc(versionedModelId, docString, docType, version) VALUES (?,?,?,?) " +
+                        " ON DUPLICATE KEY UPDATE docString=?, docType=?, urlDeployed=NULL");
         try {
             sqlQuery.setInt(1, versionedModelId);
             sqlQuery.setString(2, modelGenerateMetadata);
@@ -231,10 +235,10 @@ public class MetadataDocService {
         String docType = "json";
         // refresh connection
         _connection = _dbm.getConnection();
-        
+
         PreparedStatement sqlQuery = _connection.prepareStatement(
-                " INSERT INTO MetadataDoc(versionedModelId, docInput, docType, version) VALUES (?,?,?,?) " + 
-                " ON DUPLICATE KEY UPDATE docInput=?, docType=?, urlDeployed=NULL");
+                " INSERT INTO MetadataDoc(versionedModelId, docInput, docType, version) VALUES (?,?,?,?) " +
+                        " ON DUPLICATE KEY UPDATE docInput=?, docType=?, urlDeployed=NULL");
         try {
             sqlQuery.setInt(1, versionedModelId);
             sqlQuery.setString(2, inputJson);
@@ -259,7 +263,7 @@ public class MetadataDocService {
             // check for model type
             String modelType = null;
             ArrayList<EntityAttribute> modelAttributes = model.getAttributes();
-            for (EntityAttribute modelAttribute: modelAttributes) {
+            for (EntityAttribute modelAttribute : modelAttributes) {
                 if (modelAttribute.getName().equals("type")) {
                     modelType = modelAttribute.getValue();
                 }
@@ -268,13 +272,13 @@ public class MetadataDocService {
             if (modelType.equals("application")) {
 
                 ArrayList<Node> appNodes = model.getNodes();
-                for (Node appNode: appNodes) {
+                for (Node appNode : appNodes) {
                     // check for node name
                     String versionedModelId = null;
                     ArrayList<EntityAttribute> nodeAttributes = appNode.getAttributes();
-                    for (EntityAttribute nodeAttribute: nodeAttributes) {
+                    for (EntityAttribute nodeAttribute : nodeAttributes) {
                         if (nodeAttribute.getName().equals("versionedModelId")) {
-                        	versionedModelId = nodeAttribute.getValue();
+                            versionedModelId = nodeAttribute.getValue();
                         }
                     }
 
@@ -282,8 +286,8 @@ public class MetadataDocService {
                         // refresh connection
                         _connection = _dbm.getConnection();
                         PreparedStatement sqlQuery = _connection.prepareStatement(
-                            " UPDATE MetadataDoc SET urlDeployed=?, timeDeployed=NOW() " + 
-                            " WHERE versionedModelId=? ");
+                                " UPDATE MetadataDoc SET urlDeployed=?, timeDeployed=NOW() " +
+                                        " WHERE versionedModelId=? ");
                         sqlQuery.setString(1, urlDeployed);
                         sqlQuery.setInt(2, Integer.parseInt(versionedModelId));
 
@@ -294,7 +298,7 @@ public class MetadataDocService {
                     }
                 }
             }
-            
+
         } catch (SQLException e) {
             _logger.printStackTrace(e);
             throw e;
@@ -304,14 +308,15 @@ public class MetadataDocService {
     /****** GENERIC CREATE UPDATE METADATA DOC */
 
     /**
-	 * Insert new metadata doc
-	 * @param insertModel model to insert
-	 */
+     * Insert new metadata doc
+     *
+     * @param insertModel model to insert
+     */
     public void create(MetadataDoc insertModel) throws SQLException {
         // refresh connection
         _connection = _dbm.getConnection();
         PreparedStatement sqlQuery = _connection.prepareStatement(
-				"INSERT INTO MetadataDoc(versionedModelId, docString, docType) VALUES (?,?,?);");
+                "INSERT INTO MetadataDoc(versionedModelId, docString, docType) VALUES (?,?,?);");
         try {
             sqlQuery.setString(1, insertModel.getVersionedModelId());
             sqlQuery.setString(2, insertModel.getDocString());
@@ -325,17 +330,18 @@ public class MetadataDocService {
             _connection.close();
             _logger.printStackTrace(e);
         }
-	}
+    }
 
     /**
-	 * Update metadata doc in database
-	 * @param updateModel model to update
-	 */
+     * Update metadata doc in database
+     *
+     * @param updateModel model to update
+     */
     public void update(MetadataDoc updateModel) throws SQLException {
         // refresh connection
         _connection = _dbm.getConnection();
         PreparedStatement sqlQuery = _connection.prepareStatement(
-				"UPDATE MetadataDoc SET docString=?, docType=? WHERE versionedModelId=?;");
+                "UPDATE MetadataDoc SET docString=?, docType=? WHERE versionedModelId=?;");
         try {
             sqlQuery.setString(3, updateModel.getVersionedModelId());
             sqlQuery.setString(1, updateModel.getDocString());
@@ -349,17 +355,18 @@ public class MetadataDocService {
             _connection.close();
             _logger.printStackTrace(e);
         }
-	}
+    }
 
     /**
-	 * Deletes doc from database.
-	 * @param queryId id to delete
-	 */
-	public void delete(String queryId) throws SQLException {
+     * Deletes doc from database.
+     *
+     * @param queryId id to delete
+     */
+    public void delete(String queryId) throws SQLException {
         // refresh connection
         _connection = _dbm.getConnection();
         PreparedStatement sqlQuery = _connection.prepareStatement("DELETE FROM MetadataDoc WHERE id = ?;");
-            sqlQuery.setString(1, queryId);
+        sqlQuery.setString(1, queryId);
         try {
             _logger.info(String.format(_logPrefix, "Executing DELETE query with id " + queryId));
             _logger.info(String.format(_logPrefix, "Executing DELETE query with id " + queryId));
@@ -371,22 +378,23 @@ public class MetadataDocService {
             _connection.close();
             _logger.printStackTrace(e);
         }
-	}
+    }
 
     /**
      * Convert model object to swagger json object
+     *
      * @param model CAE model, assumed valid
      */
     public String modelToSwagger(int versionedModelId, String componentName, Model model, String componentVersion) {
         // check for model type
         String modelType = null;
         ArrayList<EntityAttribute> modelAttributes = model.getAttributes();
-        for (EntityAttribute modelAttribute: modelAttributes) {
+        for (EntityAttribute modelAttribute : modelAttributes) {
             if (modelAttribute.getName().equals("type")) {
                 modelType = modelAttribute.getValue();
             }
         }
-        
+
         if (modelType.equals("microservice")) {
             return microserviceToSwagger(versionedModelId, componentName, model, componentVersion);
         } else {
@@ -401,11 +409,13 @@ public class MetadataDocService {
         // simple entry path and object method
         HashMap<String, SimpleEntry<String, SimpleEntry<String, ObjectNode>>> httpMethodNodes = new HashMap<String, SimpleEntry<String, SimpleEntry<String, ObjectNode>>>();
         HashMap<String, ObjectNode> httpPayloadNodes = new HashMap<String, ObjectNode>();
+        HashMap<String, ObjectNode> requestBodyNodes = new HashMap<>();
         // simple entry code and response node
         HashMap<String, SimpleEntry<String, ObjectNode>> httpResponseNodes = new HashMap<String, SimpleEntry<String, ObjectNode>>();
 
         // maps http methods to payload and reponse nodes
         HashMap<String, ArrayList<ObjectNode>> httpMethodParameterNodes = new HashMap<String, ArrayList<ObjectNode>>();
+        HashMap<String, ObjectNode> httpMethodRequestBodyNode = new HashMap<>();
         HashMap<String, ArrayList<SimpleEntry<String, ObjectNode>>> httpMethodResponsesNodes = new HashMap<String, ArrayList<SimpleEntry<String, ObjectNode>>>();
         ObjectNode pathsObject = mapper.createObjectNode();
 
@@ -419,18 +429,18 @@ public class MetadataDocService {
         // method id to produces & consumes
         HashMap<String, ArrayList<String>> methodToProduces = new HashMap<String, ArrayList<String>>();
         HashMap<String, ArrayList<String>> methodToConsumes = new HashMap<String, ArrayList<String>>();
-        
+
         // create root, restful resource node, only 1 per microservice model
         ObjectNode rootObject = mapper.createObjectNode();
 
         // get user input metadata doc if exists
         String userInputMetadataDoc = getUserInputMetadataDocStringByVersionedModelId(versionedModelId);
-        
+
         String description = "No description";
         String version = "1.0";
         String termsOfService = "LICENSE.txt";
         JsonNode definitionsNode = null;
-        
+
         if (!Strings.isNullOrEmpty(userInputMetadataDoc)) {
             try {
                 JsonNode metadataTree = mapper.readTree(userInputMetadataDoc);
@@ -467,7 +477,7 @@ public class MetadataDocService {
         }
 
         //get basic attributes for first level
-        rootObject.put("swagger", "2.0");
+        rootObject.put("openapi", "3.0.3");
 
         // info object
         ObjectNode infoObject = mapper.createObjectNode();
@@ -478,28 +488,28 @@ public class MetadataDocService {
         infoObject.put("version", version);
         infoObject.put("termsOfService", termsOfService);
 
-        // Fixed value
-        ArrayNode schemes = mapper.createArrayNode();
-        schemes.add("http");
-        rootObject.put("schemes", schemes);
-
         try {
             // ==================== PROCESS NODES ======================
             ArrayList<Node> nodes = model.getNodes();
-            for(Node node: nodes) {
-                switch(node.getType()) {
+            for (Node node : nodes) {
+                switch (node.getType()) {
                     // process base restful node
                     case "RESTful Resource":
                         // get attributes
                         ArrayList<EntityAttribute> restAttributes = node.getAttributes();
-                        for(EntityAttribute attribute: restAttributes) {
-                            switch(attribute.getName()) {
+                        for (EntityAttribute attribute : restAttributes) {
+                            switch (attribute.getName()) {
                                 case "path":
                                     String urlPath = attribute.getValue();
+                                    urlPath = "http://127.0.0.1:8080/" + urlPath;
                                     // get host
                                     URL urlObject = new URL(urlPath);
-                                    rootObject.put("host", urlObject.getHost().replace("http://", ""));
-                                    rootObject.put("basePath", urlObject.getPath());
+
+                                    ArrayNode servers = mapper.createArrayNode();
+                                    ObjectNode server = mapper.createObjectNode();
+                                    server.put("url", urlObject.getHost() + urlObject.getPath());
+                                    servers.add(server);
+                                    rootObject.put("servers", servers);
                                     break;
                                 case "developer":
                                     ObjectNode contactNode = mapper.createObjectNode();
@@ -508,15 +518,23 @@ public class MetadataDocService {
                                     break;
                                 default:
                                     break;
-                            };
-                        };
+                            }
+                            ;
+                        }
+                        ;
                         break;
                     case "HTTP Method":
                         httpMethodNodes.put(node.getSyncMetaId(), nodeToHttpMethod(node));
                         break;
                     case "HTTP Payload":
                         // parameters
-                        httpPayloadNodes.put(node.getSyncMetaId(), nodeToHttpPayload(node, nodeInformations, nodeSchemas));
+                        ObjectNode payload = nodeToHttpPayload(node, nodeInformations, nodeSchemas);
+                        if(payload.has("content")) {
+                            // request body parameter
+                            requestBodyNodes.put(node.getSyncMetaId(), payload);
+                        } else {
+                            httpPayloadNodes.put(node.getSyncMetaId(), payload);
+                        }
                         break;
                     case "HTTP Response":
                         // produces
@@ -524,9 +542,11 @@ public class MetadataDocService {
                         break;
                     default:
                         break;
-                };
-            };
-        } catch(Exception e) {
+                }
+                ;
+            }
+            ;
+        } catch (Exception e) {
             _logger.printStackTrace(e);
             return rootObject.toString();
         }
@@ -534,10 +554,10 @@ public class MetadataDocService {
         try {
             // ==================== PROCESS EDGES ======================
             ArrayList<Edge> edges = model.getEdges();
-            for(Edge edge: edges) {
+            for (Edge edge : edges) {
                 String sourceId = edge.getSourceNode();
                 String targetId = edge.getTargetNode();
-                switch(edge.getType()) {
+                switch (edge.getType()) {
                     case "RESTful Resource to HTTP Method":
                         // do not process since we're going to put every http method into the root anyway
                         break;
@@ -546,6 +566,7 @@ public class MetadataDocService {
                         if (httpMethodNodes.get(sourceId) != null) {
                             // get payload object node
                             ObjectNode httpPayloadNode = httpPayloadNodes.get(targetId);
+                            ObjectNode requestBodyNode = requestBodyNodes.get(targetId);
                             if (httpPayloadNode != null) {
                                 // get parameter type for consume list
                                 String nodeType = (httpPayloadNode.hasNonNull("type")) ? httpPayloadNode.get("type").asText() : "application/json";
@@ -566,6 +587,8 @@ public class MetadataDocService {
                                     payloadList.add(httpPayloadNode);
                                     httpMethodParameterNodes.put(sourceId, payloadList);
                                 }
+                            } else if(requestBodyNode != null) {
+                                httpMethodRequestBodyNode.put(sourceId, requestBodyNode);
                             }
                         }
                         break;
@@ -603,8 +626,8 @@ public class MetadataDocService {
 
             }
 
-        } catch(Exception e) {
-        	_logger.printStackTrace(e);
+        } catch (Exception e) {
+            _logger.printStackTrace(e);
             return rootObject.toString();
         }
 
@@ -614,9 +637,9 @@ public class MetadataDocService {
         // process definitions
         if (definitionsNode != null) {
             Iterator<Map.Entry<String, JsonNode>> definitionIterator = definitionsNode.fields();
-            ObjectNode definitionObjectNode = mapper.createObjectNode();
-            ObjectNode definitionPropertiesNode = mapper.createObjectNode();
-            
+            ObjectNode componentsObject = mapper.createObjectNode();
+            ObjectNode schemasObject = mapper.createObjectNode();
+
             while (definitionIterator.hasNext()) {
                 ObjectNode iteratorObjectNode = mapper.createObjectNode();
                 Map.Entry<String, JsonNode> entry = (Map.Entry<String, JsonNode>) definitionIterator.next();
@@ -624,14 +647,15 @@ public class MetadataDocService {
                 String entryKey = entry.getKey();
                 iteratorObjectNode.put("type", "object");
                 iteratorObjectNode.put("properties", entryValue);
-                definitionObjectNode.put(entryKey, iteratorObjectNode);
+                schemasObject.put(entryKey, iteratorObjectNode);
             }
-            rootObject.put("definitions", definitionObjectNode);
+            componentsObject.put("schemas", schemasObject);
+            rootObject.put("components", componentsObject);
         }
 
         try {
             // ==================== PROCESS JSON OBJECT HTTP NODES ======================
-            for(Map.Entry<String, SimpleEntry<String, SimpleEntry<String, ObjectNode>>> entry: httpMethodNodes.entrySet()) {
+            for (Map.Entry<String, SimpleEntry<String, SimpleEntry<String, ObjectNode>>> entry : httpMethodNodes.entrySet()) {
                 // get the object node
                 String methodId = entry.getKey();
                 SimpleEntry<String, SimpleEntry<String, ObjectNode>> methodPathToTypeNode = entry.getValue();
@@ -641,45 +665,29 @@ public class MetadataDocService {
                 String methodType = methodTypeToNode.getKey();
                 ObjectNode methodObjectNode = methodTypeToNode.getValue();
 
-                // get consumes & produces list
-                ArrayList<String> producesList = methodToProduces.get(methodId);
-                ArrayList<String> consumesList = methodToConsumes.get(methodId);
-
-                if (producesList == null)
-                    producesList = new ArrayList<String>();
-                if (consumesList == null)
-                    consumesList = new ArrayList<String>();
-
-                ArrayNode produces = mapper.createArrayNode();
-                for (String produceString: producesList) {
-                    produces.add(produceString);
-                }
-                
-                ArrayNode consumes = mapper.createArrayNode();
-                for (String consumeString: consumesList) {
-                    consumes.add(consumeString);
-                }
-                    
-                methodObjectNode.put("consumes", consumes);
-                methodObjectNode.put("produces", produces);
-
                 // get all parameters
                 ArrayNode parameters = mapper.createArrayNode();
                 ArrayList<ObjectNode> parametersArray = httpMethodParameterNodes.get(methodId);
 
                 if (parametersArray != null) {
-                    for (ObjectNode parameter: parametersArray) {
+                    for (ObjectNode parameter : parametersArray) {
                         parameters.add(parameter);
                     }
                     methodObjectNode.put("parameters", parameters);
                 }
 
+                // request body
+                ObjectNode requestBody = httpMethodRequestBodyNode.get(methodId);
+                if(requestBody != null) {
+                    methodObjectNode.put("requestBody", requestBody);
+                }
+
                 // get all responses
                 ObjectNode responses = mapper.createObjectNode();
                 ArrayList<SimpleEntry<String, ObjectNode>> responsesArray = httpMethodResponsesNodes.get(methodId);
-                
+
                 if (responsesArray != null) {
-                    for (SimpleEntry<String, ObjectNode> response: responsesArray) {
+                    for (SimpleEntry<String, ObjectNode> response : responsesArray) {
                         responses.put(response.getKey(), response.getValue());
                     }
                     methodObjectNode.put("responses", responses);
@@ -692,29 +700,29 @@ public class MetadataDocService {
                     ArrayList<SimpleEntry<String, ObjectNode>> pathList = new ArrayList<SimpleEntry<String, ObjectNode>>();
                     pathList.add(methodTypeToNode);
                     pathToHttpMethod.put(methodPath, pathList);
-                }            
+                }
 
             }
-        } catch(Exception e) {
-        	_logger.printStackTrace(e);
+        } catch (Exception e) {
+            _logger.printStackTrace(e);
             return rootObject.toString();
         }
 
         try {
             // ==================== PROCESS JSON OBJECT PATH NODES ======================
-            for(Map.Entry<String, ArrayList<SimpleEntry<String, ObjectNode>>> entry: pathToHttpMethod.entrySet()) {
+            for (Map.Entry<String, ArrayList<SimpleEntry<String, ObjectNode>>> entry : pathToHttpMethod.entrySet()) {
                 String path = entry.getKey();
                 ObjectNode pathNode = mapper.createObjectNode();
                 ArrayList<SimpleEntry<String, ObjectNode>> methodsArray = entry.getValue();
-                for (SimpleEntry<String, ObjectNode> methodTypeAndNode: methodsArray) {
+                for (SimpleEntry<String, ObjectNode> methodTypeAndNode : methodsArray) {
                     String methodType = methodTypeAndNode.getKey();
                     ObjectNode methodNode = methodTypeAndNode.getValue();
                     pathNode.put(methodType, methodNode);
                 }
                 pathsObject.put(path, pathNode);
             }
-        } catch(Exception e) {
-        	_logger.printStackTrace(e);
+        } catch (Exception e) {
+            _logger.printStackTrace(e);
             return rootObject.toString();
         }
 
@@ -726,10 +734,10 @@ public class MetadataDocService {
         try {
             createUpdateModelGeneratedMetadata(versionedModelId, rootObject.toString(), "json", componentVersion);
         } catch (SQLException e) {
-        	_logger.printStackTrace(e);
+            _logger.printStackTrace(e);
         }
         _logger.info(rootObject.toString());
-        
+
         return rootObject.toString();
     }
 
@@ -739,10 +747,10 @@ public class MetadataDocService {
         String methodType = "";
         String path = "";
         String operationId = "";
-        
+
         // get attributes
         ArrayList<EntityAttribute> nodeAttributes = node.getAttributes();
-        for(EntityAttribute attribute: nodeAttributes) {
+        for (EntityAttribute attribute : nodeAttributes) {
             switch (attribute.getName()) {
                 case "methodType":
                     methodType = attribute.getValue().toLowerCase();
@@ -765,7 +773,7 @@ public class MetadataDocService {
         ObjectNode methodObject = mapper.createObjectNode();
         methodObject.put("operationId", operationId);
 
-        if(Strings.isNullOrEmpty(path)) {
+        if (Strings.isNullOrEmpty(path)) {
             path = "/";
         }
 
@@ -781,10 +789,10 @@ public class MetadataDocService {
 
         String name = "";
         String type = "";
-        
+
         // get attributes
         ArrayList<EntityAttribute> nodeAttributes = node.getAttributes();
-        for(EntityAttribute attribute: nodeAttributes) {
+        for (EntityAttribute attribute : nodeAttributes) {
             switch (attribute.getName()) {
                 case "name":
                     name = attribute.getValue();
@@ -797,31 +805,40 @@ public class MetadataDocService {
             }
         }
 
-        nodeObject.put("name", name);
-        nodeObject.put("required", true);
-        type = TypeToOpenApiSpec(type);
+        // type is JSON, TEXT, PATH_PARAM or CUSTOM
 
-        ObjectNode schemaObject = mapper.createObjectNode();
-        if (type.equals("application/json")) {
-            // search for the schema
-            String nodeSchema = nodeSchemas.get(node.getId());
-            if (nodeSchema != null && !nodeSchema.isEmpty()) {
-                schemaObject.put("$ref", "#/definitions/" + nodeSchema);
-                nodeObject.put("schema", schemaObject);
-                nodeObject.put("in", "body");
-            } else {
-                // schema empty even if application json chosen
-                nodeObject.put("type", "string");
-                nodeObject.put("in", "query"); 
+        if (type.equals("JSON")) {
+            type = TypeToOpenApiSpec(type);
+
+            ObjectNode schemaObject = mapper.createObjectNode();
+            if (type.equals("application/json")) {
+                ObjectNode contentObject = mapper.createObjectNode();
+                ObjectNode applicationJsonObject = mapper.createObjectNode();
+
+                // search for the schema
+                String nodeSchema = nodeSchemas.get(node.getSyncMetaId());
+                if (nodeSchema != null && !nodeSchema.isEmpty()) {
+                    schemaObject.put("$ref", "#/components/schemas/" + nodeSchema);
+                    applicationJsonObject.put("schema", schemaObject);
+                } else {
+                    // schema empty even if application json chosen
+                }
+
+                contentObject.put("application/json", applicationJsonObject);
+                nodeObject.put("content", contentObject);
             }
-        }
-        else {
-            nodeObject.put("type", type);
-            nodeObject.put("in", "query"); 
+        } else {
+            nodeObject.put("name", name);
+            nodeObject.put("required", true);
+
+            ObjectNode schema = mapper.createObjectNode();
+            schema.put("type", "string");
+            nodeObject.put("schema", schema);
+            nodeObject.put("in", "path");
         }
 
         // get description from node informations
-        String description = nodeInformations.get(node.getId());
+        String description = nodeInformations.get(node.getSyncMetaId());
         description = (description == null || description.isEmpty()) ? "" : description;
         nodeObject.put("description", description);
         return nodeObject;
@@ -845,24 +862,24 @@ public class MetadataDocService {
         404), HTTP_CONFLICT(409), HTTP_INTERNAL_ERROR(500), HTTP_CUSTOM(-1);*/
         switch (status) {
             case "OK":
-              return "200";
+                return "200";
             case "CREATED":
-              return "201";
+                return "201";
             case "BAD_REQUEST":
-              return "400";
+                return "400";
             case "UNAUTHORIZED":
-              return "401";
+                return "401";
             case "NOT_FOUND":
-              return "404";
+                return "404";
             case "CONFLICT":
-              return "409";
+                return "409";
             case "INTERNAL_ERROR":
-              return "500";
+                return "500";
             case "CUSTOM":
-              return "-1";
+                return "-1";
             default:
-              return "";
-          }
+                return "";
+        }
     }
 
     private SimpleEntry<String, ObjectNode> nodeToHttpResponse(Node node, HashMap<String, String> nodeInformations, HashMap<String, String> nodeSchemas) {
@@ -871,10 +888,10 @@ public class MetadataDocService {
         String code = "";
         String name = "";
         String type = "";
-        
+
         // get attributes
         ArrayList<EntityAttribute> nodeAttributes = node.getAttributes();
-        for(EntityAttribute attribute: nodeAttributes) {
+        for (EntityAttribute attribute : nodeAttributes) {
             switch (attribute.getName()) {
                 case "name":
                     name = attribute.getValue();
@@ -891,20 +908,26 @@ public class MetadataDocService {
         }
 
         ObjectNode responseObject = mapper.createObjectNode();
+        ObjectNode contentObject = mapper.createObjectNode();
         ObjectNode schemaObject = mapper.createObjectNode();
 
         type = TypeToOpenApiSpec(type);
         if (type.equals("application/json")) {
+            ObjectNode applicationJsonObject = mapper.createObjectNode();
+
             // search for the schema
-            String nodeSchema = nodeSchemas.get(node.getId());
+            String nodeSchema = nodeSchemas.get(node.getSyncMetaId());
             if (nodeSchema != null && !nodeSchema.isEmpty()) {
-                schemaObject.put("$ref", "#/definitions/" + nodeSchema);
-                responseObject.put("schema", schemaObject);
+                schemaObject.put("$ref", "#/components/schemas/" + nodeSchema);
+                applicationJsonObject.put("schema", schemaObject);
             }
+
+            contentObject.put("application/json", applicationJsonObject);
+            responseObject.put("content", contentObject);
         }
 
         // get description from node informations
-        String description = nodeInformations.get(node.getId());
+        String description = nodeInformations.get(node.getSyncMetaId());
         description = (description == null || description.isEmpty()) ? "" : description;
         responseObject.put("description", description);
 

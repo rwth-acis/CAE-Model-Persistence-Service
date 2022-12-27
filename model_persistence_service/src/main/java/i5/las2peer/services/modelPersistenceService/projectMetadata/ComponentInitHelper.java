@@ -20,7 +20,7 @@ public class ComponentInitHelper {
 	 * @throws SQLException If something with the database went wrong.
 	 * @return Id of the created empty versioned model.
 	 */
-	public static int createEmptyVersionedModel(Connection connection) throws SQLException {
+	public static int createEmptyVersionedModel(Connection connection, boolean isMicroservice) throws SQLException {
 		// create versioned model entry first
 		int versionedModelId = createEmptyVersionedModelEntry(connection);
 		
@@ -30,6 +30,10 @@ public class ComponentInitHelper {
 		
 		// now the empty model needs to be created and connected with the commit
 		createEmptyModel(commitId, connection);
+		
+		if(isMicroservice) {
+			createEmptyTestModel(commitId, connection);
+		}
 		
 		return versionedModelId;
 	}
@@ -52,6 +56,22 @@ public class ComponentInitHelper {
 		statement = connection.prepareStatement("INSERT INTO CommitToModel (commitId, modelId) VALUES (?,?);");
 		statement.setInt(1, commitId);
 		statement.setInt(2, modelId);
+		statement.executeUpdate();
+		statement.close();
+	}
+	
+	private static void createEmptyTestModel(int commitId, Connection connection) throws SQLException {
+		PreparedStatement statement = connection.prepareStatement("INSERT INTO TestModel () VALUES ();", Statement.RETURN_GENERATED_KEYS);
+		statement.executeUpdate();
+		ResultSet genKeys = statement.getGeneratedKeys();
+		genKeys.next();
+		int testModelId = genKeys.getInt(1);
+		statement.close();
+		
+		// create entry in CommitToTestModel table
+		statement = connection.prepareStatement("INSERT INTO CommitToTestModel (commitId, testModelId) VALUES (?,?);");
+		statement.setInt(1, commitId);
+		statement.setInt(2, testModelId);
 		statement.executeUpdate();
 		statement.close();
 	}
