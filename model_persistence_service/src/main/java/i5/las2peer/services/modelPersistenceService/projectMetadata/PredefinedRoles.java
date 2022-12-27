@@ -15,7 +15,7 @@ public class PredefinedRoles {
 	/**
 	 * Widget config which allows to view every widget.
 	 */
-	public static final String VIEW_ALL = "{\"Frontend Modeling\":{\"widgets\":{\"Wireframe\":{\"enabled\":true},\"Modeling\":{\"enabled\":true},\"Code Editor\":{\"enabled\":true},\"Versioning\":{\"enabled\":true},\"Live Preview\":{\"enabled\":true}}},\"Microservice Modeling\":{\"widgets\":{\"Modeling\":{\"enabled\":true},\"Swagger Editor\":{\"enabled\":true},\"Code Editor\":{\"enabled\":true},\"Versioning\":{\"enabled\":true}}},\"Application Mashup\":{\"widgets\":{\"Modeling incl. Select\":{\"enabled\":true},\"Deployment\":{\"enabled\":true},\"Versioning\":{\"enabled\":true},\"Matching\":{\"enabled\":true}}}}";
+	public static final String VIEW_ALL = "{\"Frontend Modeling\":{\"widgets\":{\"Wireframe\":{\"enabled\":true},\"Modeling\":{\"enabled\":true},\"Code Editor\":{\"enabled\":true},\"Versioning\":{\"enabled\":true},\"Live Preview\":{\"enabled\":true}}},\"Microservice Modeling\":{\"widgets\":{\"Modeling\":{\"enabled\":true},\"Swagger Editor\":{\"enabled\":true},\"Code Editor\":{\"enabled\":true},\"Versioning\":{\"enabled\":true},\"Test Editor\":{\"enabled\":true}}},\"Application Mashup\":{\"widgets\":{\"Modeling incl. Select\":{\"enabled\":true},\"Deployment\":{\"enabled\":true},\"Versioning\":{\"enabled\":true},\"Matching\":{\"enabled\":true}}}}";
 
 	/**
 	 * View 1 allows to view the following widgets:
@@ -30,7 +30,7 @@ public class PredefinedRoles {
 	 * - Deployment
 	 * - Matching
 	 */
-    public static final String VIEW_1 = "{\"Frontend Modeling\":{\"widgets\":{\"Wireframe\":{\"enabled\":true},\"Modeling\":{\"enabled\":true},\"Code Editor\":{\"enabled\":false},\"Versioning\":{\"enabled\":true},\"Live Preview\":{\"enabled\":true}}},\"Microservice Modeling\":{\"widgets\":{\"Modeling\":{\"enabled\":false},\"Swagger Editor\":{\"enabled\":false},\"Code Editor\":{\"enabled\":false},\"Versioning\":{\"enabled\":false}}},\"Application Mashup\":{\"widgets\":{\"Modeling incl. Select\":{\"enabled\":false},\"Deployment\":{\"enabled\":false},\"Versioning\":{\"enabled\":false},\"Matching\":{\"enabled\":false}}}}";
+    public static final String VIEW_1 = "{\"Frontend Modeling\":{\"widgets\":{\"Wireframe\":{\"enabled\":true},\"Modeling\":{\"enabled\":true},\"Code Editor\":{\"enabled\":false},\"Versioning\":{\"enabled\":true},\"Live Preview\":{\"enabled\":true}}},\"Microservice Modeling\":{\"widgets\":{\"Modeling\":{\"enabled\":false},\"Swagger Editor\":{\"enabled\":false},\"Code Editor\":{\"enabled\":false},\"Versioning\":{\"enabled\":false},\"Test Editor\":{\"enabled\":false}}},\"Application Mashup\":{\"widgets\":{\"Modeling incl. Select\":{\"enabled\":false},\"Deployment\":{\"enabled\":false},\"Versioning\":{\"enabled\":false},\"Matching\":{\"enabled\":false}}}}";
     
     /**
      * View 2 contains View 1.
@@ -38,7 +38,7 @@ public class PredefinedRoles {
      * - Application Modeling incl. Select
      * - 
      */
-    public static final String VIEW_2 = "{\"Frontend Modeling\":{\"widgets\":{\"Wireframe\":{\"enabled\":true},\"Modeling\":{\"enabled\":true},\"Code Editor\":{\"enabled\":false},\"Versioning\":{\"enabled\":true},\"Live Preview\":{\"enabled\":true}}},\"Microservice Modeling\":{\"widgets\":{\"Modeling\":{\"enabled\":false},\"Swagger Editor\":{\"enabled\":false},\"Code Editor\":{\"enabled\":false},\"Versioning\":{\"enabled\":false}}},\"Application Mashup\":{\"widgets\":{\"Modeling incl. Select\":{\"enabled\":true},\"Deployment\":{\"enabled\":true},\"Versioning\":{\"enabled\":true},\"Matching\":{\"enabled\":true}}}}";
+    public static final String VIEW_2 = "{\"Frontend Modeling\":{\"widgets\":{\"Wireframe\":{\"enabled\":true},\"Modeling\":{\"enabled\":true},\"Code Editor\":{\"enabled\":false},\"Versioning\":{\"enabled\":true},\"Live Preview\":{\"enabled\":true}}},\"Microservice Modeling\":{\"widgets\":{\"Modeling\":{\"enabled\":false},\"Swagger Editor\":{\"enabled\":false},\"Code Editor\":{\"enabled\":false},\"Versioning\":{\"enabled\":false},\"Test Editor\":{\"enabled\":false}}},\"Application Mashup\":{\"widgets\":{\"Modeling incl. Select\":{\"enabled\":true},\"Deployment\":{\"enabled\":true},\"Versioning\":{\"enabled\":true},\"Matching\":{\"enabled\":true}}}}";
     
     /**
      * View 3 contains View 2.
@@ -47,7 +47,7 @@ public class PredefinedRoles {
      * - Swagger Editor
      * - Versioning of backend
      */
-    public static final String VIEW_3 = "{\"Frontend Modeling\":{\"widgets\":{\"Wireframe\":{\"enabled\":true},\"Modeling\":{\"enabled\":true},\"Code Editor\":{\"enabled\":false},\"Versioning\":{\"enabled\":true},\"Live Preview\":{\"enabled\":true}}},\"Microservice Modeling\":{\"widgets\":{\"Modeling\":{\"enabled\":true},\"Swagger Editor\":{\"enabled\":true},\"Code Editor\":{\"enabled\":false},\"Versioning\":{\"enabled\":true}}},\"Application Mashup\":{\"widgets\":{\"Modeling incl. Select\":{\"enabled\":true},\"Deployment\":{\"enabled\":true},\"Versioning\":{\"enabled\":true},\"Matching\":{\"enabled\":true}}}}";
+    public static final String VIEW_3 = "{\"Frontend Modeling\":{\"widgets\":{\"Wireframe\":{\"enabled\":true},\"Modeling\":{\"enabled\":true},\"Code Editor\":{\"enabled\":false},\"Versioning\":{\"enabled\":true},\"Live Preview\":{\"enabled\":true}}},\"Microservice Modeling\":{\"widgets\":{\"Modeling\":{\"enabled\":true},\"Swagger Editor\":{\"enabled\":true},\"Code Editor\":{\"enabled\":false},\"Versioning\":{\"enabled\":true},\"Test Editor\":{\"enabled\":true}}},\"Application Mashup\":{\"widgets\":{\"Modeling incl. Select\":{\"enabled\":true},\"Deployment\":{\"enabled\":true},\"Versioning\":{\"enabled\":true},\"Matching\":{\"enabled\":true}}}}";
     
     /**
      * View 4 includes every widget.

@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+import i5.las2peer.apiTestModel.TestModel;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 import org.json.simple.parser.ParseException;
@@ -44,6 +45,12 @@ public class Commit {
 	private Model model;
 	
 	/**
+	 * The test model which gets described at a specific state by the commit.
+	 * Only available for microservice models.
+	 */
+	private TestModel testModel = null;
+	
+	/**
 	 * Commit message that gets stored together with the commit.
 	 */
 	private String message;
@@ -73,10 +80,11 @@ public class Commit {
 	/**
 	 * Constructor used to create commits of type COMMIT_TYPE_MODEL.
 	 * @param jsonCommit
+	 * @param testModelIncluded Whether a test model is included in the given jsonCommit.
 	 * @param commitForUncommitedChanges
 	 * @throws ParseException
 	 */
-	public Commit(String jsonCommit, boolean commitForUncommitedChanges) throws ParseException {
+	public Commit(String jsonCommit, boolean testModelIncluded, boolean commitForUncommitedChanges) throws ParseException {
 		JSONObject completeJsonCommit = (JSONObject) JSONValue.parseWithException(jsonCommit);
 		
 		// commit message
@@ -101,6 +109,10 @@ public class Commit {
     	this.commitType = COMMIT_TYPE_MANUAL;
     	
     	this.model = new Model(((JSONObject) completeJsonCommit.get("model")).toJSONString());
+    	
+    	if(testModelIncluded) {
+    		this.testModel = new TestModel(((JSONObject) completeJsonCommit.get("testModel")).toJSONString());
+    	}
 	}
 	
 	/**
@@ -136,7 +148,7 @@ public class Commit {
 		}
 		statement.close();
 		
-		// load model
+		// load model (and test model)
 		if(this.commitType == COMMIT_TYPE_MANUAL) {
 			statement = connection.prepareStatement("SELECT modelId FROM CommitToModel WHERE commitId = ?;");
 			statement.setInt(1, commitId);
@@ -146,7 +158,15 @@ public class Commit {
 			} else {
 				throw new CommitNotFoundException();
 			}
-			statement.close();	
+			statement.close();
+			
+			statement = connection.prepareStatement("SELECT testModelId FROM CommitToTestModel WHERE commitId = ?;");
+			statement.setInt(1, commitId);
+			queryResult = statement.executeQuery();
+			if(queryResult.next()) {
+				this.testModel = new TestModel(connection, queryResult.getInt(1));
+			}
+			statement.close();
 		}
 		
 		// load version tag if one exists
@@ -166,6 +186,9 @@ public class Commit {
 		jsonCommit.put("commitType", this.commitType);
 		if(this.commitType == COMMIT_TYPE_MANUAL) {
 		  jsonCommit.put("model", this.model.toJSONObject());
+		  if(this.testModel != null) {
+			  jsonCommit.put("testModel", this.testModel.toJSONObject());
+		  }
 		}
 		jsonCommit.put("message", this.message);
 		jsonCommit.put("timestamp", this.timestamp);
@@ -211,7 +234,7 @@ public class Commit {
 		    	statement.close();
 		    }
 		    
-		    // store model
+		    // store model (and test model)
 		    if(this.commitType == COMMIT_TYPE_MANUAL) {
 		        this.model.persist(connection, false);
 		        
@@ -221,6 +244,18 @@ public class Commit {
 			    statement.setInt(2, this.model.getId());
 			    statement.executeUpdate();
 			    statement.close();
+			    
+			    // check if test model is included in commit
+			    if(this.testModel != null) {
+			    	this.testModel.persist(connection);
+			    	
+			    	// add CommitToTestModel entry
+			    	statement = connection.prepareStatement("INSERT INTO CommitToTestModel (commitId, testModelId) VALUES (?, ?);");
+				    statement.setInt(1, this.id);
+				    statement.setInt(2, this.testModel.getId());
+				    statement.executeUpdate();
+				    statement.close();
+			    }
 		    }
 		    
 		    // add CommitToVersionedModel entry
@@ -293,6 +328,10 @@ public class Commit {
 	
 	public Model getModel() {
 		return this.model;
+	}
+	
+	public TestModel getTestModel() {
+		return this.testModel;
 	}
 	
 	public String getMessage() {

@@ -6,6 +6,7 @@ set -e
 if [[ ! -z "${DEBUG}" ]]; then
     set -x
 fi
+NODE_ID_SEED=${NODE_ID_SEED:-$RANDOM}
 
 # set some helpful variables
 export SERVICE_PROPERTY_FILE='etc/i5.las2peer.services.modelPersistenceService.ModelPersistenceService.properties'
@@ -16,6 +17,7 @@ export SERVICE_CLASS=$(awk -F "=" '/service.class/ {print $2}' gradle.properties
 export SERVICE=${SERVICE_NAME}.${SERVICE_CLASS}@${SERVICE_VERSION}
 export CREATE_DB_SQL='database/ModelPersistenceService_Database.sql'
 export CREATE_WIREFRAME_SQL='database/Wireframe_Extension.sql'
+export CREATE_TEST_SQL='database/Test_Extension.sql'
 export CREATE_METADATA_SQL='database/Metadata_Extension.sql'
 export MYSQL_DATABASE='commedit'
 
@@ -26,6 +28,10 @@ export MYSQL_DATABASE='commedit'
     echo "Mandatory variable MYSQL_PASSWORD is not set. Add -e MYSQL_PASSWORD=mypasswd to your arguments." && exit 1
 [[ -z "${REQ_BAZ_PROJECT_ID}" ]] && \
     echo "Mandatory variable REQ_BAZ_PROJECT_ID is not set. Add -e REQ_BAZ_PROJECT_ID=project_id to your arguments." && exit 1
+[[ -z "${GITHUB_ORG}" ]] && \
+    echo "Mandatory variable GITHUB_ORG is not set. Add -e GITHUB_ORG=organization_name to your arguments." && exit 1
+[[ -z "${GITHUB_PERSONAL_ACCESS_TOKEN}" ]] && \
+    echo "Mandatory variable GITHUB_PERSONAL_ACCESS_TOKEN is not set. Add -e GITHUB_PERSONAL_ACCESS_TOKEN=token to your arguments." && exit 1
 
 # set defaults for optional service parameters
 [[ -z "${SERVICE_PASSPHRASE}" ]] && export SERVICE_PASSPHRASE='Passphrase'
@@ -46,7 +52,7 @@ export MYSQL_DATABASE='commedit'
 [[ -z "${CROSS_ORIGIN_RESOURCE_DOMAIN}" ]] && export CROSS_ORIGIN_RESOURCE_DOMAIN='*'
 [[ -z "${CROSS_ORIGIN_RESOURCE_MAX_AGE}" ]] && export CROSS_ORIGIN_RESOURCE_MAX_AGE='60'
 [[ -z "${ENABLE_CROSS_ORIGIN_RESOURCE_SHARING}" ]] && export ENABLE_CROSS_ORIGIN_RESOURCE_SHARING='TRUE'
-[[ -z "${OIDC_PROVIDERS}" ]] && export OIDC_PROVIDERS='https://api.learning-layers.eu/o/oauth2,https://accounts.google.com'
+[[ -z "${OIDC_PROVIDERS}" ]] && export OIDC_PROVIDERS='https://auth.las2peer.org/auth/realms/main'
 
 # configure service properties
 
@@ -64,6 +70,11 @@ set_in_service_config deploymentUrl ${DEPLOYMENT_URL}
 set_in_service_config reqBazBackendUrl ${REQ_BAZ_BACKEND_URL}
 set_in_service_config reqBazProjectId ${REQ_BAZ_PROJECT_ID}
 set_in_service_config debugDisableCategoryCreation ${DISABLE_CATEGORY_CREATION}
+set_in_service_config gitHubOrganization ${GITHUB_ORG}
+set_in_service_config gitHubPersonalAccessToken ${GITHUB_PERSONAL_ACCESS_TOKEN}
+set_in_service_config rocketChatUrl ${ROCKET_CHAT_URL}
+set_in_service_config rocketChatBotAuthToken ${ROCKET_CHAT_BOT_AUTH_TOKEN}
+set_in_service_config rocketChatBotUserId ${ROCKET_CHAT_BOT_USER_ID}
 
 # configure web connector properties
 
@@ -102,6 +113,11 @@ if [[ ! -z "${INIT_WIREFRAME_EXTENSION}" ]]; then
     fi
 fi
 
+if ! mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USER} -p${MYSQL_PASSWORD} -e "desc ${MYSQL_DATABASE}.TestModel" > /dev/null 2>&1; then
+    echo "Adding test extension to the database schema..."
+    mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USER} -p${MYSQL_PASSWORD} ${MYSQL_DATABASE} < ${CREATE_TEST_SQL}
+fi
+
 # insert metadata schema extension into the database
 if ! mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USER} -p${MYSQL_PASSWORD} -e "desc ${MYSQL_DATABASE}.MetadataDoc" > /dev/null 2>&1; then
     echo "Adding metadata extension to the database schema..."
@@ -134,7 +150,7 @@ fi
 # start the service within a las2peer node
 if [[ -z "${@}" ]]
 then
-  exec ${LAUNCH_COMMAND} startService\("'""${SERVICE}""'", "'""${SERVICE_PASSPHRASE}""'"\) startWebConnector
+  exec ${LAUNCH_COMMAND} --node-id-seed $NODE_ID_SEED startService\("'""${SERVICE}""'", "'""${SERVICE_PASSPHRASE}""'"\) startWebConnector
 else
   exec ${LAUNCH_COMMAND} ${@}
 fi
